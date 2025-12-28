@@ -149,7 +149,7 @@ export function MainLanding() {
                                         </div>
                                     </div>
                                     <Button asChild size="sm" className="w-full bg-green-600 hover:bg-green-700">
-                                        <Link href="http://demo.localhost:3000/">
+                                        <Link href={typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://demo.localhost:3000' : 'https://demo.digitaljamath.com'}>
                                             Access Demo Portal →
                                         </Link>
                                     </Button>
