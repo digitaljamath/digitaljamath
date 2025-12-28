@@ -1,4 +1,4 @@
-from rest_framework import serializers, viewsets, status
+from rest_framework import serializers, viewsets, status, permissions, filters
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
@@ -85,12 +85,26 @@ class AnnouncementSerializer(serializers.ModelSerializer):
 class ServiceRequestSerializer(serializers.ModelSerializer):
     request_type_display = serializers.CharField(source='get_request_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    requester_name = serializers.SerializerMethodField()
+    household_id = serializers.CharField(source='household.membership_id', read_only=True)
     
     class Meta:
         model = ServiceRequest
         fields = ['id', 'request_type', 'request_type_display', 'description', 
-                  'status', 'status_display', 'admin_notes', 'created_at', 'updated_at']
+                  'status', 'status_display', 'admin_notes', 'created_at', 'updated_at',
+                  'requester_name', 'household_id']
         read_only_fields = ['status', 'admin_notes', 'created_at', 'updated_at']
+
+    def get_requester_name(self, obj):
+        # Get head of household name
+        head = obj.household.members.filter(is_head_of_family=True).first()
+        if head:
+            return head.full_name
+        # Fallback to first member
+        first_member = obj.household.members.first()
+        if first_member:
+            return first_member.full_name
+        return obj.household.membership_id or "Unknown"
 
 
 class MembershipConfigSerializer(serializers.ModelSerializer):
@@ -465,8 +479,10 @@ class AdminMembershipConfigView(APIView):
 # ============================================================================
 
 class HouseholdViewSet(viewsets.ModelViewSet):
-    queryset = Household.objects.prefetch_related('members')
+    queryset = Household.objects.prefetch_related('members').distinct()
     serializer_class = HouseholdSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['membership_id', 'address', 'phone_number', 'members__full_name']
 
 
 

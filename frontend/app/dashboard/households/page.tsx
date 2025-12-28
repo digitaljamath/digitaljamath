@@ -102,7 +102,8 @@ export default function HouseholdsPage() {
                 h.address.toLowerCase().includes(searchLower) ||
                 h.head_name.toLowerCase().includes(searchLower) ||
                 (h.membership_id && h.membership_id.toLowerCase().includes(searchLower)) ||
-                (h.phone_number && h.phone_number.includes(search));
+                (h.phone_number && h.phone_number.includes(search)) ||
+                (h.members && h.members.some(m => m.full_name.toLowerCase().includes(searchLower)));
 
             // Status filter
             const matchesStatus = statusFilter === "ALL" || h.economic_status === statusFilter;

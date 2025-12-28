@@ -25,6 +25,7 @@ type MemberFormData = {
     is_employed: boolean;
     monthly_income: string;
     requirements: string;
+    is_alive: boolean;
     _isNew?: boolean;
     _isDeleted?: boolean;
 };
@@ -43,6 +44,7 @@ const emptyMember = (): MemberFormData => ({
     is_employed: false,
     monthly_income: "",
     requirements: "",
+    is_alive: true,
     _isNew: true
 });
 
@@ -104,6 +106,7 @@ export default function EditHouseholdPage() {
                 is_employed: m.is_employed || false,
                 monthly_income: m.monthly_income ? String(m.monthly_income) : "",
                 requirements: m.requirements || "",
+                is_alive: m.is_alive ?? true,
                 _isNew: false,
                 _isDeleted: false
             }));
@@ -200,7 +203,8 @@ export default function EditHouseholdPage() {
                     skills: member.skills || null,
                     is_employed: member.is_employed,
                     monthly_income: member.monthly_income ? parseFloat(member.monthly_income) : null,
-                    requirements: member.requirements || null
+                    requirements: member.requirements || null,
+                    is_alive: member.is_alive
                 };
 
                 if (member._isDeleted && !member._isNew) {
@@ -448,6 +452,22 @@ export default function EditHouseholdPage() {
                                                 <SelectItem value="MARRIED">Married</SelectItem>
                                                 <SelectItem value="WIDOWED">Widowed</SelectItem>
                                                 <SelectItem value="DIVORCED">Divorced</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Current Status</Label>
+                                        <Select
+                                            value={member.is_alive ? "YES" : "NO"}
+                                            onValueChange={(v) => updateMember(member.id, 'is_alive', v === "YES")}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="YES">Alive</SelectItem>
+                                                <SelectItem value="NO">Late (Deceased)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

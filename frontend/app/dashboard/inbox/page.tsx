@@ -30,6 +30,8 @@ interface ServiceRequest {
     status_display: string;
     admin_notes: string;
     created_at: string;
+    requester_name?: string;
+    household_id?: string;
 }
 
 export default function AdminInboxPage() {
@@ -186,6 +188,10 @@ export default function AdminInboxPage() {
                     {selectedRequest && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-2 text-sm">
+                                <span className="font-semibold">Requested By:</span>
+                                <span className="font-medium text-blue-600">{selectedRequest.requester_name || 'Unknown'}</span>
+                                <span className="font-semibold">Household ID:</span>
+                                <span>{selectedRequest.household_id || 'N/A'}</span>
                                 <span className="font-semibold">Type:</span>
                                 <span>{selectedRequest.request_type_display}</span>
                                 <span className="font-semibold">Date:</span>

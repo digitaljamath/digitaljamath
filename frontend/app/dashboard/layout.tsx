@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     LayoutDashboard,
     Users,
@@ -17,10 +17,12 @@ import {
     LogOut,
     ChevronDown,
     Inbox,
-    Megaphone
+    Megaphone,
+    HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfigProvider, useConfig } from "@/context/ConfigContext";
+import BasiraChat from "@/components/BasiraChat";
 
 const defaultNavigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -33,6 +35,7 @@ const defaultNavigation = [
     { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Staff (Zimmedar)", href: "/dashboard/users", icon: UserCog },
+    { name: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
 ];
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
@@ -54,6 +57,34 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         }
         return item;
     });
+
+    // Fetch pending service requests count
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        async function fetchPendingCount() {
+            try {
+                const token = localStorage.getItem("access_token");
+                const protocol = window.location.protocol;
+                const hostname = window.location.hostname;
+                const apiBase = `${protocol}//${hostname}:8000`;
+
+                const res = await fetch(`${apiBase}/api/jamath/service-requests/?status=PENDING`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setPendingCount(Array.isArray(data) ? data.length : 0);
+                }
+            } catch (err) {
+                console.error("Failed to fetch pending count", err);
+            }
+        }
+        fetchPendingCount();
+        // Refresh every 60 seconds
+        const interval = setInterval(fetchPendingCount, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-indigo-950">
@@ -110,7 +141,12 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                                     `}
                                 >
                                     <item.icon className="h-5 w-5 mr-3" />
-                                    <span className="font-medium">{item.name}</span>
+                                    <span className="font-medium flex-1">{item.name}</span>
+                                    {item.href === '/dashboard/inbox' && pendingCount > 0 && (
+                                        <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
+                                            {pendingCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
@@ -198,6 +234,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <DashboardInner>
                 {children}
             </DashboardInner>
+            <BasiraChat />
         </ConfigProvider>
     );
 }

@@ -24,6 +24,7 @@ from apps.jamath.api import (
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
 from apps.shared.api import TenantRegistrationView, FindWorkspaceView, VerifyEmailView, PasswordResetRequestView, PasswordResetConfirmView, TenantInfoView
+from apps.shared.ai_guide import BasiraGuideView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # Router Setup
@@ -90,6 +91,9 @@ urlpatterns = [
     # Mizan Ledger Reports
     path('api/ledger/reports/<str:report_type>/', LedgerReportsView.as_view(), name='ledger-reports'),
     path('api/ledger/export/', TallyExportView.as_view(), name='ledger-export'),
+    
+    # Basira AI Guide
+    path('api/basira/', BasiraGuideView.as_view(), name='basira-guide'),
     
     # REST API Router
     path('api/', include(router.urls)),
