@@ -1,6 +1,6 @@
 # DigitalJamath
 
-![Version](https://img.shields.io/badge/version-0.8.0--alpha-blue)
+![Version](https://img.shields.io/badge/version-1.0.0--alpha-blue)
 
 **DigitalJamath** is an open-source, production-grade SaaS ERP for Indian Masjids, designed with strict compliance and community trust in mind.
 
