@@ -1,29 +1,32 @@
 services:
   web:
     build: .
+    container_name: digitaljamath_web
     command: gunicorn --bind 0.0.0.0:8000 digitaljamath.wsgi:application
     volumes:
       - .:/app
+      - static_files:/app/staticfiles
     ports:
       - "8000:8000"
     depends_on:
       - db
       - redis
+    env_file:
+      - .env
     environment:
-      - DATABASE_NAME=digitaljamath_db
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=password
       - DATABASE_HOST=db
-      - DATABASE_PORT=5432
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
   db:
     image: postgres:16-alpine
     container_name: digitaljamath_db
+    env_file:
+      - .env
     environment:
-      - POSTGRES_DB=digitaljamath_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${DATABASE_NAME:-digitaljamath_db}
+      - POSTGRES_USER=${DATABASE_USER:-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-password}
     ports:
       - "5432:5432"
     volumes:
@@ -52,3 +55,4 @@ services:
 
 volumes:
   postgres_data:
+  static_files:
