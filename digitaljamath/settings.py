@@ -80,11 +80,11 @@ WSGI_APPLICATION = 'digitaljamath.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django_tenants.postgresql_backend',
-        'NAME': 'digitaljamath_db',
-        'USER': 'postgres',
-        'PASSWORD': 'password',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('DATABASE_NAME', 'digitaljamath_db'),
+        'USER': os.environ.get('DATABASE_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD', 'password'),
+        'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
+        'PORT': os.environ.get('DATABASE_PORT', '5432'),
     }
 }
 
