@@ -19,11 +19,12 @@ def create_public_tenant():
         tenant.save()
 
         domain = Domain()
-        domain.domain = 'localhost' # or your production domain
+        env_domain = os.environ.get('DOMAIN_NAME', 'localhost')
+        domain.domain = env_domain
         domain.tenant = tenant
         domain.is_primary = True
         domain.save()
-        print("Public Tenant and Domain (localhost) created.")
+        print(f"Public Tenant and Domain ({env_domain}) created.")
     
     # Add 127.0.0.1 alias if missing
     if not Domain.objects.filter(domain='127.0.0.1').exists():

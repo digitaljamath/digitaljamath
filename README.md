@@ -76,76 +76,35 @@ To run DigitalJamath effectively, we recommend the following minimum specificati
 
 ## 🚀 Quick Start Guide
 
-### Option 1: Docker (Recommended)
+## 🚀 Quick Start Guide
+
+### One-Click Installer (Recommended)
+
+We provide a unified setup script for both **Development** and **Production** environments.
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/yourusername/digitaljamath.git
+    git clone https://github.com/azzaxp/digitaljamath.git
     cd digitaljamath
     ```
 
-2.  **Setup Environment Variables:**
-    Copy the example env file:
+2.  **Run the Setup Script:**
     ```bash
-    cp .env.example .env
+    ./setup.sh
     ```
-    *Update `.env` with your DB credentials and email settings.*
 
-3.  **Run with Docker Compose:**
-    ```bash
-    docker-compose up --build
-    ```
-    *This will spin up the Backend (Django), Frontend (Next.js), and PostgreSQL database.*
+3.  **Choose your mode:**
+    *   **Option 1: Development**: Sets up a local Python virtual environment, installs npm packages, runs migrations, and prepares the app for `runserver`.
+    *   **Option 2: Production**: Uses Docker to build the entire stack (Django + Postgres + Redis) and sets up a production-ready Gunicorn server.
 
-4.  **Access the App:**
-    *   **Frontend:** `http://localhost:3000`
-    *   **Backend API:** `http://localhost:8000/api`
-    *   **Admin Panel:** `http://localhost:8000/admin`
+### Manual Start (After Setup)
 
----
+**Development:**
+*   Backend: `python manage.py runserver`
+*   Frontend: `cd frontend && npm run dev`
 
-### Option 2: Manual Setup
-
-#### 1. Backend Setup (Django)
-
-```bash
-# Navigate to project root
-cd digitaljamath
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Setup .env
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials
-
-# Run Migrations (handling multi-tenancy)
-python manage.py migrate_schemas --shared
-python manage.py migrate_schemas --tenant
-
-# Create Superuser (for public schema)
-python manage.py createsuperuser
-
-# Start Server
-python manage.py runserver 0.0.0.0:8000
-```
-
-#### 2. Frontend Setup (Next.js)
-
-```bash
-# In a new terminal, navigate to frontend
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start Development Server
-npm run dev
-```
+**Production:**
+*   `docker-compose up -d`
 
 ---
 
