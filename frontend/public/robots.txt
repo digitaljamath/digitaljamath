@@ -1,0 +1,14 @@
+# Project Mizan - Digital Jamath Management
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /portal/
+Disallow: /auth/
+
+# Sitemaps
+Sitemap: https://projectmizan.com/sitemap.xml
+
+# Crawl-delay (optional, for politeness)
+Crawl-delay: 1

@@ -41,12 +41,15 @@ else
 fi
 
 # 5. Migrations (Shared & Tenants)
+echo "Making Migrations..."
+python3 manage.py makemigrations shared finance jamath welfare basira
+
 echo "Running Migrations..."
-python manage.py migrate_schemas --shared
+python3 manage.py migrate_schemas --shared
 
 # 6. Create Public Tenant
 echo "Creating Public Tenant..."
-python scripts/create_tenant.py
+python3 scripts/create_tenant.py
 
 echo "=== Setup Complete ==="
-echo "Run 'python manage.py runserver' to start the server."
+echo "Run 'python3 manage.py runserver' to start the server."

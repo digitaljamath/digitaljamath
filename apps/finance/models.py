@@ -33,27 +33,29 @@ class Transaction(models.Model):
     date = models.DateField(auto_now_add=True)
     is_expense = models.BooleanField(default=True) # True for Expense, False for Income
     
+    # Link to Jamath (Optional, for fees/donations)
+    linked_household = models.ForeignKey('jamath.Household', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    
+    
     # 80G Compliance
     donor_pan = models.CharField(max_length=10, blank=True, null=True, help_text="Mandatory for donations > 2000")
 
     # Soft Delete
     is_active = models.BooleanField(default=True)
 
-    def clean(self):
-        # 1. Fund Mixing Prevention
-        # Example: Restricting Zakat to only be used for specific welfare (simplified logic here, 
-        # in reality we would check the nature of the expense against the fund type)
-        # For this prototype: Assume any expense from a Restricted fund that includes "Bill" in description is invalid.
-        if self.is_expense and self.fund_category.fund_type == FundCategory.Type.RESTRICTED:
-            # This is a simplified rule. In a real app, we'd have ExpenseCategories linked to allowed FundTypes.
-            forbidden_keywords = ['bill', 'salary', 'maintenance', 'electricity', 'rent']
-            if any(word in self.description.lower() for word in forbidden_keywords):
-                raise ValidationError(_("Compliance Error: Restricted Funds (Zakat/Sadaqah) cannot be used for Operational Expenses."))
+    # Basira AI Audit
+    class AuditStatus(models.TextChoices):
+        PENDING = 'PENDING', _('Pending Audit')
+        CLEAN = 'CLEAN', _('Clean')
+        SUSPICIOUS = 'SUSPICIOUS', _('Suspicious')
+        ERROR = 'ERROR', _('Audit Error')
 
-        # 2. FCRA Compliance logic (placeholder)
-        # 3. 80G Compliance
-        if not self.is_expense and self.amount > 2000 and not self.donor_pan:
-             raise ValidationError(_("80G Compliance Error: PAN number is mandatory for donations exceeding ₹2,000."))
+    audit_status = models.CharField(max_length=20, choices=AuditStatus.choices, default=AuditStatus.PENDING)
+    audit_notes = models.TextField(blank=True, null=True, help_text="AI Analysis Reasoning")
+
+    def clean(self):
+        from .services import FinanceService
+        FinanceService.validate_transaction(self)
 
     def save(self, *args, **kwargs):
         self.full_clean()
