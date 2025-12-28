@@ -1,5 +1,7 @@
 # DigitalJamath
 
+![Version](https://img.shields.io/badge/version-0.8.0--alpha-blue)
+
 **DigitalJamath** is an open-source, production-grade SaaS ERP for Indian Masjids, designed with strict compliance and community trust in mind.
 
 ## Tech Stack
@@ -49,11 +51,12 @@ Built with **Django (backend)** and **Next.js (frontend)**, it emphasizes data p
 *   **Email:** SMTP (Support for Brevo, SendGrid, etc.)
 
 ### Frontend
-*   **Framework:** Next.js 14 (App Router)
+*   **Framework:** Next.js 16 (App Router)
 *   **Language:** TypeScript
 *   **Styling:** Tailwind CSS + Shadcn UI
 *   **Icons:** Lucide React
 *   **Charts:** Recharts
+*   **Library:** React 19
 
 ---
 
@@ -69,8 +72,8 @@ To run DigitalJamath effectively, we recommend the following minimum specificati
 **Prerequisites:**
 *   Docker & Docker Compose (Recommended for easy setup)
 *   Python 3.11+
-*   Node.js 18+ (LTS)
-*   PostgreSQL 15+
+*   Node.js 20+ (LTS)
+*   PostgreSQL 16+
 
 ---
 
