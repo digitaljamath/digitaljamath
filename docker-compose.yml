@@ -60,7 +60,7 @@ services:
     expose:
       - "3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://web:8000
+      - DATABASE_URL=postgres://postgres:password@db:5432/digitaljamath_db
     depends_on:
       - web
     restart: always
