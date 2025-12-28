@@ -1,71 +1,115 @@
-# Deployment Guide (Linode / Production)
+# Deployment Guide (Production)
 
-This guide explains how to deploy DigitalJamath to a generic Linux server (like Linode, DigitalOcean, or AWS EC2) and configure your custom domain.
+This guide explains how to deploy **DigitalJamath** to a production server (like Linode, DigitalOcean, or AWS EC2) using Docker.
 
 ## 1. Initial Server Setup
 *Assumes you have a fresh Ubuntu 22.04 LTS server.*
 
-1.  **SSH into your server:**
-    ```bash
-    ssh root@<your-server-ip>
-    ```
+### Step 1: Install Essentials
+SSH into your server and install Git, Docker, and Docker Compose:
+```bash
+ssh root@<your-server-ip>
+sudo apt update
+sudo apt install -y git docker.io docker-compose
+```
 
-2.  **Install Git and Docker:**
-    ```bash
-    sudo apt update
-    sudo apt install -y git docker.io docker-compose
-    ```
+---
 
-## 2. Clone & Setup Project
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/azzaxp/digitaljamath.git
-    cd digitaljamath
-    ```
+## 2. Install Project
+Clone the repository and run the setup script:
 
-2.  **Run the Installer:**
-    ```bash
-    ./setup.sh
-    ```
-    *   Select **Option 2 (Production)**.
-    *   The script will verify Docker is present and create a `.env` file for you if missing.
+```bash
+git clone https://github.com/azzaxp/digitaljamath.git
+cd digitaljamath
 
-## 3. Configuration (The Critical Part)
-**Before** the installation completes (or immediately after), you must edit the `.env` file to set your domain.
+# Run the One-Click Installer
+./setup.sh
+```
+*   Select **Option 2 (Production)**.
+*   It will create a `.env` file and verify Docker is ready.
 
-1.  **Edit `.env`:**
-    ```bash
-    nano .env
-    ```
+---
 
-2.  **Update these specific variables:**
-    *   `DOMAIN_NAME`: Set this to your actual domain (e.g., `digitaljamath.com`).
-    *   `ALLOWED_HOSTS`: Set this to your domain (e.g., `digitaljamath.com`).
-    *   `BREVO_SMTP_KEY`: Add your email keys here.
+## 3. Configuration (Critical!)
+Edit the `.env` file to match your domain and security settings:
 
-    *Example .env:*
-    ```env
-    DOMAIN_NAME=digitaljamath.com
-    ALLOWED_HOSTS=digitaljamath.com,www.digitaljamath.com
-    DEBUG=False
-    ...
-    ```
+```bash
+nano .env
+```
 
-3.  **Apply Domain Changes:**
-    If you edited the `.env` *after* running the setup script, you need to re-run the tenant creation or update it manually. The easiest way is to restart the containers:
-    ```bash
-    docker-compose down
-    docker-compose up -d --build
-    ```
+Set these values:
+```env
+# Security
+SECRET_KEY=change-this-to-something-secure
+DEBUG=False
+ALLOWED_HOSTS=.digitaljamath.com  # Start with dot for wildcard support
 
-## 4. DNS Configuration (Cloudflare/Linode)
-Go to your DNS provider (e.g., Cloudflare) and add an **A Record**:
-*   **Name**: `@` (Root)
-*   **Content**: `<Your Linode IP Address>`
+# Domain
+DOMAIN_NAME=digitaljamath.com
 
-*   **Name**: `*` (Wildcard - *Crucial for Multi-Tenancy*)
-*   **Content**: `<Your Linode IP Address>`
-    *(This allows subdomains like `jamablr.digitaljamath.com` to reach your server.)*
+# Database (Strong Password)
+DATABASE_PASSWORD=YourStrongPasswordHere
 
-## 5. Verify
-Visit `http://digitaljamath.com`. You should see the landing page.
+# Email (Brevo)
+BREVO_EMAIL_USER=your-email
+BREVO_SMTP_KEY=your-smtp-key
+```
+
+### Apply Changes
+If you edit `.env` after running setup, restart containers:
+```bash
+docker-compose down
+docker-compose up --build -d
+```
+
+---
+
+## 4. DNS Configuration (Cloudflare)
+Go to your Cloudflare Dashboard -> **DNS** and add these records:
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| A | `@` | `<Your-Server-IP>` | **Proxied** (Orange Cloud) |
+| A | `*` | `<Your-Server-IP>` | **Proxied** (Orange Cloud) |
+| A | `www` | `<Your-Server-IP>` | **Proxied** (Orange Cloud) |
+
+### SSL/TLS Setting (Important!)
+Since our standard Docker setup uses **Nginx on Port 80**, you must set Cloudflare SSL to **Flexible**:
+
+1. Go to **SSL/TLS** -> **Overview**.
+2. Set mode to **Flexible** (Not Full/Strict).
+   *   *Full/Strict requires installing certs on the server, which is more complex.*
+
+---
+
+## 5. Verification
+Wait 1-2 minutes for DNS to propagate.
+
+1. **Frontend**: Visit `https://digitaljamath.com`.
+2. **Demo Portal**: Visit `https://demo.digitaljamath.com`.
+3. **Admin Panel**: Visit `https://digitaljamath.com/admin/`.
+
+---
+
+## 6. Maintenance Commands
+
+### Create Superuser
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+### View Logs
+```bash
+# All logs
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f web
+docker-compose logs -f frontend
+```
+
+### Update Code
+```bash
+git pull
+docker-compose up --build -d
+```
