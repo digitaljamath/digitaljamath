@@ -92,7 +92,10 @@ else:
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         python manage.py setup_demo
-        echo "✅ Demo Setup Complete."
+        # Seed Chart of Accounts for the demo tenant
+        echo "🏦 Seeding Chart of Accounts..."
+        python manage.py seed_ledger
+        echo "✅ Demo Setup Complete (with Chart of Accounts)."
     fi
 
     echo "=============================================="
@@ -100,6 +103,9 @@ else:
     echo "To run:"
     echo "  1. python manage.py runserver"
     echo "  2. cd frontend && npm run dev"
+    echo ""
+    echo "💡 Tip: If accounting dropdowns are empty, run:"
+    echo "   python manage.py seed_ledger"
 
 else
     # PRODUCTION SETUP (Docker)
@@ -127,7 +133,10 @@ else
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "🚀 Setting up Demo Tenant (in container)..."
         docker-compose exec web python manage.py setup_demo
-        echo "✅ Demo Setup Complete."
+        # Seed Chart of Accounts for the demo tenant
+        echo "🏦 Seeding Chart of Accounts..."
+        docker-compose exec web python manage.py tenant_command seed_ledger --schema=jama_blr
+        echo "✅ Demo Setup Complete (with Chart of Accounts)."
     fi
     
     echo "=============================================="
@@ -139,5 +148,8 @@ else
     echo "  3. Visit https://your-domain.com"
     echo ""
     echo "Demo Login: demo / demo123"
+    echo ""
+    echo "💡 Tip: For new tenants, seed the Chart of Accounts:"
+    echo "   docker exec -it digitaljamath_web python manage.py tenant_command seed_ledger --schema=<schema_name>"
 fi
 

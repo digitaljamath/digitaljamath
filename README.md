@@ -1,6 +1,6 @@
 # DigitalJamath
 
-![Version](https://img.shields.io/badge/version-1.0.0--alpha-blue)
+![Version](https://img.shields.io/badge/version-1.0.1--alpha-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 **DigitalJamath** is an open-source, production-grade SaaS ERP for Indian Masjids, Jamaths, and Welfare organizations. It provides a robust multi-tenant architecture to handle census data, financial management (Baitul Maal), welfare distribution, and community engagement.
@@ -84,6 +84,68 @@ cd frontend && npm run dev
 **Production:**
 ```bash
 docker-compose up -d
+```
+
+---
+
+## 📋 Post-Installation Setup
+
+After the initial installation, you **MUST** run these commands to fully configure the application.
+
+### 1. Seed the Chart of Accounts (Required for Finance Module)
+
+The Mizan Ledger (double-entry accounting) requires a Chart of Accounts to be seeded before you can create any financial entries.
+
+**Development:**
+```bash
+python manage.py seed_ledger
+```
+
+**Docker (Production):**
+```bash
+# For multi-tenant setup, run for each tenant schema:
+docker exec -it digitaljamath_web python manage.py tenant_command seed_ledger --schema=<your_schema_name>
+
+# Example:
+docker exec -it digitaljamath_web python manage.py tenant_command seed_ledger --schema=jama_blr
+```
+
+> ⚠️ **Without this step, the accounting voucher dropdowns will be empty and entries won't save!**
+
+### 2. Create a Superuser (Admin Access)
+
+**Development:**
+```bash
+python manage.py createsuperuser
+```
+
+**Docker:**
+```bash
+docker exec -it digitaljamath_web python manage.py createsuperuser
+```
+
+### 3. Populate Demo Data (Optional)
+
+To test the platform with sample households, members, and transactions:
+
+```bash
+# Development
+python manage.py shell < scripts/populate_demo_data.py
+
+# Docker
+docker exec -it digitaljamath_web python manage.py shell < scripts/populate_demo_data.py
+```
+
+### 4. List Existing Tenants
+
+To check which tenant schemas exist:
+
+```bash
+# Docker
+docker exec -it digitaljamath_web python manage.py list_tenants
+
+# Or directly from PostgreSQL
+docker exec -it digitaljamath_db psql -U postgres -d digitaljamath_db -c "SELECT schema_name FROM public.shared_tenant;"
 ```
 
 ---
