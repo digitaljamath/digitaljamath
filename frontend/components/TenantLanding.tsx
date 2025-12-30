@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { getApiBaseUrl } from "@/lib/config";
+import { getApiBaseUrl, APP_VERSION } from "@/lib/config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, ShieldCheck } from "lucide-react";
 
@@ -78,7 +78,7 @@ export function TenantLanding() {
                 <footer className="border-t bg-white dark:bg-gray-950 py-4">
                     <div className="container mx-auto px-4 text-center text-sm text-gray-500">
                         <p>© {new Date().getFullYear()} DigitalJamath. Open Source under MIT License.</p>
-                        <p className="text-xs mt-1">Version 1.0.4-alpha</p>
+                        <p className="text-xs mt-1">Version {APP_VERSION}</p>
                     </div>
                 </footer>
             </div>

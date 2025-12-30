@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getApiBaseUrl, APP_VERSION } from "@/lib/config";
 import { Badge } from "@/components/ui/badge";
 import {
     HelpCircle, Send, Loader2, Sparkles,
@@ -292,7 +293,7 @@ export default function HelpPage() {
 
             {/* Version Info */}
             <div className="text-center text-sm text-gray-400 pt-4 border-t">
-                <p>DigitalJamath v1.0.4-alpha • Basira AI Guide powered by OpenRouter</p>
+                <p>DigitalJamath v{APP_VERSION} • Basira AI Guide powered by OpenRouter</p>
             </div>
         </div>
     );

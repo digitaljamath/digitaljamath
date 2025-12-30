@@ -1,5 +1,5 @@
 "use client";
-import { getApiBaseUrl, getDomainSuffix, getBaseDomain } from "@/lib/config";
+import { getApiBaseUrl, getDomainSuffix, getBaseDomain, APP_VERSION } from "@/lib/config";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,7 +182,7 @@ export default function RegisterPage() {
             <footer className="border-t bg-white dark:bg-gray-950 py-4">
                 <div className="container mx-auto px-4 text-center text-sm text-gray-500">
                     <p>© {new Date().getFullYear()} DigitalJamath. Open Source under MIT License.</p>
-                    <p className="text-xs mt-1">Version 1.0.4-alpha</p>
+                    <p className="text-xs mt-1">Version {APP_VERSION}</p>
                 </div>
             </footer>
         </div>

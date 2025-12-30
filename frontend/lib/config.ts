@@ -57,3 +57,8 @@ export const getBaseDomain = () => {
 
     return window.location.hostname;
 };
+
+/**
+ * Get the application version
+ */
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.4-alpha';
