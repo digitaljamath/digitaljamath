@@ -46,13 +46,29 @@ export function RbacProvider({ children }: { children: React.ReactNode }) {
             // I'll try to fetch `/api/jamath/staff-members/?user_id=${myUserId}`.
 
             // Step 1: Get My Profile to get ID.
-            const profileRes = await fetchWithAuth('/api/auth/profile/');
+            const profileRes = await fetchWithAuth('/api/user/profile/');
             if (!profileRes.ok) throw new Error("Not logged in");
             const profile = await profileRes.json();
 
+            // Superuser Override: Admins see everything
+            if (profile.is_superuser) {
+                // Grant all permissions
+                // We use a special flag or just handle it in hasPermission?
+                // Better to handle it here:
+                setPermissions({
+                    'finance': 'admin',
+                    'welfare': 'admin',
+                    'settings': 'admin',
+                    'households': 'admin',
+                    'surveys': 'admin',
+                    'announcements': 'admin',
+                    'reports': 'admin'
+                });
+                setIsStaff(true);
+                return;
+            }
+
             // Step 2: Get Staff Entry for this user
-            // Optimization: The backend `StaffMemberViewSet` likely allows listing.
-            // I'll try to find myself in the list.
             const staffRes = await fetchWithAuth('/api/jamath/staff-members/');
             if (staffRes.ok) {
                 const staffList = await staffRes.json();
@@ -60,13 +76,6 @@ export function RbacProvider({ children }: { children: React.ReactNode }) {
 
                 if (myStaffEntry) {
                     setIsStaff(true);
-                    // Now we need the ROLE details (permissions)
-                    // The StaffMember serializer returns `role_name` but not the full permissions JSON.
-                    // This is a missing piece in my backend implementation!
-                    // The `StaffMemberSerializer` only sends `role_name`.
-
-                    // QUICK FIX: Fetch the role details separately using the ID.
-                    // But `StaffMemberSerializer` returns `role` ID.
                     const roleId = myStaffEntry.role;
                     const roleRes = await fetchWithAuth(`/api/jamath/staff-roles/${roleId}/`);
                     if (roleRes.ok) {
@@ -87,13 +96,13 @@ export function RbacProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const hasPermission = (module: string, minLevel: 'read' | 'write' | 'admin' = 'read') => {
-        // If system admin (superuser), maybe allow all? 
-        // For now, strictly follow RBAC roles.
+        // Since we blindly trust 'permissions' state which we just populated for superuser,
+        // we can just stick to the check below.
 
         const userLevel = permissions[module];
         if (!userLevel) return false;
 
-        if (minLevel === 'read') return true; // Any level ('read', 'write', 'admin') passes
+        if (minLevel === 'read') return true;
         if (minLevel === 'write') return ['write', 'admin'].includes(userLevel);
         if (minLevel === 'admin') return userLevel === 'admin';
 

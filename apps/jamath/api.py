@@ -581,6 +581,7 @@ class UserProfileView(APIView):
             'last_name': user.last_name,
             'date_joined': user.date_joined,
             'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
         })
     
     def put(self, request):
