@@ -201,6 +201,14 @@ We welcome contributions! Looking for:
 3. Commit changes (`git commit -m 'Add AmazingFeature'`)
 4. Push and open a Pull Request
 
+### Release Process (Maintainers)
+To release a new version (updates `VERSION`, `package.json`, and docs):
+
+```bash
+./scripts/bump_version.sh 1.0.6-alpha
+git push origin main --tags
+```
+
 ---
 
 ## 📄 License
