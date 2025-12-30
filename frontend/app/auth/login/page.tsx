@@ -18,7 +18,7 @@ export default function LoginPage() {
     useEffect(() => {
         const hostname = window.location.hostname;
         // Check if it's the main domain (localhost without subdomain, or main production domain)
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'project-mizan.com') {
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'digitaljamath.com') {
             // Redirect to landing page
             router.replace('/');
         }

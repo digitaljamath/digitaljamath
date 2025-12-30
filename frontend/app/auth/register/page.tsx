@@ -29,8 +29,8 @@ export default function RegisterPage() {
 
         try {
             // Determine API Base URL
-            
-            
+
+
             const apiBase = getApiBaseUrl();
 
             const response = await fetch(`${apiBase}/api/register/`, {
@@ -87,7 +87,7 @@ export default function RegisterPage() {
                             <Label htmlFor="domain">Workspace Domain</Label>
                             <div className="flex items-center space-x-2">
                                 <Input name="domain" id="domain" placeholder="jama-blr" required />
-                                <span className="text-gray-500 text-sm">.project-mizan.com</span>
+                                <span className="text-gray-500 text-sm">.digitaljamath.com</span>
                             </div>
                         </div>
                         <div className="space-y-2">
