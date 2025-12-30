@@ -1,5 +1,5 @@
 "use client";
-import { getApiBaseUrl, getDomainSuffix } from "@/lib/config";
+import { getApiBaseUrl, getDomainSuffix, getBaseDomain } from "@/lib/config";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
@@ -16,6 +16,23 @@ export default function RegisterPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+    // Registration is only for main domain - redirect subdomain visitors to signin
+    useEffect(() => {
+        const hostname = window.location.hostname;
+        const baseDomain = getBaseDomain();
+
+        // Check if we're on a subdomain
+        const isSubdomain = hostname !== 'localhost' &&
+            hostname !== '127.0.0.1' &&
+            hostname !== baseDomain &&
+            hostname.includes('.');
+
+        if (isSubdomain) {
+            // On subdomain, redirect to signin (staff users don't register)
+            router.replace('/auth/signin');
+        }
+    }, [router]);
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
