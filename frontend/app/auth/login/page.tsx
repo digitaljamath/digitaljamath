@@ -1,121 +1,127 @@
 "use client";
-import { getApiBaseUrl, getBaseDomain } from '@/lib/config';
+import { getDomainSuffix } from "@/lib/config";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useState } from "react";
 
 export default function LoginPage() {
-    const router = useRouter();
+    const [workspace, setWorkspace] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Redirect if on main domain (no subdomain) - protect public schema
-    useEffect(() => {
-        const hostname = window.location.hostname;
-        const baseDomain = getBaseDomain();
-        // Check if it's the main domain (localhost without subdomain, or main production domain)
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === baseDomain) {
-            // Redirect to landing page
-            router.replace('/');
-        }
-    }, [router]);
-
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setIsLoading(true);
         setError(null);
 
-        const formData = new FormData(event.currentTarget);
-        const email = formData.get("email");
-        const password = formData.get("password");
-
-        try {
-            // Determine API Base URL
-            const apiBase = getApiBaseUrl();
-
-            const response = await fetch(`${apiBase}/api/token/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ username: email, password: password }), // DRF expects 'username', but we mostly use email
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error("Invalid credentials");
-            }
-
-            // Store Token
-            localStorage.setItem("access_token", data.access);
-            localStorage.setItem("refresh_token", data.refresh);
-
-            // Redirect to Dashboard
-            router.push("/dashboard");
-
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Login failed");
-        } finally {
-            setIsLoading(false);
+        if (!workspace.trim()) {
+            setError("Please enter your workspace name");
+            return;
         }
+
+        // Validate workspace format (alphanumeric and hyphens only)
+        const workspaceRegex = /^[a-zA-Z0-9-]+$/;
+        if (!workspaceRegex.test(workspace)) {
+            setError("Workspace name can only contain letters, numbers, and hyphens");
+            return;
+        }
+
+        setIsLoading(true);
+
+        // Redirect to tenant login page
+        const domainSuffix = getDomainSuffix();
+        const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+
+        // For localhost, use port 3000
+        let redirectUrl: string;
+        if (domainSuffix === 'localhost') {
+            redirectUrl = `${protocol}//${workspace}.localhost:3000/auth/signin`;
+        } else {
+            redirectUrl = `${protocol}//${workspace}.${domainSuffix}/auth/signin`;
+        }
+
+        window.location.href = redirectUrl;
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900">
-            <div className="absolute top-4 left-4">
-                <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
-                    ← Back to Home
-                </Button>
-            </div>
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center">Sign in to DigitalJamath</CardTitle>
-                    <CardDescription className="text-center">
-                        Access your Masjid Dashboard
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email / Username</Label>
-                            <Input name="email" id="email" placeholder="admin" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input name="password" id="password" type="password" required />
-                        </div>
-                        {error && <div className="text-red-500 text-sm">{error}</div>}
-                        <Button className="w-full" type="submit" disabled={isLoading}>
-                            {isLoading ? "Signing In..." : "Sign In"}
-                        </Button>
-                        <div className="text-center text-sm text-gray-500 space-y-2">
-                            <div>
-                                <Link href="/auth/forgot-password" className="text-blue-600 hover:underline">
-                                    Forgot password?
-                                </Link>
-                            </div>
-                            <div>
-                                Don't have an account?{" "}
-                                <Link href="/auth/register" className="text-blue-600 hover:underline">
-                                    Register your Masjid
-                                </Link>
-                            </div>
-                            <div>
-                                <Link href="/auth/find-workspace" className="text-gray-400 hover:text-gray-600 hover:underline text-xs">
-                                    Forgot your workspace URL?
-                                </Link>
-                            </div>
-                        </div>
+        <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
+            {/* Header */}
+            <header className="border-b bg-white dark:bg-gray-950 sticky top-0 z-50">
+                <div className="container mx-auto px-4 lg:px-6 h-16 flex items-center justify-between">
+                    <Link className="flex items-center justify-center font-bold text-xl gap-2" href="/">
+                        <Image src="/logo.png" alt="DigitalJamath Logo" width={32} height={32} className="h-8 w-8" />
+                        DigitalJamath
+                    </Link>
+                    <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+                        ← Back to Home
+                    </Link>
+                </div>
+            </header>
 
-                    </form>
-                </CardContent>
-            </Card>
+            {/* Main Content */}
+            <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="space-y-1">
+                        <CardTitle className="text-2xl font-bold text-center">Sign in to your Masjid</CardTitle>
+                        <CardDescription className="text-center">
+                            Enter your Masjid workspace to continue
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="workspace">Masjid Workspace</Label>
+                                <div className="flex items-center">
+                                    <Input
+                                        id="workspace"
+                                        placeholder="jama-blr"
+                                        value={workspace}
+                                        onChange={(e) => setWorkspace(e.target.value.toLowerCase())}
+                                        className="rounded-r-none"
+                                        required
+                                    />
+                                    <span className="inline-flex items-center px-3 h-10 border border-l-0 border-gray-300 bg-gray-100 text-gray-500 text-sm rounded-r-md whitespace-nowrap">
+                                        .{getDomainSuffix()}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {error && <div className="text-red-500 text-sm">{error}</div>}
+
+                            <Button className="w-full" type="submit" disabled={isLoading}>
+                                {isLoading ? "Redirecting..." : "Continue"}
+                            </Button>
+
+                            <div className="text-center space-y-3 pt-4">
+                                <Link
+                                    href="/auth/find-workspace"
+                                    className="text-sm text-blue-600 hover:underline block"
+                                >
+                                    Forgot your workspace?
+                                </Link>
+                                <div className="text-sm text-gray-500">
+                                    Don't have an account?{" "}
+                                    <Link href="/auth/register" className="text-blue-600 hover:underline">
+                                        Register your Masjid
+                                    </Link>
+                                </div>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            </main>
+
+            {/* Footer */}
+            <footer className="border-t bg-white dark:bg-gray-950 py-4">
+                <div className="container mx-auto px-4 text-center text-sm text-gray-500">
+                    <p>© {new Date().getFullYear()} DigitalJamath. Open Source under MIT License.</p>
+                    <p className="text-xs mt-1">Version 1.0.1-alpha</p>
+                </div>
+            </footer>
         </div>
     );
 }
