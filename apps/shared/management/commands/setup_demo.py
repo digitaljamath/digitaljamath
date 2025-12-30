@@ -9,6 +9,61 @@ from apps.shared.models import Client, Domain
 from apps.jamath.models import Household, Member, MembershipConfig, Announcement
 from decimal import Decimal
 import random
+import os
+from datetime import date
+
+sample_households = [
+    {
+        "membership_id": "DEMO-001",
+        "address": "123 Minaret Street, Demo City",
+        "economic_status": "AAM",
+        "members": [
+            {
+                "full_name": "Yusuf Demo",
+                "is_head_of_family": True,
+                "gender": "MALE",
+                "marital_status": "MARRIED",
+                "dob": date(1980, 1, 1),
+                "profession": "Software Engineer",
+                "relationship_to_head": "SELF"
+            },
+            {
+                "full_name": "Zainab Demo",
+                "is_head_of_family": False,
+                "gender": "FEMALE",
+                "marital_status": "MARRIED",
+                "dob": date(1985, 6, 15),
+                "profession": "Teacher",
+                "relationship_to_head": "SPOUSE"
+            }
+        ]
+    },
+    {
+        "membership_id": "DEMO-002",
+        "address": "45 Market Road, Demo City",
+        "economic_status": "ZAKAT_ELIGIBLE",
+        "members": [
+            {
+                "full_name": "Ahmed Worker",
+                "is_head_of_family": True,
+                "gender": "MALE",
+                "marital_status": "MARRIED",
+                "dob": date(1975, 3, 10),
+                "profession": "Daily Wage",
+                "relationship_to_head": "SELF"
+            },
+            {
+                "full_name": "Fatima Worker",
+                "is_head_of_family": False,
+                "gender": "FEMALE",
+                "marital_status": "MARRIED",
+                "dob": date(1978, 8, 20),
+                "profession": "Housewife",
+                "relationship_to_head": "SPOUSE"
+            }
+        ]
+    }
+]
 
 
 class Command(BaseCommand):

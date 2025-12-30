@@ -14,6 +14,20 @@ echo "Bumping version to $NEW_VERSION..."
 echo "$NEW_VERSION" > VERSION
 echo "✅ Updated VERSION"
 
+# 1.5 Update .env file (APP_VERSION)
+if grep -q "APP_VERSION=" .env; then
+    # Modify existing line
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' "s/APP_VERSION=.*/APP_VERSION=$NEW_VERSION/" .env
+    else
+      sed -i "s/APP_VERSION=.*/APP_VERSION=$NEW_VERSION/" .env
+    fi
+else
+    # Append if not exists
+    echo "APP_VERSION=$NEW_VERSION" >> .env
+fi
+echo "✅ Updated .env"
+
 # 2. Update frontend/package.json
 # Using sed for cross-platform compatibility (macOS vs Linux)
 if [[ "$OSTYPE" == "darwin"* ]]; then

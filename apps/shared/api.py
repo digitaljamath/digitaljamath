@@ -11,53 +11,52 @@ class TenantRegistrationView(generics.CreateAPIView):
     permission_classes = [] # Allow anyone to register
     
     def create(self, request, *args, **kwargs):
-        # Enforce 'public' schema logic if needed, but for now we trust the caller
-        
+        # 1. Validate Data using Serializer (but don't save)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        schema_name = serializer.validated_data.get('schema_name')
+        # 2. Extract validated data
+        data = serializer.validated_data
+        
+        # 3. Check availability manually since we are not saving yet
+        # (Though serializer validators might have checked unique constraints, 
+        # schema_name is derived and needs checking)
+        
+        domain_part = data.get('domain')
+        schema_name = data.get('schema_name')
         if not schema_name:
-             # Auto-generate schema name from domain if missing
-             schema_name = serializer.validated_data['domain'].replace('-', '_').lower()
-             serializer.validated_data['schema_name'] = schema_name
+             schema_name = domain_part.replace('-', '_').lower()
+             data['schema_name'] = schema_name
 
         if Client.objects.filter(schema_name=schema_name).exists():
              return Response({"error": "This Masjid workspace name is already taken."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 4. Prepare data for task (must be serializable)
+        task_data = {
+            'name': data['name'],
+            'schema_name': data['schema_name'],
+            'owner_email': data['email'],
+            'domain_part': domain_part,
+            'email': data['email'],
+            'password': data['password'], # Raw password to task
+        }
 
-        try:
-            tenant = serializer.save()
-            
-            # Now create the admin user inside the tenant
-            # Note: The password in validated_data is raw, which is what create_user expects
-            with schema_context(tenant.schema_name):
-                User.objects.create_user(
-                    username='admin',
-                    email=serializer.validated_data['email'],
-                    password=serializer.validated_data['password'],
-                    is_staff=True,
-                    is_superuser=True
-                )
-            
-            # Send Verification Email (non-blocking - don't fail registration if email fails)
-            try:
-                from .utils import send_verification_email
-                send_verification_email(tenant)
-            except Exception as email_error:
-                # Log the error but don't fail registration
-                print(f"Warning: Failed to send verification email: {email_error}")
-                
-            return Response({
-                "message": "Workspace created successfully.",
-                "tenant_url": f"http://{tenant.domains.first().domain}:3000/",
-                "login_url": f"http://{tenant.domains.first().domain}:3000/auth/login"
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            # Cleanup if failed
-            if 'tenant' in locals() and tenant.pk:
-                tenant.delete(keep_parents=True) # Soft or hard delete depending on config
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        # 5. Trigger Async Task
+        from .tasks import create_tenant_task
+        create_tenant_task.delay(task_data)
+        
+        # 6. Return Accepted response
+        import os
+        base_domain = os.environ.get('DOMAIN_NAME', 'localhost')
+        full_domain = f"{domain_part}.{base_domain}"
+        
+        return Response({
+            "message": "Workspace creation started.",
+            "status": "pending",
+            "estimated_time": "2-3 minutes",
+            "tenant_url": f"http://{full_domain}/",
+            "login_url": f"http://{full_domain}/auth/login"
+        }, status=status.HTTP_202_ACCEPTED)
 
 class FindWorkspaceView(generics.GenericAPIView):
     permission_classes = []
@@ -78,8 +77,8 @@ class FindWorkspaceView(generics.GenericAPIView):
             if domain:
                 results.append({
                     "name": client.name,
-                    "url": f"http://{domain.domain}:3000/",
-                    "login_url": f"http://{domain.domain}:3000/auth/login"
+                    "url": f"http://{domain.domain}/",
+                    "login_url": f"http://{domain.domain}/auth/login"
                 })
                 
         return Response({"workspaces": results}, status=status.HTTP_200_OK)

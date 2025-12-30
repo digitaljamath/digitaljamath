@@ -15,8 +15,7 @@ def send_verification_email(client):
     """
     token = client.verification_token
     # In production, this URL should be dynamic based on the actual domain
-    # For localhost dev, we assume port 3000
-    verification_url = f"http://localhost:3000/auth/verify-email?token={token}"
+    verification_url = f"http://localhost/auth/verify-email?token={token}"
     
     return EmailService.send_email_verification(
         email=client.owner_email,
@@ -33,7 +32,7 @@ def send_password_reset_email(user, domain):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     
     # Construct URL pointing to the tenant's frontend
-    reset_url = f"http://{domain}:3000/auth/reset-password?uid={uid}&token={token}"
+    reset_url = f"http://{domain}/auth/reset-password?uid={uid}&token={token}"
     
     user_name = user.first_name if user.first_name else user.username
     

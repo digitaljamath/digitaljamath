@@ -14,7 +14,7 @@ services:
   web:
     build: .
     container_name: digitaljamath_web
-    command: gunicorn --bind 0.0.0.0:8000 digitaljamath.wsgi:application
+    command: gunicorn --bind 0.0.0.0:8000 --timeout 300 digitaljamath.wsgi:application
     volumes:
       - .:/app
       - static_files:/app/staticfiles
@@ -54,6 +54,24 @@ services:
     container_name: digitaljamath_redis
     restart: always
 
+  worker:
+    build: .
+    container_name: digitaljamath_worker
+    command: celery -A digitaljamath worker -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - web
+      - redis
+      - db
+    env_file:
+      - .env
+    environment:
+      - DATABASE_HOST=db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    restart: always
+
   frontend:
     build:
       context: ./frontend
@@ -61,6 +79,7 @@ services:
         NEXT_PUBLIC_API_URL: https://${DOMAIN_NAME}
         NEXT_PUBLIC_DOMAIN_SUFFIX: ${DOMAIN_NAME}
         NEXT_PUBLIC_BASE_DOMAIN: ${DOMAIN_NAME}
+        NEXT_PUBLIC_APP_VERSION: ${APP_VERSION}
     container_name: digitaljamath_frontend
     expose:
       - "3000"

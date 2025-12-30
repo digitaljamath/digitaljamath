@@ -11,12 +11,25 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+// Creative loading messages (Technical but themed)
+const loadingMessages = [
+    "Provisioning your secure cloud workspace...",
+    "Initializing encrypted database shards...",
+    "Configuring member registry modules...",
+    "Setting up private daily backup systems...",
+    "Deploying audit trail logs...",
+    "Generating admin access credentials...",
+    "Finalizing your dedicated digital space...",
+];
+
 export default function RegisterPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [domainSuffix, setDomainSuffix] = useState<string>("localhost");
+    const [messageIndex, setMessageIndex] = useState(0);
+    const [successParams, setSuccessParams] = useState<{ email: string, workspaceUrl: string, estimatedTime: string } | null>(null);
 
     // Registration is only for main domain - redirect subdomain visitors to signin
     useEffect(() => {
@@ -41,6 +54,15 @@ export default function RegisterPage() {
         }
     }, [router]);
 
+    useEffect(() => {
+        if (isLoading) {
+            const interval = setInterval(() => {
+                setMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+            }, 3000); // Change message every 3 seconds
+            return () => clearInterval(interval);
+        }
+    }, [isLoading]);
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -51,6 +73,7 @@ export default function RegisterPage() {
 
         setIsLoading(true);
         setError(null);
+        setMessageIndex(0);
 
         const formData = new FormData(event.currentTarget);
         const data = {
@@ -72,12 +95,12 @@ export default function RegisterPage() {
             });
 
             const text = await response.text();
-            console.log("Raw Response:", text);
 
             let result;
             try {
                 result = JSON.parse(text);
             } catch (e) {
+                // If it's not JSON, it might be a server 500 html page
                 throw new Error("Server error. Please try again later.");
             }
 
@@ -90,15 +113,85 @@ export default function RegisterPage() {
                 throw new Error(errorMsg);
             }
 
-            // Success: Redirect to success page or login
-            alert(`Masjid account created! Use ${result.tenant_url} to access.`);
-            router.push("/auth/login");
+            // Handle 202 Accepted (Async creation)
+            if (response.status === 202) {
+                setSuccessParams({
+                    email: data.email as string,
+                    workspaceUrl: result.tenant_url,
+                    estimatedTime: result.estimated_time
+                });
+            } else {
+                // Fallback for sync creation (shouldn't happen with new backend but good for safety)
+                alert(`Masjid account created! Use ${result.tenant_url} to access.`);
+                router.push("/auth/login");
+            }
 
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");
-        } finally {
             setIsLoading(false);
         }
+    }
+
+    // If successfully submitted (Async pending)
+    if (successParams) {
+        return (
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 items-center justify-center p-4">
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader>
+                        <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <CardTitle className="text-2xl font-bold">Registration Accepted!</CardTitle>
+                        <CardDescription>
+                            Your workspace is being created in the background.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm">
+                            <p className="font-semibold mb-1">Estimated Setup Time: {successParams.estimatedTime}</p>
+                            <p>We are provisioning your secluded database and specialized modules.</p>
+                        </div>
+                        <div className="text-gray-600">
+                            <p>You can close this window.</p>
+                            <p className="mt-2">We will send an email to <strong>{successParams.email}</strong> when <strong>{successParams.workspaceUrl}</strong> is ready.</p>
+                        </div>
+                        <Button className="w-full mt-4" onClick={() => router.push('/')} variant="outline">
+                            Back to Home
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    // If Loading (during submission) - Show Creative Messages
+    if (isLoading) {
+        return (
+            <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 items-center justify-center p-4">
+                <Card className="w-full max-w-md text-center py-10">
+                    <CardContent className="space-y-6">
+                        {/* Spinner */}
+                        <div className="relative mx-auto w-16 h-16">
+                            <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
+                            <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                        </div>
+
+                        <div className="space-y-2 animate-pulse">
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                                Setting up your DigitalJamath...
+                            </h3>
+                            <p className="text-blue-600 font-medium h-6 transition-all duration-500 ease-in-out">
+                                {loadingMessages[messageIndex]}
+                            </p>
+                        </div>
+
+                        <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                            This typically takes about 2-3 minutes as we set up your secure, isolated database schema.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
     }
 
     return (
@@ -165,7 +258,7 @@ export default function RegisterPage() {
 
                             {error && <div className="text-red-500 text-sm">{error}</div>}
                             <Button className="w-full" type="submit" disabled={isLoading}>
-                                {isLoading ? "Creating..." : "Create Masjid Account"}
+                                Create Masjid Account
                             </Button>
                             <div className="text-center text-sm text-gray-500">
                                 Already registered?{" "}
