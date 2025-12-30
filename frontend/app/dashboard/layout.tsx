@@ -51,7 +51,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     const handleLogout = () => {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
-        router.push("/auth/login");
+        router.push("/auth/signin");
     };
 
     const navigation = defaultNavigation.filter(item => {

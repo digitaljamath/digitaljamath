@@ -32,8 +32,8 @@ function ResetPasswordForm() {
 
         try {
             // Determine API Base URL
-            
-            
+
+
             const apiBase = getApiBaseUrl();
 
             const response = await fetch(`${apiBase}/api/auth/password-reset-confirm/`, {
@@ -52,7 +52,7 @@ function ResetPasswordForm() {
 
             // Success
             alert("Password has been reset successfully. Please login.");
-            router.push("/auth/login");
+            router.push("/auth/signin");
 
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");

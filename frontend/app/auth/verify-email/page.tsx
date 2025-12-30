@@ -23,8 +23,8 @@ function VerifyEmailForm() {
             try {
                 // Determine API Base URL for main domain (Assuming verification runs on main domain or any)
                 // Actually verification token is global for the Client.
-                
-                
+
+
                 const apiBase = getApiBaseUrl();
 
                 const response = await fetch(`${apiBase}/api/verify-email/?token=${token}`);
@@ -57,7 +57,7 @@ function VerifyEmailForm() {
                             <CheckCircle2 className="h-16 w-16 text-green-500" />
                             <p className="text-center text-green-700 font-medium">Your workspace has been verified!</p>
                             <Button className="w-full" asChild>
-                                <Link href="/auth/login">Login to Dashboard</Link>
+                                <Link href="/auth/signin">Login to Dashboard</Link>
                             </Button>
                         </>
                     )}

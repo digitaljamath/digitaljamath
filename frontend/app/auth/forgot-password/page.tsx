@@ -22,8 +22,8 @@ export default function ForgotPasswordPage() {
 
         try {
             // Determine API Base URL
-            
-            
+
+
             const apiBase = getApiBaseUrl();
 
             const response = await fetch(`${apiBase}/api/auth/password-reset-request/`, {
@@ -84,14 +84,14 @@ export default function ForgotPasswordPage() {
                                 {message}
                             </div>
                             <Button variant="outline" className="w-full" asChild>
-                                <Link href="/auth/login">Back to Login</Link>
+                                <Link href="/auth/signin">Back to Login</Link>
                             </Button>
                         </div>
                     )}
 
                     {!message && (
                         <div className="mt-6 text-center text-sm text-gray-500">
-                            <Link href="/auth/login" className="text-blue-600 hover:underline">
+                            <Link href="/auth/signin" className="text-blue-600 hover:underline">
                                 Back to Sign In
                             </Link>
                         </div>

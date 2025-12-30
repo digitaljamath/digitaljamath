@@ -110,7 +110,7 @@ export function TenantLanding() {
                             Manage households, finances, welfare, and announcements.
                         </p>
                         <Button variant="outline" className="w-full border-indigo-200 hover:bg-indigo-50 text-indigo-700" asChild>
-                            <Link href="/auth/login">Login as Admin</Link>
+                            <Link href="/auth/signin">Login as Admin</Link>
                         </Button>
                     </CardContent>
                 </Card>
