@@ -36,25 +36,37 @@ export function SiteHeader() {
                 <div className="md:hidden">
                     <Sheet>
                         <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="-mr-2">
                                 <Menu className="h-6 w-6" />
                                 <span className="sr-only">Toggle menu</span>
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="right">
-                            <nav className="flex flex-col gap-4 mt-8">
-                                <Link className="text-lg font-medium hover:text-blue-600 transition-colors" href="/about">
+                        <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                            <nav className="flex flex-col gap-1 mt-8 px-2">
+                                <Link
+                                    className="px-4 py-3.5 text-base font-medium text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                    href="/about"
+                                >
                                     About
                                 </Link>
-                                <Link className="text-lg font-medium hover:text-blue-600 transition-colors" href="/#features">
+                                <Link
+                                    className="px-4 py-3.5 text-base font-medium text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                    href="/#features"
+                                >
                                     Features
                                 </Link>
-                                <Link className="text-lg font-medium hover:text-blue-600 transition-colors" href="https://github.com/azzaxp/digitaljamath" target="_blank">
+                                <Link
+                                    className="px-4 py-3.5 text-base font-medium text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                    href="https://github.com/azzaxp/digitaljamath"
+                                    target="_blank"
+                                >
                                     GitHub
                                 </Link>
-                                <hr className="my-2" />
-                                <Link href="/auth/find-workspace">
-                                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+
+                                <div className="h-px bg-border my-4" />
+
+                                <Link href="/auth/find-workspace" className="px-4">
+                                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3">
                                         Find My Masjid
                                     </Button>
                                 </Link>
