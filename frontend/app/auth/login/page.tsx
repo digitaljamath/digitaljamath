@@ -1,5 +1,5 @@
 "use client";
-import { getDomainSuffix } from "@/lib/config";
+import { getDomainSuffix, getBaseDomain } from "@/lib/config";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,12 +7,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [workspace, setWorkspace] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // If we're on a subdomain, redirect to /auth/signin directly
+    useEffect(() => {
+        const hostname = window.location.hostname;
+        const baseDomain = getBaseDomain();
+
+        // Check if we're on a subdomain (not main domain, not localhost)
+        const isSubdomain = hostname !== 'localhost' &&
+            hostname !== '127.0.0.1' &&
+            hostname !== baseDomain &&
+            hostname.includes('.');
+
+        if (isSubdomain) {
+            // Already on a subdomain, go directly to signin
+            router.replace('/auth/signin');
+        }
+    }, [router]);
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
