@@ -23,7 +23,7 @@ class TenantRegistrationView(generics.CreateAPIView):
              serializer.validated_data['schema_name'] = schema_name
 
         if Client.objects.filter(schema_name=schema_name).exists():
-             return Response({"error": "Workspace (Schema) already exists."}, status=status.HTTP_400_BAD_REQUEST)
+             return Response({"error": "This Masjid workspace name is already taken."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             tenant = serializer.save()
