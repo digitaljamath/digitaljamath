@@ -1,6 +1,6 @@
 # DigitalJamath
 
-![Version](https://img.shields.io/badge/version-1.0.2--alpha-blue)
+![Version](https://img.shields.io/badge/version-1.0.3--alpha-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 **DigitalJamath** is an open-source, production-grade SaaS ERP for Indian Masjids, Jamaths, and Welfare organizations. It provides a robust multi-tenant architecture to handle census data, financial management (Baitul Maal), welfare distribution, and community engagement.

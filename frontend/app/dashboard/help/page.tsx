@@ -292,7 +292,7 @@ export default function HelpPage() {
 
             {/* Version Info */}
             <div className="text-center text-sm text-gray-400 pt-4 border-t">
-                <p>DigitalJamath v1.0.2-alpha • Basira AI Guide powered by OpenRouter</p>
+                <p>DigitalJamath v1.0.3-alpha • Basira AI Guide powered by OpenRouter</p>
             </div>
         </div>
     );

@@ -78,7 +78,7 @@ export function TenantLanding() {
                 <footer className="border-t bg-white dark:bg-gray-950 py-4">
                     <div className="container mx-auto px-4 text-center text-sm text-gray-500">
                         <p>© {new Date().getFullYear()} DigitalJamath. Open Source under MIT License.</p>
-                        <p className="text-xs mt-1">Version 1.0.2-alpha</p>
+                        <p className="text-xs mt-1">Version 1.0.3-alpha</p>
                     </div>
                 </footer>
             </div>
