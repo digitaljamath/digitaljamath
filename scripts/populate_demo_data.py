@@ -188,7 +188,7 @@ def populate(schema_name='demo'):
                 # Determine Ledger
                 credit_ledger = zakat_donation if "Zakat" in desc else general_donation
                 
-                pan = "ABCDE1234F" if amount > 2000 else None
+                pan = "ABCDE1234F" if amount > 2000 else ""
                 
                 # Create Receipt Voucher
                 entry = JournalEntry.objects.create(
