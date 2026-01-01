@@ -45,6 +45,15 @@ type JournalItem = {
     particulars: string;
 };
 
+// Available Fund Categories matching Backend Choices
+const FUND_CATEGORIES = [
+    { value: 'GENERAL', label: 'General / Unrestricted' },
+    { value: 'ZAKAT', label: 'Zakat (Restricted)' },
+    { value: 'SADAQAH', label: 'Sadaqah (Restricted)' },
+    { value: 'CONSTRUCTION', label: 'Construction (Restricted)' },
+];
+
+
 function VoucherFormContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -69,6 +78,7 @@ function VoucherFormContent() {
     const [donorNameManual, setDonorNameManual] = useState("");
     const [donorPan, setDonorPan] = useState("");
     const [donorIntent, setDonorIntent] = useState("");
+    const [fundCategory, setFundCategory] = useState<string>("");
 
     // Payment Fields
     const [supplierId, setSupplierId] = useState<string>("");
@@ -315,6 +325,19 @@ function VoucherFormContent() {
                                     placeholder="e.g., For buying fans only"
                                 />
                             </div>
+                            <div className="space-y-2">
+                                <Label>Fund Category <span className="text-red-500">*</span></Label>
+                                <Select value={fundCategory} onValueChange={setFundCategory}>
+                                    <SelectTrigger><SelectValue placeholder="Select Fund Category" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__ALL__">-- All Funds --</SelectItem>
+                                        {FUND_CATEGORIES.map(fc => (
+                                            <SelectItem key={fc.value} value={fc.value}>{fc.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-gray-500">Filters the account list below</p>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -416,8 +439,8 @@ function VoucherFormContent() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {/* Header */}
-                        <div className="grid grid-cols-12 gap-2 text-sm font-medium text-gray-500 px-2">
+                        {/* Header - Hidden on Mobile */}
+                        <div className="hidden md:grid grid-cols-12 gap-2 text-sm font-medium text-gray-500 px-2">
                             <div className="col-span-5">Account</div>
                             <div className="col-span-2 text-right">Debit (₹)</div>
                             <div className="col-span-2 text-right">Credit (₹)</div>
@@ -427,71 +450,86 @@ function VoucherFormContent() {
 
                         {/* Items */}
                         {items.map((item, index) => (
-                            <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                                <div className="col-span-5">
+                            <div key={index} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-2 p-4 md:p-0 border md:border-0 rounded-lg bg-gray-50 md:bg-transparent">
+                                <div className="md:col-span-5">
+                                    <Label className="md:hidden text-xs text-gray-500 mb-1 block">Account</Label>
                                     <Select
                                         value={item.ledger.toString()}
                                         onValueChange={(v) => updateItem(index, 'ledger', parseInt(v))}
                                     >
                                         <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
                                         <SelectContent>
-                                            {ledgers.map(l => (
-                                                <SelectItem key={l.id} value={l.id.toString()}>
-                                                    {l.code} - {l.name}
-                                                    {l.fund_type && <Badge className="ml-2 text-xs" variant="outline">{l.fund_type}</Badge>}
-                                                </SelectItem>
-                                            ))}
+                                            {ledgers
+                                                .filter(l => !fundCategory || fundCategory === '__ALL__' || l.fund_type === fundCategory)
+                                                .map(l => (
+                                                    <SelectItem key={l.id} value={l.id.toString()}>
+                                                        {l.code} - {l.name}
+                                                        {l.fund_type && <Badge className="ml-2 text-xs" variant="outline">{l.fund_type}</Badge>}
+                                                    </SelectItem>
+                                                ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="col-span-2">
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        value={item.debit_amount || ''}
-                                        onChange={(e) => updateItem(index, 'debit_amount', parseFloat(e.target.value) || 0)}
-                                        className="text-right"
-                                    />
+
+                                {/* Debit/Credit Group for Mobile */}
+                                <div className="grid grid-cols-2 gap-3 md:contents">
+                                    <div className="md:col-span-2">
+                                        <Label className="md:hidden text-xs text-gray-500 mb-1 block">Debit</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={item.debit_amount || ''}
+                                            onChange={(e) => updateItem(index, 'debit_amount', parseFloat(e.target.value) || 0)}
+                                            className="text-right"
+                                            placeholder="Dr"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <Label className="md:hidden text-xs text-gray-500 mb-1 block">Credit</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            value={item.credit_amount || ''}
+                                            onChange={(e) => updateItem(index, 'credit_amount', parseFloat(e.target.value) || 0)}
+                                            className="text-right"
+                                            placeholder="Cr"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="col-span-2">
-                                    <Input
-                                        type="number"
-                                        min="0"
-                                        value={item.credit_amount || ''}
-                                        onChange={(e) => updateItem(index, 'credit_amount', parseFloat(e.target.value) || 0)}
-                                        className="text-right"
-                                    />
-                                </div>
-                                <div className="col-span-2">
+
+                                <div className="md:col-span-2">
+                                    <Label className="md:hidden text-xs text-gray-500 mb-1 block">Particulars</Label>
                                     <Input
                                         value={item.particulars}
                                         onChange={(e) => updateItem(index, 'particulars', e.target.value)}
                                         placeholder="Note"
                                     />
                                 </div>
-                                <div className="col-span-1">
+                                <div className="md:col-span-1 flex justify-end md:block">
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => removeItem(index)}
                                         disabled={items.length <= 2}
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                     >
-                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
                         ))}
 
                         {/* Totals */}
-                        <div className="grid grid-cols-12 gap-2 border-t pt-4 font-bold">
-                            <div className="col-span-5 text-right">Total:</div>
-                            <div className={`col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
+                        <div className="grid grid-cols-2 md:grid-cols-12 gap-2 border-t pt-4 font-bold items-center">
+                            <div className="md:col-span-5 text-left md:text-right">Total:</div>
+                            <div className={`md:col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
                                 ₹{totalDebit.toLocaleString('en-IN')}
                             </div>
-                            <div className={`col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
+                            <div className={`md:col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
+                                <span className="md:hidden mr-2 text-gray-400 font-normal">/</span>
                                 ₹{totalCredit.toLocaleString('en-IN')}
                             </div>
-                            <div className="col-span-3">
+                            <div className="col-span-2 md:col-span-3 text-right md:text-left mt-2 md:mt-0">
                                 {isBalanced ? (
                                     <Badge className="bg-green-100 text-green-700">✓ Balanced</Badge>
                                 ) : (
