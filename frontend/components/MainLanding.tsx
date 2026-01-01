@@ -138,7 +138,7 @@ export function MainLanding() {
                                         <div className="text-left">
                                             <p className="text-sm font-medium text-gray-900 dark:text-white">Admin Login</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1">
-                                                demo@digitalmasjid.com / password123
+                                                demo@digitaljamath.com / password123
                                             </p>
                                         </div>
                                         <div className="text-right">
