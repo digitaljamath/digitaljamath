@@ -23,17 +23,31 @@ def populate(schema_name='demo'):
     with schema_context(schema_name):
         User = get_user_model()
         # Ensure admin exists for auditor link
-        admin_user, _ = User.objects.get_or_create(
-            username="demo@digitalmasjid.com",
-            defaults={
-                'email': 'demo@digitalmasjid.com',
-                'is_staff': True,
-                'is_superuser': True
-            }
-        )
-        if not admin_user.check_password("password123"):
+        # Use credentials requested: username='digitaljamath', email='demo@digitaljamath.com'
+        admin_user = User.objects.filter(username="digitaljamath").first()
+        
+        if not admin_user:
+             # Try finding by email
+             admin_user = User.objects.filter(email="demo@digitaljamath.com").first()
+
+        if not admin_user:
+            admin_user = User.objects.create_superuser(
+                username="digitaljamath",
+                email="demo@digitaljamath.com",
+                password="password123"
+            )
+            print("✅ Created Superuser: digitaljamath / password123")
+        else:
+            # Ensure password is correct and remove any conflicting 'demo' user
+            admin_user.username = "digitaljamath"
+            admin_user.email = "demo@digitaljamath.com"
             admin_user.set_password("password123")
             admin_user.save()
+            print("✅ Reset Password for: digitaljamath")
+            
+        # Cleanup logic: remove old 'demo' user if it conflicts or is confusing
+        User.objects.filter(username="demo").delete()
+        User.objects.filter(username="demo@digitalmasjid.com").delete()
 
         # 1. Chart of Accounts (Mizan Ledger)
         from django.core.management import call_command
