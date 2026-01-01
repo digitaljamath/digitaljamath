@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     title: "DigitalJamath | Digital Jamath Management",
     description: "Comprehensive mosque and community management platform for memberships, finances, welfare, and community engagement.",
     images: ["/twitter-image.png"],
-    creator: "@projectmizan",
+
   },
 
   // Icons handled automatically by app/icon.png

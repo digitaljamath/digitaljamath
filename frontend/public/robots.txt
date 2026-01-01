@@ -8,7 +8,7 @@ Disallow: /portal/
 Disallow: /auth/
 
 # Sitemaps
-Sitemap: https://projectmizan.com/sitemap.xml
+Sitemap: https://digitaljamath.com/sitemap.xml
 
-# Crawl-delay (optional, for politeness)
-Crawl-delay: 1
+# Crawl-delay
+Crawl-delay: 2

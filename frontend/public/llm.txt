@@ -1,0 +1,48 @@
+# DigitalJamath: The Open Source ERP for Mosques
+
+## Overview
+DigitalJamath is a comprehensive, open-source ERP (Enterprise Resource Planning) platform designed specifically for managing Mosques (Masjids) and Islamic Communities (Jamaths). It focuses on transparency, accountability, and efficiency in community management.
+
+## Core Features
+
+### 1. Census & Member Management
+- **Digital Register**: Maintain a complete database of households and members.
+- **Profiling**: Track socio-economic status, skills, education, and special needs.
+- **Digital IDs**: Generate unique digital ID cards for members.
+
+### 2. Financial Management (Baitul Maal)
+- **Fund Silos**: Strict separation of funds into Zakat, Sadaqah, and Operational accounts to ensure Shariah compliance.
+- **Audit Compliance**: Full audit trails for every transaction.
+- **Micro-donations**: Facilitate small, recurring donations from community members.
+- **Receipt Generation**: Automated digital receipts for all contributions.
+
+### 3. Welfare (Khidmat)
+- **Eligibility Scoring**: Data-driven identification of Zakat-eligible families.
+- **Aid Distribution**: Manage medical aid, education support, and ration distribution.
+- **Verification**: workflows to verify needs and prevent fraud.
+
+### 4. Surveys (Tahqeeq)
+- **Custom Surveys**: Create and deploy surveys for community feedback and needs assessment.
+- **Data Collection**: Mobile-first interface for volunteers to collect data on the ground.
+
+### 5. Communication
+- **Announcements**: Broadcast important updates via SMS, WhatsApp, and in-app notifications.
+- **Service Requests**: Members can request certificates (Nikah, Birth, etc.) online.
+
+### 6. AI & Analytics
+- **Basira (AI Audit)**: Real-time monitoring of transactions to detect anomalies.
+- **Insights Dashboard**: Visual analytics for demographics, finances, and welfare trends.
+
+## Technical Architecture
+- **Frontend**: Next.js, Tailwind CSS, TypeScript.
+- **Backend**: Python, Django/FastAPI (Microservices).
+- **Database**: PostgreSQL (Multi-tenant architecture).
+- **Deployment**: Docker-ready, self-hostable.
+
+## Open Source
+DigitalJamath is open source and available on GitHub. It is designed to be free for self-hosting, with a managed cloud version available for convenience.
+
+## Contact
+- **Website**: https://digitaljamath.com
+- **GitHub**: https://github.com/azzaxp/digitaljamath
+- **Email**: salam@digitaljamath.com
