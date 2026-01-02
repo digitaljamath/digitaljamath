@@ -170,32 +170,49 @@ class JournalEntrySerializer(serializers.ModelSerializer):
         return obj.donor_name_manual or "Unknown"
 
     def create(self, validated_data):
+        from django.db import transaction
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         items_data = validated_data.pop('items')
-        journal_entry = JournalEntry.objects.create(**validated_data)
         
-        for item_data in items_data:
-            JournalItem.objects.create(journal_entry=journal_entry, **item_data)
-        
-        # Run validation after items are created
-        journal_entry.full_clean()
+        try:
+            with transaction.atomic():
+                journal_entry = JournalEntry.objects.create(**validated_data)
+                
+                for item_data in items_data:
+                    JournalItem.objects.create(journal_entry=journal_entry, **item_data)
+                
+                # Run validation after items are created
+                journal_entry.full_clean()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
+            
         return journal_entry
 
     def update(self, instance, validated_data):
+        from django.db import transaction
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         if instance.is_finalized:
             raise serializers.ValidationError("Cannot modify a finalized entry.")
         
         items_data = validated_data.pop('items', None)
         
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        
-        if items_data is not None:
-            instance.items.all().delete()
-            for item_data in items_data:
-                JournalItem.objects.create(journal_entry=instance, **item_data)
-        
-        instance.full_clean()
+        try:
+            with transaction.atomic():
+                for attr, value in validated_data.items():
+                    setattr(instance, attr, value)
+                instance.save()
+                
+                if items_data is not None:
+                    instance.items.all().delete()
+                    for item_data in items_data:
+                        JournalItem.objects.create(journal_entry=instance, **item_data)
+                
+                instance.full_clean()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
+            
         return instance
 
 
