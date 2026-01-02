@@ -80,7 +80,7 @@ services:
     restart: always
 
   frontend:
-    image: ghcr.io/azzaxp/digitaljamath-frontend:latest
+    image: ghcr.io/digitaljamath/digitaljamath-frontend:latest
     container_name: digitaljamath_frontend
     expose:
       - "3000"
