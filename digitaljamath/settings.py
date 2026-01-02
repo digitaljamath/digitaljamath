@@ -43,6 +43,9 @@ INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in S
 TENANT_MODEL = "shared.Client"
 TENANT_DOMAIN_MODEL = "shared.Domain"
 
+# Fall back to public tenant for unknown domains (enables registration from any domain)
+SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
+
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware', # mandatory, top
     'apps.shared.middleware.PublicSchemaProtectionMiddleware',  # Block public schema access
