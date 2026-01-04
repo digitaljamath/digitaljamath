@@ -84,6 +84,20 @@ export function TenantHomePage() {
         );
     }
 
+    // Helper to get root domain URL (strips subdomain)
+    const getRootDomainUrl = () => {
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+        // Handle demo.digitaljamath.com -> digitaljamath.com
+        // Handle demo.localhost -> localhost
+        if (parts.length >= 2) {
+            const rootDomain = parts.slice(1).join('.');
+            const port = window.location.port ? `:${window.location.port}` : '';
+            return `${window.location.protocol}//${rootDomain}${port}`;
+        }
+        return '/';
+    };
+
     // Error state (404 / Invalid Subdomain)
     if (tenantError) {
         return (
@@ -110,7 +124,7 @@ export function TenantHomePage() {
                                     <a href="/find-masjid">Find Your Masjid</a>
                                 </Button>
                                 <Button asChild variant="outline" className="w-full">
-                                    <a href="/">Go to Home Page</a>
+                                    <a href={getRootDomainUrl()}>Go to Home Page</a>
                                 </Button>
                             </div>
                         </CardContent>

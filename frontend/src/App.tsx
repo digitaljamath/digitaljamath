@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from './pages/auth/LoginPage'
+import { FindWorkspacePage } from './pages/auth/FindWorkspacePage'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { DashboardHome } from './pages/dashboard/DashboardHome'
 import { HouseholdsPage } from './pages/dashboard/households/HouseholdsPage'
@@ -46,6 +47,7 @@ function App() {
         {/* Auth Routes (public) */}
         <Route path="/auth/signin" element={<LoginPage />} />
         <Route path="/auth/login" element={<Navigate to="/auth/signin" replace />} />
+        <Route path="/find-masjid" element={<FindWorkspacePage />} />
 
         {/* Portal Routes (public) */}
         <Route path="/portal/login" element={<PortalLoginPage />} />
