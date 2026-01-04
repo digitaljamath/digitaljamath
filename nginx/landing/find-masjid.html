@@ -21,15 +21,7 @@
     <link rel="icon" href="/img/icon.png" type="image/png">
     <link rel="stylesheet" href="/styles.css">
 
-    <!-- reCAPTCHA v3 (only loads in production) -->
-    <script>
-        // Only load reCAPTCHA in production (not localhost)
-        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            var script = document.createElement('script');
-            script.src = 'https://www.google.com/recaptcha/api.js?render=6LeUnT4sAAAAAKChpiz2LPSLc9wOs_EOXkG7ntaW';
-            document.head.appendChild(script);
-        }
-    </script>
+
 </head>
 
 <body class="bg-gray-50">
@@ -113,124 +105,115 @@
         </div>
     </footer>
 
-    <script>
-        // reCAPTCHA Site Key (replace with your actual key in production)
-        const RECAPTCHA_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';  // Test key
 
-        const searchView = document.getElementById('search-view');
-        const resultsView = document.getElementById('results-view');
-        const successView = document.getElementById('success-view');
-        const findForm = document.getElementById('find-form');
-        const submitBtn = document.getElementById('submit-btn');
-        const errorMessage = document.getElementById('error-message');
-        const workspacesList = document.getElementById('workspaces-list');
-        const resultsCount = document.getElementById('results-count');
-        const searchAgainBtn = document.getElementById('search-again');
 
-        findForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
+    const searchView = document.getElementById('search-view');
+    const resultsView = document.getElementById('results-view');
+    const successView = document.getElementById('success-view');
+    const findForm = document.getElementById('find-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMessage = document.getElementById('error-message');
+    const workspacesList = document.getElementById('workspaces-list');
+    const resultsCount = document.getElementById('results-count');
+    const searchAgainBtn = document.getElementById('search-again');
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Sending...';
-            errorMessage.classList.add('hidden');
+    findForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
 
-            try {
-                // Get reCAPTCHA token (only in production)
-                let captchaToken = '';
-                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                if (!isLocalhost && typeof grecaptcha !== 'undefined') {
-                    try {
-                        captchaToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'find_masjid' });
-                    } catch (e) {
-                        console.warn('reCAPTCHA failed:', e);
-                    }
-                }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    errorMessage.classList.add('hidden');
 
-                const response = await fetch('/api/find-workspace/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, captcha_token: captchaToken })
-                });
+    try {
+    const response = await fetch('/api/find-workspace/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+    });
 
-                // Check content type
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    data = await response.json();
-                } else {
-                    const text = await response.text();
-                    console.error('Non-JSON response:', text);
-                    throw new Error(`Server Error (${response.status}): Expected JSON but got ${contentType}`);
-                }
+    // Check content type
+    const contentType = response.headers.get("content-type");
+    let data;
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+    data = await response.json();
+    } else {
+    const text = await response.text();
+    console.error('Non-JSON response:', text);
+    throw new Error(`Server Error (${response.status}): Expected JSON but got ${contentType}`);
+    }
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Something went wrong');
-                }
+    if (!response.ok) {
+    throw new Error(data.error || 'Something went wrong');
+    }
 
-                // Show success view (email sent)
-                showSuccessView();
-            } catch (err) {
-                errorMessage.textContent = err.message || 'Something went wrong. Please try again.';
-                errorMessage.classList.remove('hidden');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Find Masjid';
-            }
-        });
+    // Show success view (email sent)
+    showSuccessView();
+    } catch (err) {
+    errorMessage.textContent = err.message || 'Something went wrong. Please try again.';
+    errorMessage.classList.remove('hidden');
+    } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Find Masjid';
+    }
+    });
 
-        function showSuccessView() {
-            searchView.classList.add('hidden');
-            resultsView.classList.add('hidden');
-            successView.classList.remove('hidden');
-        }
+    function showSuccessView() {
+    searchView.classList.add('hidden');
+    resultsView.classList.add('hidden');
+    successView.classList.remove('hidden');
+    }
 
-        document.getElementById('search-again-success').addEventListener('click', () => {
-            successView.classList.add('hidden');
-            searchView.classList.remove('hidden');
-            document.getElementById('email').value = '';
-        });
+    document.getElementById('search-again-success').addEventListener('click', () => {
+    successView.classList.add('hidden');
+    searchView.classList.remove('hidden');
+    document.getElementById('email').value = '';
+    });
 
-        function showResults(workspaces) {
-            workspacesList.innerHTML = '';
-            searchView.classList.add('hidden');
-            resultsView.classList.remove('hidden');
+    function showResults(workspaces) {
+    workspacesList.innerHTML = '';
+    searchView.classList.add('hidden');
+    resultsView.classList.remove('hidden');
 
-            if (workspaces.length === 0) {
-                resultsCount.textContent = 'No Masjids found for this email.';
-                return;
-            }
+    if (workspaces.length === 0) {
+    resultsCount.textContent = 'No Masjids found for this email.';
+    return;
+    }
 
-            resultsCount.textContent = `Found ${workspaces.length} Masjid${workspaces.length > 1 ? 's' : ''}:`;
+    resultsCount.textContent = `Found ${workspaces.length} Masjid${workspaces.length > 1 ? 's' : ''}:`;
 
-            workspaces.forEach(ws => {
-                // Adjust URL for local testing if needed
-                let loginUrl = ws.login_url.replace('/auth/login', '/auth/signin');
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    const url = new URL(loginUrl);
-                    url.port = window.location.port;
-                    url.hostname = window.location.hostname;
-                    loginUrl = url.toString();
-                }
+    workspaces.forEach(ws => {
+    // Adjust URL for local testing if needed
+    let loginUrl = ws.login_url.replace('/auth/login', '/auth/signin');
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const url = new URL(loginUrl);
+    url.port = window.location.port;
+    url.hostname = window.location.hostname;
+    loginUrl = url.toString();
+    }
 
-                const card = document.createElement('a');
-                card.href = loginUrl;
-                card.className = 'workspace-card';
-                card.innerHTML = `
-                    <div class="workspace-info">
-                        <span class="workspace-name">${ws.name}</span>
-                        <span class="workspace-url">${ws.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
-                    </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 22 3 22 10"/><line x1="10" y1="14" x2="22" y2="2"/></svg>
-                `;
-                workspacesList.appendChild(card);
-            });
-        }
+    const card = document.createElement('a');
+    card.href = loginUrl;
+    card.className = 'workspace-card';
+    card.innerHTML = `
+    <div class="workspace-info">
+        <span class="workspace-name">${ws.name}</span>
+        <span class="workspace-url">${ws.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <polyline points="15 3 22 3 22 10" />
+        <line x1="10" y1="14" x2="22" y2="2" />
+    </svg>
+    `;
+    workspacesList.appendChild(card);
+    });
+    }
 
-        searchAgainBtn.addEventListener('click', () => {
-            resultsView.classList.add('hidden');
-            searchView.classList.remove('hidden');
-        });
+    searchAgainBtn.addEventListener('click', () => {
+    resultsView.classList.add('hidden');
+    searchView.classList.remove('hidden');
+    });
     </script>
 </body>
 

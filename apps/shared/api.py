@@ -250,17 +250,9 @@ class FindWorkspaceView(generics.GenericAPIView):
     
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
-        captcha_token = request.data.get('captcha_token')
         
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Verify reCAPTCHA (if configured)
-        if not verify_recaptcha(captcha_token or ''):
-            return Response(
-                {"error": "Security verification failed. Please try again."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         
         # Find workspaces for this email
         clients = Client.objects.filter(owner_email__iexact=email)
