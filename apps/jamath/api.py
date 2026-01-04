@@ -690,7 +690,7 @@ class PortalPaymentOrderView(APIView):
                     "customer_name": request.user.first_name or username
                 },
                 "order_meta": {
-                    "return_url": f"http://localhost:3000/portal/dashboard?order_id={order_id}&pan={donor_pan}"
+                    "return_url": f"{request.scheme}://{request.get_host()}/portal/dashboard?order_id={order_id}&pan={donor_pan}"
                 }
             }
             

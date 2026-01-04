@@ -173,15 +173,17 @@ SIMPLE_JWT = {
 # CORS Configuration
 # CORS_ALLOW_ALL_ORIGINS = True # Too permissive for production with credentials
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "https://digitaljamath.com",
+    "http://localhost",  # Production Docker on localhost
 ]
 
 # Allow all subdomains (e.g. demo.digitaljamath.com)
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.digitaljamath\.com$",
-    r"^http://.*\.localhost:3000$",
+    r"^http://.*\.localhost:5173$",
+    r"^http://.*\.localhost$",  # Production Docker subdomains
 ]
 
 CORS_ALLOW_CREDENTIALS = True

@@ -329,7 +329,7 @@ export function PortalLoginPage() {
             {/* Footer */}
             <footer className="bg-white border-t py-4">
                 <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-                    <p>Powered by <a href="http://localhost:8080" className="text-blue-600 hover:underline">DigitalJamath</a></p>
+                    <p>Powered by <a href="/" className="text-blue-600 hover:underline">DigitalJamath</a></p>
                 </div>
             </footer>
         </div>

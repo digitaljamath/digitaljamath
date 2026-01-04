@@ -23,7 +23,7 @@ export function LoginPage() {
 
             // If no subdomain (just localhost or digitaljamath.com), redirect to main site
             if (hostname === 'localhost' || hostname === 'digitaljamath.com' || subdomain === 'localhost' || subdomain === 'www') {
-                setTenantError('Please access your masjid via its subdomain (e.g., demo.localhost:3000)')
+                setTenantError('Please access your masjid via its subdomain (e.g., demo.digitaljamath.com)')
                 setCheckingTenant(false)
                 return
             }
@@ -109,7 +109,7 @@ export function LoginPage() {
                     <h1 className="text-xl font-bold text-gray-900 mb-2">Masjid Not Found</h1>
                     <p className="text-gray-500 mb-6">{tenantError}</p>
                     <a
-                        href="http://localhost:8080/find-masjid.html"
+                        href="/find-masjid"
                         className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         Find Your Masjid

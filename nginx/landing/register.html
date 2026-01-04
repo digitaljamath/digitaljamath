@@ -472,12 +472,9 @@
             try {
                 let finalUrl = url;
 
-                // For localhost, add port 3000 to the subdomain URL
+                // For localhost, no port needed as we serve on port 80 via Nginx
                 // Backend returns: http://tn2.localhost/
-                // We need: http://tn2.localhost:3000/
-                if (finalUrl.includes('.localhost') && !finalUrl.includes(':3000')) {
-                    finalUrl = finalUrl.replace('.localhost', '.localhost:3000');
-                }
+                // We keep it as is.
 
                 document.getElementById('final-url').textContent = finalUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
                 const loginLink = document.getElementById('final-login-link');
