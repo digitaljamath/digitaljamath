@@ -11,12 +11,12 @@ interface Message {
 }
 
 const SUGGESTED_PROMPTS = [
-    "How many Zakat-eligible families do we have?",
-    "What is the total income this month?",
+    "How many households do we have?",
     "Show me member demographics",
-    "How many active subscriptions?",
-    "Find household by phone 9876543210",
-    "What are our top income sources?",
+    "What is our total income this month?",
+    "How many members are employed?",
+    "Summary of recent transactions",
+    "Search household 9876543210",
 ];
 
 export function DataAgentChat() {
