@@ -29,6 +29,21 @@ def sanitize_input(message):
     return message, None
 
 
+def stream_simple_response(text):
+    """
+    Create a streaming response for a simple text message.
+    This ensures the frontend can parse it correctly.
+    """
+    def generate():
+        yield f"data: {json.dumps({'content': text})}\n\n"
+        yield "data: [DONE]\n\n"
+    
+    response = StreamingHttpResponse(generate(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
+
+
 SYSTEM_PROMPT = """You are Basira (بصيرة - "Insight"), the AI guide for DigitalJamath.
 
 ## CURRENT CONTEXT
@@ -99,14 +114,14 @@ class BasiraGuideView(APIView):
         # Sanitize input
         sanitized_message, rejection = sanitize_input(user_message)
         if rejection:
-            return Response({'response': rejection}, status=200)
+            return stream_simple_response(rejection)
 
         from apps.shared.models import SystemConfig
         config = SystemConfig.get_solo()
         api_key = config.openrouter_api_key or os.environ.get('OPENROUTER_API_KEY')
         
         if not api_key:
-            return Response({'error': 'API key not configured'}, status=200)
+            return stream_simple_response("⚠️ AI is not configured. Please contact administrator.")
 
         # Build system prompt with context
         current_dt = timezone.now().strftime('%A, %d %B %Y, %I:%M %p IST')

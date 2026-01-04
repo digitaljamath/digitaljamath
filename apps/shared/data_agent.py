@@ -112,6 +112,21 @@ def sanitize_user_input(message):
     return message, None
 
 
+def stream_simple_response(text):
+    """
+    Create a streaming response for a simple text message.
+    This ensures the frontend can parse it correctly.
+    """
+    def generate():
+        yield f"data: {json.dumps({'content': text})}\n\n"
+        yield "data: [DONE]\n\n"
+    
+    response = StreamingHttpResponse(generate(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
+
+
 
 def get_household_stats():
     """Get summary statistics about households."""
@@ -352,7 +367,7 @@ class BasiraDataAgentView(APIView):
         # Sanitize input for prompt injection
         sanitized_message, rejection = sanitize_user_input(user_message)
         if rejection:
-            return Response({'response': rejection}, status=200)
+            return stream_simple_response(rejection)
 
         # Get user permissions
         user_perms = get_user_permissions(request.user)
@@ -362,7 +377,7 @@ class BasiraDataAgentView(APIView):
         api_key = config.openrouter_api_key or os.environ.get('OPENROUTER_API_KEY')
 
         if not api_key:
-            return Response({'error': 'API key not configured. Please set OPENROUTER_API_KEY.'}, status=503)
+            return stream_simple_response("⚠️ API key not configured. Please contact administrator.")
 
         # Build data context based on user permissions
         data_context = self._build_data_context(sanitized_message, user_perms)
