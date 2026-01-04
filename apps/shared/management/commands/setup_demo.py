@@ -133,10 +133,14 @@ class Command(BaseCommand):
         # Skip to output section ...
        
         # Create households if not enough exist
-        existing_count = Household.objects.count()
-        if existing_count < 5:
-            for hh_data in sample_households:
+        if Household.objects.count() < 5:
+            for i, hh_data in enumerate(sample_households):
                 members_data = hh_data.pop('members')
+                # Set phone number for the first household to match demo login
+                if i == 0:
+                    hh_data['phone_number'] = '+919876543210'
+                    hh_data['is_verified'] = True
+                
                 household = Household.objects.create(**hh_data)
                 
                 for member_data in members_data:

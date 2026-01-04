@@ -67,7 +67,7 @@ export function TenantHomePage() {
     const Footer = () => (
         <footer className="border-t bg-white/80 py-4 mt-auto">
             <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-                <p>Powered by <a href="/" className="text-blue-600 hover:underline">DigitalJamath</a></p>
+                <p>Powered by <a href="https://digitaljamath.com" className="text-blue-600 hover:underline">DigitalJamath</a></p>
             </div>
         </footer>
     );
