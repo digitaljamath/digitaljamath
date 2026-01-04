@@ -160,7 +160,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'''
 Demo setup complete!
 ----------------------
-URL: http://{demo_domain_name if env_domain == 'localhost' else 'https://' + demo_domain_name}
+URL: {'http://' + demo_domain_name if env_domain == 'localhost' else 'https://' + demo_domain_name}
 Password: password123
 Username: demo@digitaljamath.com
 
