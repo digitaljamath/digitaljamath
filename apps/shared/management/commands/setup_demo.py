@@ -113,10 +113,9 @@ class Command(BaseCommand):
                 'is_superuser': True,
             }
         )
-        if user_created:
-            demo_user.set_password('password123')
-            demo_user.save()
-            self.stdout.write(self.style.SUCCESS('Created demo user (demo@digitaljamath.com / password123)'))
+        demo_user.set_password('password123')
+        demo_user.save()
+        self.stdout.write(self.style.SUCCESS(f'Demo user ready: demo@digitaljamath.com / password123'))
         
         # Create membership config
         MembershipConfig.objects.get_or_create(
