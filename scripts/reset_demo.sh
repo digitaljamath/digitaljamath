@@ -17,4 +17,7 @@ docker-compose exec -T web python manage.py migrate
 # Re-run setup_demo (this updates existing data and ensures credentials match)
 docker-compose exec -T web python manage.py setup_demo
 
+# Run rich data population
+docker-compose exec -T web python scripts/populate_demo_data.py
+
 echo "Demo Reset Complete: $(date)"

@@ -133,6 +133,8 @@ def populate(schema_name='demo'):
                 economic_status=hh_data["status"],
                 zakat_score=random.randint(10, 90) if hh_data["status"] == "ZAKAT_ELIGIBLE" else 0,
                 membership_id=hh_data["mid"],
+                phone_number='+919876543210' if hh_data["mid"] == "JM-001" else None,
+                is_verified=True if hh_data["mid"] == "JM-001" else False,
                 custom_data={"Mahalla": "Central"}
             )
             households.append(hh)
