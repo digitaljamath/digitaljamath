@@ -158,6 +158,8 @@ class JournalEntrySerializer(serializers.ModelSerializer):
     donor_name = serializers.SerializerMethodField()
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    narration = serializers.CharField(required=True, allow_blank=False, 
+                                       error_messages={'blank': 'Narration is mandatory. Describe the transaction.'})
 
     class Meta:
         model = JournalEntry
@@ -1045,6 +1047,55 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
         entry.is_finalized = True
         entry.save()
         return Response({'message': 'Entry finalized successfully.'})
+
+    @action(detail=True, methods=['post'])
+    def reverse(self, request, pk=None):
+        """
+        Create a reversal entry for this journal entry.
+        Swaps debits and credits to cancel the original transaction.
+        """
+        from django.db import transaction as db_transaction
+        
+        original = self.get_object()
+        
+        if original.is_finalized:
+            return Response({'error': 'Cannot reverse a finalized entry. Contact administrator.'}, status=400)
+        
+        try:
+            with db_transaction.atomic():
+                # Create reversal entry
+                reversal = JournalEntry.objects.create(
+                    voucher_type=original.voucher_type,
+                    date=timezone.now().date(),
+                    narration=f"REVERSAL of {original.voucher_number}: {original.narration}",
+                    donor=original.donor,
+                    donor_name_manual=original.donor_name_manual,
+                    supplier=original.supplier,
+                    payment_mode=original.payment_mode,
+                    created_by=request.user
+                )
+                
+                # Create reversed items (swap debit/credit)
+                for item in original.items.all():
+                    JournalItem.objects.create(
+                        journal_entry=reversal,
+                        ledger=item.ledger,
+                        debit_amount=item.credit_amount,  # Swap
+                        credit_amount=item.debit_amount,  # Swap
+                        description=f"Reversal: {item.description or ''}"
+                    )
+                
+                # Mark original as finalized
+                original.is_finalized = True
+                original.save()
+                
+                return Response({
+                    'message': 'Entry reversed successfully.',
+                    'reversal_voucher': reversal.voucher_number,
+                    'reversal_id': reversal.id
+                })
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 
 
 class LedgerReportsView(APIView):

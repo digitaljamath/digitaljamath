@@ -39,6 +39,7 @@ from apps.shared.api import    TenantRegistrationView, FindWorkspaceView, Verify
 
 from apps.shared.ai_guide import BasiraGuideView
 from apps.shared.data_agent import BasiraDataAgentView
+from apps.shared.simple_entry import SimpleEntryView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # Router Setup
@@ -130,6 +131,7 @@ urlpatterns = [
     # Basira AI Guide
     path('api/basira/', BasiraGuideView.as_view(), name='basira-guide'),
     path('api/basira/data-query/', BasiraDataAgentView.as_view(), name='basira-data-agent'),
+    path('api/basira/simple-entry/', SimpleEntryView.as_view(), name='basira-simple-entry'),
     
     # REST API Router
     path('api/', include(router.urls)),
