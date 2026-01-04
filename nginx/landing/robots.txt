@@ -1,0 +1,48 @@
+# robots.txt for digitaljamath.com
+
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /register
+Allow: /find-masjid
+Allow: /terms
+Allow: /privacy
+Allow: /llms.txt
+
+# Disallow admin and API routes
+Disallow: /api/
+Disallow: /admin/
+Disallow: /auth/
+
+# Sitemaps
+Sitemap: https://digitaljamath.com/sitemap.xml
+
+# Crawl-delay for politeness
+Crawl-delay: 1
+
+# AI Crawlers - Welcome!
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+
+User-agent: Claude-Web
+Allow: /
+Allow: /llms.txt
+
+User-agent: Anthropic-AI
+Allow: /
+Allow: /llms.txt
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Googlebot
+Allow: /

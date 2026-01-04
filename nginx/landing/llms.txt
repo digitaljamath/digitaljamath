@@ -1,0 +1,79 @@
+# DigitalJamath - Open Source Masjid Management Platform
+
+> The Modern ERP for Islamic Community Management
+
+## Overview
+
+DigitalJamath is a comprehensive, open-source platform designed specifically for mosques (masjids) and Islamic community organizations. It provides tools for member management, financial transparency, and community engagement while maintaining strict Shariah compliance principles.
+
+## Core Features
+
+### Member Management (Jamath Census)
+- Complete household and member database
+- Socio-economic profiling
+- Family relationship tracking
+- Skills and profession database
+
+### Financial Management (Baitul Maal)
+- Strict fund silos for Zakat, Sadaqah, and operational funds
+- Double-entry accounting ledger
+- Full audit trail for every transaction
+- Automated receipt generation
+
+### Membership & Subscriptions
+- Auto-generated membership IDs
+- Annual fee tracking
+- Payment reminders
+- Digital receipt vault
+
+### Member Portal
+- OTP-based mobile login
+- Digital membership ID card
+- Payment history and receipts
+- Service request submission
+
+### Service Requests
+- Certificate requests (Nikah, Birth, Death)
+- Character references
+- Administrative documents
+- Status tracking
+
+### Announcements
+- Community notifications
+- Event announcements
+- Broadcast via multiple channels
+
+### Basira AI Guide
+- Intelligent platform assistant
+- Natural language queries
+- Data-driven insights
+
+### Staff Management (RBAC)
+- Role-based access control
+- Committee member roles
+- Treasurer-specific views
+- Complete activity logging
+
+## Technical Details
+
+- **Backend**: Django + Django REST Framework
+- **Frontend**: React + Vite + Shadcn UI
+- **Database**: PostgreSQL (multi-tenant)
+- **Deployment**: Docker Compose
+- **License**: MIT (Open Source)
+
+## Links
+
+- Website: https://digitaljamath.com
+- Demo: https://demo.digitaljamath.com
+- GitHub: https://github.com/digitaljamath/digitaljamath
+- Contact: salam@digitaljamath.com
+
+## Demo Credentials
+
+- Staff Login: demo@digitaljamath.com / password123
+- Member Login: +919876543210 / OTP: 123456
+
+---
+
+Built by The Digital Ummah Foundation, Mangaluru, India
