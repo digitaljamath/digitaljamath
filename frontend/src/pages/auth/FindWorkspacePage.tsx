@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,13 @@ import { Search, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { getApiBaseUrl } from "@/lib/config";
-import ReCAPTCHA from "react-google-recaptcha";
+
 
 export function FindWorkspacePage() {
     const [email, setEmail] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState("");
-    const recaptchaRef = useRef<ReCAPTCHA>(null);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,14 +26,6 @@ export function FindWorkspacePage() {
         setIsLoading(true);
 
         try {
-            // Get ReCAPTCHA token (only if configured/in production)
-            let captchaToken = "";
-            const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-
-            if (siteKey && recaptchaRef.current) {
-                captchaToken = await recaptchaRef.current.executeAsync() || "";
-            }
-
             // Force absolute URL to ensure we hit the API and not Frontend (Nginx routing)
             const apiBase = "https://digitaljamath.com";
             console.log("Fetching API:", `${apiBase}/api/find-workspace/`);
@@ -45,8 +36,7 @@ export function FindWorkspacePage() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    email,
-                    captcha_token: captchaToken
+                    email
                 }),
             });
 
@@ -61,9 +51,6 @@ export function FindWorkspacePage() {
             setError("Network error. Please try again later.");
         } finally {
             setIsLoading(false);
-            if (recaptchaRef.current) {
-                recaptchaRef.current.reset();
-            }
         }
     };
 
@@ -117,13 +104,6 @@ export function FindWorkspacePage() {
                                     />
                                 </div>
 
-                                {import.meta.env.VITE_RECAPTCHA_SITE_KEY && (
-                                    <ReCAPTCHA
-                                        ref={recaptchaRef}
-                                        size="invisible"
-                                        sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                                    />
-                                )}
 
                                 {error && (
                                     <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2">

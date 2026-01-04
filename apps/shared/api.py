@@ -31,31 +31,7 @@ class RegistrationThrottle(AnonRateThrottle):
     rate = '100/hour'  # Increased for development (was 5/hour)
 
 
-def verify_recaptcha(token: str) -> bool:
-    """Verify reCAPTCHA v3 token with Google's API."""
-    # Skip verification in DEBUG mode (development)
-    if getattr(settings, 'DEBUG', False):
-        return True
-    
-    secret_key = getattr(settings, 'RECAPTCHA_SECRET_KEY', None)
-    if not secret_key:
-        # If no secret key configured, skip verification
-        return True
-    
-    try:
-        response = requests.post(
-            'https://www.google.com/recaptcha/api/siteverify',
-            data={
-                'secret': secret_key,
-                'response': token
-            },
-            timeout=5
-        )
-        result = response.json()
-        # reCAPTCHA v3 returns a score (0.0 to 1.0), require at least 0.5
-        return result.get('success', False) and result.get('score', 0) >= 0.5
-    except Exception:
-        return False
+
 
 class TenantRegistrationView(generics.CreateAPIView):
     queryset = Client.objects.all()

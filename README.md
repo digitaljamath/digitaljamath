@@ -173,8 +173,7 @@ Copy `.env.example` to `.env` and configure:
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | Member login, reminders |
 | `TELEGRAM_BOT_USERNAME` | Bot username | Telegram linking |
 | `OPENROUTER_API_KEY` | AI API key | Basira AI features |
-| `RECAPTCHA_SITE_KEY` | reCAPTCHA site key | Spam protection |
-| `RECAPTCHA_SECRET_KEY` | reCAPTCHA secret | Backend verification |
+
 
 > ⚠️ Never commit `.env` to version control!
 

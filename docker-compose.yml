@@ -84,7 +84,7 @@ services:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
         - VITE_DOMAIN_SUFFIX=${VITE_DOMAIN_SUFFIX:-localhost}
         - VITE_APP_VERSION=${APP_VERSION:-2.0.0}
-        - VITE_RECAPTCHA_SITE_KEY=${RECAPTCHA_SITE_KEY}
+
     container_name: digitaljamath_frontend
     expose:
       - "80"

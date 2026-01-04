@@ -35,9 +35,7 @@ CACHES = {
     }
 }
 
-# reCAPTCHA v3 Configuration (for Find Masjid API protection)
-# Get keys from: https://www.google.com/recaptcha/admin
-RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', None)
+
 
 # Telegram Bot Configuration (for Member Portal OTP)
 # Get token from @BotFather
