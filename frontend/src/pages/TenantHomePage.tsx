@@ -196,7 +196,7 @@ export function TenantHomePage() {
                         <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded border">
                             <div>
                                 <p className="font-semibold text-gray-700">Staff</p>
-                                <p className="text-gray-500 font-mono text-xs mt-1">admin@demo.com<br />password</p>
+                                <p className="text-gray-500 font-mono text-xs mt-1">admin@demo.com<br />password123</p>
                             </div>
                             <div>
                                 <p className="font-semibold text-gray-700">Member</p>
