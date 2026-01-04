@@ -121,57 +121,80 @@ export function LoginPage() {
 
     // Normal login form
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg border">
-                <div className="text-center">
-                    <img src="/logo.png" alt="Logo" className="h-12 w-12 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-gray-900">{tenantName}</h1>
-                    <p className="text-gray-500 mt-2">Staff Login</p>
+        <div className="min-h-screen flex flex-col bg-gray-50">
+            {/* Header */}
+            <header className="bg-white border-b sticky top-0 z-50">
+                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+                    <a href="/" className="flex items-center gap-2">
+                        <img src="/logo.png" alt="Logo" className="h-8 w-8" />
+                        <span className="font-bold text-xl text-gray-900">{tenantName}</span>
+                    </a>
+                    <a href="/" className="text-sm text-gray-500 hover:text-gray-700">
+                        ← Back to Home
+                    </a>
                 </div>
+            </header>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="admin@masjid.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
+            {/* Main Content */}
+            <main className="flex-1 flex items-center justify-center p-4">
+                <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg border">
+                    <div className="text-center">
+                        <img src="/logo.png" alt="Logo" className="h-12 w-12 mx-auto mb-4" />
+                        <h1 className="text-2xl font-bold text-gray-900">{tenantName}</h1>
+                        <p className="text-gray-500 mt-2">Staff Login</p>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="admin@masjid.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        {error && (
+                            <p className="text-sm text-red-600">{error}</p>
+                        )}
+
+                        <Button type="submit" className="w-full" disabled={loading}>
+                            {loading ? 'Signing in...' : 'Sign In'}
+                        </Button>
+                    </form>
+
+                    <div className="text-center text-sm text-gray-500 pt-4 border-t space-y-2">
+                        <p>Member? <a href="/portal/login" className="text-blue-600 hover:underline">Login via OTP</a></p>
+                        {window.location.hostname.startsWith('demo.') && (
+                            <p className="text-xs text-amber-600 font-medium bg-amber-50 py-2 rounded-md border border-amber-100 italic">
+                                Demo environment resets every 24 hours.
+                            </p>
+                        )}
                     </div>
-
-                    {error && (
-                        <p className="text-sm text-red-600">{error}</p>
-                    )}
-
-                    <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-                </form>
-
-                <div className="text-center text-sm text-gray-500 pt-4 border-t space-y-2">
-                    <p>Member? <a href="/portal/login" className="text-blue-600 hover:underline">Login via OTP</a></p>
-                    {window.location.hostname.startsWith('demo.') && (
-                        <p className="text-xs text-amber-600 font-medium bg-amber-50 py-2 rounded-md border border-amber-100 italic">
-                            Demo environment resets every 24 hours.
-                        </p>
-                    )}
                 </div>
-            </div>
+            </main>
+
+            {/* Footer */}
+            <footer className="bg-white border-t py-4">
+                <div className="container mx-auto px-4 text-center text-sm text-gray-500">
+                    <p>Powered by <a href="https://digitaljamath.com" className="text-blue-600 hover:underline">DigitalJamath</a></p>
+                </div>
+            </footer>
         </div>
     )
 }
