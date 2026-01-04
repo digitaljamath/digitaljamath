@@ -106,16 +106,16 @@ class Command(BaseCommand):
         # Create demo user
         User = get_user_model()
         demo_user, user_created = User.objects.get_or_create(
-            username='admin@demo.com',
+            username='demo@digitaljamath.com',
             defaults={
-                'email': 'admin@demo.com',
+                'email': 'demo@digitaljamath.com',
                 'is_staff': True,
                 'is_superuser': True,
             }
         )
         demo_user.set_password('password123')
         demo_user.save()
-        self.stdout.write(self.style.SUCCESS(f'Demo user ready: admin@demo.com / password123'))
+        self.stdout.write(self.style.SUCCESS(f'Demo user ready: demo@digitaljamath.com / password123'))
         
         # Create membership config
         MembershipConfig.objects.get_or_create(
@@ -191,7 +191,7 @@ Demo setup complete!
 ----------------------
 URL: {'http://' + demo_domain_name if env_domain == 'localhost' else 'https://' + demo_domain_name}
 Password: password123
-Username: admin@demo.com
+Username: demo@digitaljamath.com
 
 Households: {Household.objects.count()}
 Members: {Member.objects.count()}

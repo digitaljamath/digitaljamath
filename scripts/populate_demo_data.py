@@ -72,7 +72,7 @@ def populate(schema_name='demo'):
         households_data = [
             {
                 "address": "No. 45, Tannery Road, Frazer Town", "status": "AAM", "mid": "JM-001",
-                "members": [("Ahmed Khan", True, "MALE", "MARRIED", "Business", "Graduate", "Trading, Accounting", 45), ("Fatima Khan", False, "FEMALE", "MARRIED", "Housewife", "12th Pass", "Cooking, Sewing", 40), ("Bilal Khan", False, "MALE", "SINGLE", "Student", "Pursuing Degree", None, 18)]
+                "members": [("Ahmed Khan (Demo 9876543210)", True, "MALE", "MARRIED", "Business", "Graduate", "Trading, Accounting", 45), ("Fatima Khan", False, "FEMALE", "MARRIED", "Housewife", "12th Pass", "Cooking, Sewing", 40), ("Bilal Khan", False, "MALE", "SINGLE", "Student", "Pursuing Degree", None, 18)]
             },
             {
                 "address": "Flat 302, Diamond Appts, Modi Road", "status": "AAM", "mid": "JM-002",
