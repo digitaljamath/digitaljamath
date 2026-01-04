@@ -26,7 +26,7 @@
         // Only load reCAPTCHA in production (not localhost)
         if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
             var script = document.createElement('script');
-            script.src = 'https://www.google.com/recaptcha/api.js?render=YOUR_SITE_KEY';
+            script.src = 'https://www.google.com/recaptcha/api.js?render=6LeUnT4sAAAAAKChpiz2LPSLc9wOs_EOXkG7ntaW';
             document.head.appendChild(script);
         }
     </script>
@@ -153,7 +153,16 @@
                     body: JSON.stringify({ email, captcha_token: captchaToken })
                 });
 
-                const data = await response.json();
+                // Check content type
+                const contentType = response.headers.get("content-type");
+                let data;
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error(`Server Error (${response.status}): Expected JSON but got ${contentType}`);
+                }
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Something went wrong');
