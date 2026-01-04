@@ -275,7 +275,12 @@ class FindWorkspaceView(generics.GenericAPIView):
             
             # Send email with workspace info instead of returning directly
             if results:
-                EmailService.send_workspace_login_info(email, results)
+                try:
+                    EmailService.send_workspace_login_info(email, results)
+                except Exception as e:
+                    # Log error but don't crash response. 
+                    # Return success to user so they don't know if email exists or failed (security).
+                    print(f"Failed to send workspace email: {e}")
         
         # Always return same success message to prevent email enumeration
         return Response({
