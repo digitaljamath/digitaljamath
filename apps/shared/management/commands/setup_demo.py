@@ -130,10 +130,8 @@ class Command(BaseCommand):
         
         # ... (rest of the data creation remains the same)
 
-        # Skip to output section ...
-       
         # Create households if not enough exist
-        if Household.objects.count() < 5:
+        if Household.objects.count() < 3:
             for i, hh_data in enumerate(sample_households):
                 members_data = hh_data.pop('members')
                 # Set phone number for the first household to match demo login
@@ -143,7 +141,14 @@ class Command(BaseCommand):
                 
                 household = Household.objects.create(**hh_data)
                 
-                for member_data in members_data:
+                for j, member_data in enumerate(members_data):
+                    # Add phone number to the first member as well (in custom_data since field doesn't exist)
+                    if i == 0 and j == 0:
+                        if 'custom_data' not in member_data:
+                            member_data['custom_data'] = {}
+                        member_data['custom_data']['phone'] = '+919876543210'
+                        member_data['full_name'] = "Demo Head (9876543210)"
+                    
                     Member.objects.create(household=household, is_approved=True, **member_data)
                 
                 self.stdout.write(f'  Created household: {household.membership_id}')
