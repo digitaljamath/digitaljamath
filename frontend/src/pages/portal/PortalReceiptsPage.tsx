@@ -28,7 +28,7 @@ export function PortalReceiptsPage() {
 
     const fetchReceipts = async () => {
         try {
-            const token = localStorage.getItem('portal_token');
+            const token = localStorage.getItem('access_token');
             const res = await fetch('/api/portal/receipts/list/', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -52,7 +52,7 @@ export function PortalReceiptsPage() {
     const downloadReceipt = async (receiptId: number, receiptNumber: string) => {
         setDownloadingId(receiptId);
         try {
-            const token = localStorage.getItem('portal_token');
+            const token = localStorage.getItem('access_token');
             const res = await fetch(`/api/portal/receipts/${receiptId}/pdf/`, {
                 headers: {
                     'Authorization': `Bearer ${token}`

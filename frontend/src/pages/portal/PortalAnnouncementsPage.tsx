@@ -24,7 +24,7 @@ export function PortalAnnouncementsPage() {
 
     const fetchAnnouncements = async () => {
         try {
-            const token = localStorage.getItem('portal_token');
+            const token = localStorage.getItem('access_token');
             const res = await fetch('/api/portal/announcements/', {
                 headers: {
                     'Authorization': `Bearer ${token}`,

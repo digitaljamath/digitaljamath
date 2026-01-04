@@ -1346,10 +1346,10 @@ class PortalReceiptListView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        # Get household from session
-        household_id = request.session.get('portal_household_id')
-        if not household_id:
-            return Response({'error': 'Not authenticated as household'}, status=401)
+        if not request.user.username.startswith('member_'):
+            return Response({'error': 'Not authenticated as member'}, status=401)
+        
+        household_id = int(request.user.username.split('_')[1])
         
         try:
             household = Household.objects.get(id=household_id)
@@ -1359,7 +1359,7 @@ class PortalReceiptListView(APIView):
         # Find receipt entries for this household
         entries = JournalEntry.objects.filter(
             voucher_type='RECEIPT',
-            household=household
+            donor__household_id=household_id
         ).order_by('-date')
         
         receipts = []
@@ -1384,13 +1384,13 @@ class PortalReceiptPDFView(APIView):
     def get(self, request, entry_id):
         from apps.jamath.receipt_generator import generate_receipt_pdf
         
-        # Verify household access
-        household_id = request.session.get('portal_household_id')
-        if not household_id:
-            return Response({'error': 'Not authenticated as household'}, status=401)
+        if not request.user.username.startswith('member_'):
+            return Response({'error': 'Not authenticated as member'}, status=401)
+        
+        household_id = int(request.user.username.split('_')[1])
         
         try:
-            entry = JournalEntry.objects.get(id=entry_id, household_id=household_id)
+            entry = JournalEntry.objects.get(id=entry_id, donor__household_id=household_id)
         except JournalEntry.DoesNotExist:
             return Response({'error': 'Receipt not found'}, status=404)
         
