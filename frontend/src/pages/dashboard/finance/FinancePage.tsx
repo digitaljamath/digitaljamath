@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
     Plus, Receipt, CreditCard, FileText, BarChart3,
-    Wallet, Building2, TrendingUp, TrendingDown, Loader2
+    Wallet, Building2, TrendingUp, TrendingDown, Loader2, RotateCcw
 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
+import { QuickEntry } from "./components/QuickEntry";
 
 type JournalEntry = {
     id: number;
@@ -83,6 +84,27 @@ export function FinancePage() {
         }
     };
 
+    const handleReverse = async (id: number, voucherNo: string) => {
+        if (!window.confirm(`Are you sure you want to REVERSE entry ${voucherNo}? This creates a contra entry.`)) return;
+
+        try {
+            const res = await fetchWithAuth(`/api/ledger/journal-entries/${id}/reverse/`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert(`Success! Reversal Voucher: ${data.reversal_voucher}`);
+                window.location.reload();
+            } else {
+                const data = await res.json();
+                alert(`Error: ${data.error || 'Failed to reverse entry'}`);
+            }
+        } catch (err) {
+            alert('Failed to connect to server.');
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -113,8 +135,10 @@ export function FinancePage() {
                 </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* AI Quick Entry */}
+            <QuickEntry />
+
+            {/* Quick Stats */}<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Cash & Bank</CardTitle>
@@ -231,9 +255,20 @@ export function FinancePage() {
                                             {entry.voucher_type === 'RECEIPT' ? '+' : entry.voucher_type === 'PAYMENT' ? '-' : ''}
                                             ₹{parseFloat(entry.total_amount || '0').toLocaleString('en-IN')}
                                         </p>
-                                        <p className="text-xs text-gray-500">
-                                            {entry.donor_name || entry.supplier_name || ''}
-                                        </p>
+                                        <div className="flex justify-end items-center gap-2 mt-1">
+                                            <p className="text-xs text-gray-500">
+                                                {entry.donor_name || entry.supplier_name || ''}
+                                            </p>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-gray-400 hover:text-red-500"
+                                                title="Reverse Entry"
+                                                onClick={() => handleReverse(entry.id, entry.voucher_number)}
+                                            >
+                                                <RotateCcw className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -241,6 +276,6 @@ export function FinancePage() {
                     )}
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }

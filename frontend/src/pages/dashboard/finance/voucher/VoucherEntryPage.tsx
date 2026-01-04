@@ -1,5 +1,5 @@
 import { useEffect, useState, Suspense } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,7 @@ const FUND_CATEGORIES = [
 
 function VoucherFormContent() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const initialType = searchParams.get('type') || 'RECEIPT';
 
@@ -139,6 +140,42 @@ function VoucherFormContent() {
         }
         fetchMasters();
     }, []);
+
+    // Handle AI Prefill
+    useEffect(() => {
+        if (location.state?.prefill && ledgers.length > 0) {
+            const p = location.state.prefill;
+            console.log("Applying Prefill:", p);
+
+            if (p.narration) setNarration(p.narration);
+
+            // Find Cash Ledger (Code 1001)
+            const cashLedger = ledgers.find(l => l.code === '1001');
+            const cashLedgerId = cashLedger ? cashLedger.id : 4; // Default to 4 if not found
+
+            if (p.amount) {
+                const amount = parseFloat(p.amount);
+                const partyName = p.party_name || "";
+
+                if (initialType === 'RECEIPT') {
+                    setItems([
+                        { ledger: cashLedgerId, debit_amount: amount, credit_amount: 0, particulars: "Cash Received" },
+                        { ledger: p.ledger_id || 0, debit_amount: 0, credit_amount: amount, particulars: p.narration || "" }
+                    ]);
+                    if (partyName) setDonorNameManual(partyName);
+                } else if (initialType === 'PAYMENT') {
+                    setItems([
+                        { ledger: p.ledger_id || 0, debit_amount: amount, credit_amount: 0, particulars: p.narration || "" },
+                        { ledger: cashLedgerId, debit_amount: 0, credit_amount: amount, particulars: "Cash Paid" }
+                    ]);
+                    // Try to match supplier by name? For now just manual
+                }
+            }
+
+            // Clear state to prevent re-apply
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state, ledgers, initialType]);
 
     const totalDebit = items.reduce((sum, i) => sum + (i.debit_amount || 0), 0);
     const totalCredit = items.reduce((sum, i) => sum + (i.credit_amount || 0), 0);
