@@ -262,25 +262,31 @@ class FindWorkspaceView(generics.GenericAPIView):
         clients = Client.objects.filter(owner_email__iexact=email)
         
         if clients.exists():
-            results = []
-            for client in clients:
-                domain = client.domains.filter(is_primary=True).first()
-                if domain:
-                    protocol = 'https' if not settings.DEBUG else 'http'
-                    results.append({
-                        "name": client.name,
-                        "url": f"{protocol}://{domain.domain}/",
-                        "login_url": f"{protocol}://{domain.domain}/auth/login"
-                    })
-            
-            # Send email with workspace info instead of returning directly
-            if results:
-                try:
+            try:
+                results = []
+                for client in clients:
+                    # Defensive check for domains/domain_set
+                    domains = getattr(client, 'domains', None) or getattr(client, 'domain_set', None)
+                    if domains:
+                        domain = domains.filter(is_primary=True).first()
+                        if domain:
+                            protocol = 'https' if not settings.DEBUG else 'http'
+                            results.append({
+                                "name": client.name,
+                                "url": f"{protocol}://{domain.domain}/",
+                                "login_url": f"{protocol}://{domain.domain}/auth/login"
+                            })
+                
+                # Send email with workspace info instead of returning directly
+                if results:
                     EmailService.send_workspace_login_info(email, results)
-                except Exception as e:
-                    # Log error but don't crash response. 
-                    # Return success to user so they don't know if email exists or failed (security).
-                    print(f"Failed to send workspace email: {e}")
+                    
+            except Exception as e:
+                # Catch ALL errors (AttributeError, SMTP, etc) to prevent 500
+                import traceback
+                print(f"Find Workspace Error: {str(e)}")
+                traceback.print_exc()
+
         
         # Always return same success message to prevent email enumeration
         return Response({
