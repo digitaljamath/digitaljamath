@@ -29,6 +29,12 @@
 - Added `llms.txt` for AI crawlers (GPTBot, Claude, etc.)
 - Added `robots.txt` with proper crawler guidance
 
+### 🤖 Basira AI RBAC
+- **Dynamic role-based access** - AI only shows data user has permission to see
+- **Prompt injection protection** - Regex-based guards against manipulation
+- **Pyramid principle** - Concise answers first, details only when asked
+- **Date/time context** - AI knows current date and user identity
+
 ---
 
 ## ✨ Key Features
@@ -41,7 +47,7 @@
 | **Member Portal** | Mobile-first self-service portal with OTP login and digital ID card |
 | **Service Requests** | Members request certificates (Nikah, Death, NOC) online |
 | **Announcements** | Community notifications and event announcements |
-| **Basira AI Guide** | Intelligent assistant for platform navigation and insights |
+| **Basira AI Guide** | RBAC-secured AI assistant with role-based data access and prompt injection protection |
 | **Telegram Bot** | Notifications, reminders, and member linking |
 | **PDF Receipts** | 80G-compliant receipt generation with tax details |
 | **Staff Management** | Role-based access control with full audit logging |
