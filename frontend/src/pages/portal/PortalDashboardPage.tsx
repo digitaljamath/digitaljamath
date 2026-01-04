@@ -314,169 +314,170 @@ export function PortalDashboardPage() {
     const totalAmount = amountDue + extraCharity;
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            {/* Header */}
-            <header className="bg-white border-b sticky top-0 z-10 w-full">
-                <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <img src="/logo.png" alt="Logo" className="h-8 w-8" />
-                        <div>
-                            <h1 className="font-bold text-lg leading-tight">Digital Jamath</h1>
-                            <p className="text-xs text-gray-500">Member Portal</p>
-                        </div>
+        <div className="min-h-screen bg-white flex flex-col">
+            {/* Header / App Bar */}
+            <header className="bg-white border-b sticky top-0 z-50 h-[56px] flex items-center shadow-sm">
+                <div className="w-full max-w-[420px] mx-auto px-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <img src="/logo.png" alt="Logo" className="h-6 w-6" />
+                        <h1 className="font-bold text-lg tracking-tight text-gray-900">Digital Jamath</h1>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <LogOut className="h-4 w-4 mr-2" /> Logout
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleLogout}
+                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all"
+                    >
+                        <LogOut className="h-5 w-5" />
                     </Button>
                 </div>
             </header>
 
-            <main className="container mx-auto px-4 py-6 space-y-6 max-w-lg flex-1">
+            <main className="w-full max-w-[420px] mx-auto px-4 py-6 space-y-6 flex-1">
 
-                {/* 1. Membership & Payment Card */}
+                {/* 1. Membership Status Card */}
                 {membership && (
-                    <Card className={`shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 ${!membership.is_active && amountDue > 0 ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-white'}`}>
-                        <CardHeader className="pb-2">
-                            <CardTitle className={`text-lg flex items-center ${!membership.is_active && amountDue > 0 ? 'text-amber-800' : 'text-blue-800'}`}>
-                                {!membership.is_active && amountDue > 0 ? <AlertCircle className="h-5 w-5 mr-2 text-amber-600" /> : <CheckCircle className="h-5 w-5 mr-2 text-blue-600" />}
-                                {(!membership.is_active && amountDue > 0) ? "Membership Payment Due" : "Membership Status"}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex justify-between items-center mb-4">
-                                {amountDue > 0 ? (
-                                    <>
-                                        <div>
-                                            <p className="text-sm text-gray-600">Amount Due</p>
-                                            <p className="text-2xl font-bold text-gray-900">₹{amountDue}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-gray-500">Required</p>
-                                            <p className="text-sm font-medium text-gray-700">₹{membership.minimum_required}</p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="w-full">
-                                        <p className="text-sm text-gray-600">Current Status</p>
-                                        <div className="flex justify-between items-center">
-                                            <p className="text-xl font-bold text-green-700">Active</p>
-                                            <Badge variant="outline" className="bg-green-50 text-green-700">No Dues</Badge>
-                                        </div>
-                                    </div>
-                                )}
+                    <Card className={`shadow-sm scale-110 border-0 ${!membership.is_active && amountDue > 0 ? 'bg-amber-50' : 'bg-gray-50/50'}`}>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Membership Status</h3>
+                                <div className="flex gap-2">
+                                    <Badge
+                                        variant="outline"
+                                        className={`rounded-full px-3 h-6 border-0 ${membership.is_active ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                            }`}
+                                    >
+                                        <span className="flex items-center gap-1">
+                                            <div className={`h-1.5 w-1.5 rounded-full ${membership.is_active ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                            {membership.is_active ? 'Active' : 'Expired'}
+                                        </span>
+                                    </Badge>
+                                    {amountDue === 0 && (
+                                        <Badge variant="outline" className="rounded-full px-3 h-6 bg-blue-100 text-blue-700 border-0">
+                                            No Dues
+                                        </Badge>
+                                    )}
+                                </div>
                             </div>
 
-                            {(!membership.is_active && amountDue > 0) ? (
-                                <p className="text-xs text-amber-700 mb-4 bg-amber-100/50 p-2 rounded">
-                                    Your membership is currently <b>{membership.status}</b>. Please pay the due amount.
-                                </p>
-                            ) : (
-                                <p className="text-xs text-gray-500 mb-4 bg-gray-50 p-2 rounded">
-                                    Your membership is active. You can make voluntary donations (Sadaqah) below.
-                                </p>
+                            {amountDue > 0 && (
+                                <div className="flex items-end justify-between mb-4 animate-in fade-in duration-500">
+                                    <div>
+                                        <p className="text-[12px] text-gray-500 font-medium">Amount Due</p>
+                                        <p className="text-2xl font-bold text-gray-900 leading-tight">₹{amountDue}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Required</p>
+                                        <p className="text-sm font-bold text-gray-600">₹{membership.minimum_required}</p>
+                                    </div>
+                                </div>
                             )}
 
                             <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
                                 <DialogTrigger asChild>
-                                    <Button className={`w-full font-semibold text-white ${!membership.is_active && amountDue > 0 ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`} size="lg">
-                                        {amountDue > 0 ? "Pay Now via UPI / Card" : "Make a Mutation / Donation"}
+                                    <Button
+                                        className={`w-full h-12 rounded-[14px] font-bold text-base active:scale-95 transition-all shadow-md ${!membership.is_active && amountDue > 0
+                                            ? 'bg-amber-500 hover:bg-amber-600'
+                                            : 'bg-blue-600 hover:bg-blue-700'
+                                            }`}
+                                    >
+                                        {amountDue > 0 ? "Pay Now" : "Make a Donation"}
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-md">
+                                <DialogContent className="sm:max-w-md rounded-t-[24px]">
                                     <DialogHeader>
-                                        <DialogTitle>{amountDue > 0 ? "Processing Payment" : "Make a Donation"}</DialogTitle>
-                                        <DialogDescription>
-                                            Secure payment gateway.
+                                        <DialogTitle className="text-lg">{amountDue > 0 ? "Processing Payment" : "Make a Donation"}</DialogTitle>
+                                        <DialogDescription className="text-xs">
+                                            Secure and encrypted transaction via Razorpay/Cashfree.
                                         </DialogDescription>
                                     </DialogHeader>
 
                                     <div className="space-y-4 py-4">
-                                        <Card className="border p-4 bg-gray-50">
+                                        <Card className="border-0 shadow-inner p-4 bg-gray-50 rounded-2xl">
                                             {amountDue > 0 && (
                                                 <div className="flex justify-between items-center mb-2">
-                                                    <span className="text-sm text-gray-600">Membership Fee</span>
-                                                    <span className="font-medium">₹{amountDue}</span>
+                                                    <span className="text-sm text-gray-500">Membership Fee</span>
+                                                    <span className="font-bold text-gray-900">₹{amountDue}</span>
                                                 </div>
                                             )}
                                             {extraCharity > 0 && (
                                                 <div className="flex justify-between items-center mb-2 text-green-600">
-                                                    <span className="text-sm">Donation Amount</span>
-                                                    <span className="font-medium">+₹{extraCharity}</span>
+                                                    <span className="text-sm font-medium">Extra Donation (Sadaqah)</span>
+                                                    <span className="font-bold">+₹{extraCharity}</span>
                                                 </div>
                                             )}
-                                            <div className="border-t pt-2 mt-2 flex justify-between items-center">
-                                                <span className="font-bold text-lg">Total Pay</span>
-                                                <span className="text-2xl font-bold text-blue-700">₹{totalAmount}</span>
+                                            <div className="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center">
+                                                <span className="font-bold text-gray-900">Total to Pay</span>
+                                                <span className="text-2xl font-black text-blue-600">₹{totalAmount}</span>
                                             </div>
                                         </Card>
 
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium flex items-center gap-2">
-                                                <span>{amountDue > 0 ? "Add Extra Donation (Sadaqah)" : "Select Donation Amount"}</span>
+                                        <div className="space-y-3">
+                                            <label className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">
+                                                Add Extra Donation
                                             </label>
-                                            <div className="flex gap-2">
+                                            <div className="grid grid-cols-4 gap-2">
                                                 {[100, 500, 1000, 2000].map(amt => (
                                                     <Button
                                                         key={amt}
                                                         variant={extraCharity === amt ? "default" : "outline"}
                                                         size="sm"
-                                                        className={`flex-1 ${extraCharity === amt ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                                        className={`h-10 rounded-xl font-bold border-gray-200 ${extraCharity === amt ? 'bg-green-600 hover:bg-green-700 border-0' : 'text-gray-600 hover:bg-gray-50'}`}
                                                         onClick={() => setExtraCharity(amt)}
                                                     >
                                                         ₹{amt}
                                                     </Button>
                                                 ))}
                                             </div>
-                                            <div className="flex gap-2 mt-2">
+                                            <div className="relative mt-2">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
                                                 <input
                                                     type="number"
-                                                    placeholder="Custom Amount"
-                                                    className="flex-1 px-3 py-1 text-sm border rounded"
+                                                    placeholder="Enter custom amount"
+                                                    className="w-full pl-7 pr-3 py-2 text-sm border-gray-200 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none h-10 font-bold"
                                                     onChange={(e) => setExtraCharity(parseInt(e.target.value) || 0)}
                                                 />
                                             </div>
                                         </div>
 
-                                        {/* 80G Checkbox */}
-                                        <div className="flex items-center space-x-2 pt-2 border-t">
+                                        <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
                                             <input
                                                 type="checkbox"
                                                 id="need80g"
-                                                className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                                                className="h-5 w-5 text-blue-600 rounded-lg border-gray-300 focus:ring-0"
                                                 checked={need80G}
                                                 onChange={(e) => setNeed80G(e.target.checked)}
                                             />
-                                            <label htmlFor="need80g" className="text-sm font-medium leading-none cursor-pointer">
-                                                I need 80G Tax Exemption Receipt
+                                            <label htmlFor="need80g" className="text-sm font-bold text-gray-600 cursor-pointer">
+                                                I need 80G Tax Exemption
                                             </label>
                                         </div>
 
                                         {need80G && (
-                                            <div className="animate-in fade-in slide-in-from-top-2">
-                                                <label className="text-sm font-medium mb-1 block">PAN Number (Required for 80G)</label>
+                                            <div className="animate-in slide-in-from-top-2 duration-300">
+                                                <label className="text-[12px] font-bold text-gray-400 uppercase mb-1 block">PAN Number</label>
                                                 <input
                                                     type="text"
                                                     value={donorPan}
                                                     onChange={(e) => setDonorPan(e.target.value.toUpperCase())}
                                                     placeholder="ABCDE1234F"
-                                                    className="w-full px-3 py-2 border rounded-md text-sm uppercase"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm uppercase font-mono font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                                                     maxLength={10}
                                                 />
                                             </div>
                                         )}
                                     </div>
 
-                                    <DialogFooter className="sm:justify-center gap-2">
+                                    <DialogFooter>
                                         <Button
-                                            className="w-full bg-blue-600 hover:bg-blue-700"
-                                            size="lg"
+                                            className="w-full bg-blue-600 hover:bg-blue-700 h-12 rounded-2xl font-black text-lg shadow-lg active:scale-95 transition-all"
                                             onClick={handlePayment}
                                             disabled={isPaymentLoading || totalAmount <= 0}
                                         >
                                             {isPaymentLoading ? (
-                                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
+                                                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</>
                                             ) : (
-                                                <>Pay ₹{totalAmount} Securely</>
+                                                <>Pay ₹{totalAmount}</>
                                             )}
                                         </Button>
                                     </DialogFooter>
@@ -487,120 +488,125 @@ export function PortalDashboardPage() {
                 )}
 
                 {/* 2. Digital ID Card */}
-                <Card className="bg-gradient-to-r from-blue-700 to-blue-900 text-white border-0 shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12 blur-xl"></div>
+                <Card className="bg-gradient-to-br from-blue-600 to-indigo-900 text-white border-0 shadow-xl relative overflow-hidden h-[200px] rounded-[24px]">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400/10 rounded-full -ml-16 -mb-16 blur-2xl"></div>
 
-                    <CardContent className="p-6 relative z-0">
-                        <div className="flex items-start justify-between mb-6">
+                    <CardContent className="p-6 h-full flex flex-col justify-between relative z-10">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xl font-black tracking-tight leading-none text-white shadow-sm">
+                                    {household.head_name || headName}
+                                </p>
+                                <p className="text-[12px] text-blue-100/80 font-medium tracking-wide drop-shadow-sm">
+                                    {household?.address}
+                                </p>
+                            </div>
+                            <div className="bg-white/10 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-blue-100">Status</p>
+                                <p className="text-[11px] font-black text-white flex items-center gap-1">
+                                    <div className={`h-1.5 w-1.5 rounded-full ${membership?.is_active ? 'bg-green-400' : 'bg-red-400'} animate-pulse`} />
+                                    {membership?.is_active ? 'ACTIVE' : 'EXPIRED'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-auto flex items-end justify-between border-t border-white/10 pt-4">
                             <div>
-                                <p className="text-blue-200 text-xs uppercase tracking-wider font-semibold">Member ID</p>
-                                <p className="text-3xl font-bold tracking-tight font-mono">
+                                <p className="text-[10px] text-blue-200 uppercase font-black tracking-[0.2em]">Member ID</p>
+                                <p className="text-2xl font-black tracking-tighter text-white drop-shadow-md">
                                     {household?.membership_id || `#${household?.id}`}
                                 </p>
                             </div>
-                            <Badge
-                                className={`px-3 py-1 border-0 ${membership?.is_active
-                                    ? 'bg-green-500/20 text-green-100 hover:bg-green-500/30'
-                                    : 'bg-red-500/20 text-red-100 hover:bg-red-500/30'
-                                    }`}
-                            >
-                                {membership?.is_active ? (
-                                    <span className="flex items-center"><CheckCircle className="h-3 w-3 mr-1" /> ACTIVE</span>
-                                ) : (
-                                    <span className="flex items-center"><AlertCircle className="h-3 w-3 mr-1" /> EXPIRED</span>
-                                )}
-                            </Badge>
-                        </div>
-
-                        <div className="space-y-1">
-                            <p className="text-xl font-semibold leading-none">{household.head_name || headName}</p>
-                            <p className="text-sm text-blue-200">{household?.address}</p>
-                        </div>
-
-                        <div className="mt-6 flex items-center justify-between pt-4 border-t border-white/20">
-                            <div className="flex items-center text-sm text-blue-100">
-                                <Users className="h-4 w-4 mr-2 opacity-70" />
-                                {household?.member_count} Family Members
-                            </div>
-                            {membership?.end_date && (
-                                <div className="text-xs text-blue-200">
-                                    Valid until: {new Date(membership.end_date).toLocaleDateString()}
+                            <div className="flex flex-col items-end gap-1">
+                                <div className="flex items-center text-[12px] font-bold px-2 py-1 bg-white/10 rounded-full border border-white/10">
+                                    <Users className="h-3 w-3 mr-1.5 opacity-80" />
+                                    {household?.member_count} Members
                                 </div>
-                            )}
+                                {membership?.end_date && (
+                                    <p className="text-[9px] text-blue-200/60 font-medium uppercase tracking-tighter">
+                                        Valid thru {new Date(membership.end_date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 3. Quick Actions Grid */}
-                <div>
-                    <h2 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">Services</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Link to="/portal/receipts">
-                            <Card className="hover:bg-blue-50 transition-all cursor-pointer h-full border hover:border-blue-200 group">
-                                <CardContent className="p-4 flex flex-col items-center text-center">
-                                    <div className="p-3 bg-green-100 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                {/* 3. Services Section (Native Grid) */}
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                    <h2 className="text-[12px] font-black text-gray-400 mb-3 uppercase tracking-[0.15em] px-1">Services</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                        <Link to="/portal/receipts" className="active:scale-95 transition-transform duration-200">
+                            <Card className="hover:bg-blue-50/50 transition-colors border-0 shadow-sm bg-white rounded-2xl h-[100px] flex items-center justify-center">
+                                <CardContent className="p-0 flex flex-col items-center">
+                                    <div className="p-2.5 bg-green-50 rounded-xl mb-2">
                                         <Receipt className="h-6 w-6 text-green-600" />
                                     </div>
-                                    <p className="font-semibold text-gray-900">Receipt Vault</p>
-                                    <p className="text-xs text-gray-500 mt-1">View history</p>
+                                    <p className="font-bold text-sm text-gray-800">Receipt Vault</p>
+                                    <p className="text-[10px] text-gray-400 font-medium">History</p>
                                 </CardContent>
                             </Card>
                         </Link>
 
-                        <Link to="/portal/announcements">
-                            <Card className="hover:bg-blue-50 transition-all cursor-pointer h-full border hover:border-blue-200 group">
-                                <CardContent className="p-4 flex flex-col items-center text-center">
-                                    <div className="p-3 bg-blue-100 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                        <Link to="/portal/announcements" className="active:scale-95 transition-transform duration-200">
+                            <Card className="hover:bg-blue-50/50 transition-colors border-0 shadow-sm bg-white rounded-2xl h-[100px] flex items-center justify-center">
+                                <CardContent className="p-0 flex flex-col items-center">
+                                    <div className="p-2.5 bg-blue-50 rounded-xl mb-2">
                                         <Bell className="h-6 w-6 text-blue-600" />
                                     </div>
-                                    <p className="font-semibold text-gray-900">Announcements</p>
-                                    <p className="text-xs text-gray-500 mt-1">Latest updates</p>
+                                    <p className="font-bold text-sm text-gray-800">Announcements</p>
+                                    <p className="text-[10px] text-gray-400 font-medium">Updates</p>
                                 </CardContent>
                             </Card>
                         </Link>
 
-                        <Link to="/portal/services">
-                            <Card className="hover:bg-blue-50 transition-all cursor-pointer h-full border hover:border-blue-200 group">
-                                <CardContent className="p-4 flex flex-col items-center text-center">
-                                    <div className="p-3 bg-purple-100 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                        <Link to="/portal/services" className="active:scale-95 transition-transform duration-200">
+                            <Card className="hover:bg-blue-50/50 transition-colors border-0 shadow-sm bg-white rounded-2xl h-[100px] flex items-center justify-center">
+                                <CardContent className="p-0 flex flex-col items-center">
+                                    <div className="p-2.5 bg-purple-50 rounded-xl mb-2">
                                         <FileText className="h-6 w-6 text-purple-600" />
                                     </div>
-                                    <p className="font-semibold text-gray-900">Service Desk</p>
-                                    <p className="text-xs text-gray-500 mt-1">Request docs</p>
+                                    <p className="font-bold text-sm text-gray-800">Service Desk</p>
+                                    <p className="text-[10px] text-gray-400 font-medium">Documents</p>
                                 </CardContent>
                             </Card>
                         </Link>
 
-                        <Link to="/portal/family">
-                            <Card className="hover:bg-blue-50 transition-all cursor-pointer h-full border hover:border-blue-200 group">
-                                <CardContent className="p-4 flex flex-col items-center text-center">
-                                    <div className="p-3 bg-orange-100 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                                        <User className="h-6 w-6 text-orange-600" />
+                        <Link to="/portal/family" className="active:scale-95 transition-transform duration-200">
+                            <Card className="hover:bg-blue-50/50 transition-colors border-0 shadow-sm bg-white rounded-2xl h-[100px] flex items-center justify-center">
+                                <CardContent className="p-0 flex flex-col items-center">
+                                    <div className="p-2.5 bg-orange-50 rounded-xl mb-2">
+                                        <Users className="h-6 w-6 text-orange-600" />
                                     </div>
-                                    <p className="font-semibold text-gray-900">Family Profile</p>
-                                    <p className="text-xs text-gray-500 mt-1">Manage members</p>
+                                    <p className="font-bold text-sm text-gray-800">Family Profile</p>
+                                    <p className="text-[10px] text-gray-400 font-medium">Manage</p>
                                 </CardContent>
                             </Card>
                         </Link>
                     </div>
                 </div>
+
+                {/* Extra Padding for scrolling */}
+                <div className="h-12" />
             </main>
 
             {/* Footer */}
-            <footer className="bg-white border-t py-6 mt-auto">
-                <div className="container mx-auto px-4 text-center">
-                    <p className="text-sm font-semibold text-gray-900">Digital Jamath</p>
-                    <p className="text-xs text-gray-500 mt-1">Empowering Communities</p>
-                    <div className="flex justify-center gap-4 mt-4 text-xs text-gray-400">
-                        <a href="#" className="hover:text-gray-600">Privacy</a>
-                        <span>•</span>
-                        <a href="#" className="hover:text-gray-600">Terms</a>
-                        <span>•</span>
-                        <a href="#" className="hover:text-gray-600">Support</a>
-                    </div>
-                    <p className="text-[10px] text-gray-300 mt-4">v1.1.0 • © 2026</p>
+            <footer className="w-full max-w-[420px] mx-auto border-t border-gray-100 py-10 mt-auto px-6 text-center bg-gray-50/30">
+                <div className="flex flex-col items-center gap-2">
+                    <img src="/logo.png" alt="Logo" className="h-6 w-6 grayscale opacity-30" />
+                    <p className="text-sm font-black text-gray-400 tracking-tight">Digital Jamath</p>
                 </div>
+                <div className="flex justify-center gap-4 mt-6 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                    <a href="#" className="hover:text-blue-600 transition-colors">Privacy</a>
+                    <span>•</span>
+                    <a href="#" className="hover:text-blue-600 transition-colors">Terms</a>
+                    <span>•</span>
+                    <a href="#" className="hover:text-blue-600 transition-colors">Support</a>
+                </div>
+                <p className="text-[9px] text-gray-300 mt-8 font-black uppercase tracking-[0.3em] border border-gray-200/50 rounded-full py-1 px-4 inline-block">
+                    v2.0.0 Alpha
+                </p>
             </footer>
         </div>
     );
