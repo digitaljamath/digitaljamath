@@ -243,6 +243,23 @@ The interactive installer handles everything:
 
 ---
 
+## 🛡️ Safe Update Process
+**Never run `setup.sh` on a production server that already has data!** 
+
+To update your production server safely (e.g., after pushing changes to GitHub):
+```bash
+cd ~/workspace/digitaljamath
+./deploy.sh
+```
+This script will:
+1. Pull the latest code (`git pull`)
+2. Rebuild containers (`docker-compose build`)
+3. Run migrations (`migrate_schemas`)
+4. Restart services
+**It will NOT interfere with your database or delete any tenant data.**
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions!
