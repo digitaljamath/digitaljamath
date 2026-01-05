@@ -171,11 +171,6 @@ export function TransactionsPage() {
                         {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
                         Export CSV
                     </Button>
-                    <Button asChild>
-                        <Link to="/dashboard/finance/voucher">
-                            <Plus className="h-4 w-4 mr-2" /> New Entry
-                        </Link>
-                    </Button>
                 </div>
             </div>
 
@@ -277,7 +272,7 @@ export function TransactionsPage() {
                                             {entry.narration}
                                         </TableCell>
                                         <TableCell className={`text-right font-bold ${entry.voucher_type === 'RECEIPT' ? 'text-green-600' :
-                                                entry.voucher_type === 'PAYMENT' ? 'text-red-600' : 'text-blue-600'
+                                            entry.voucher_type === 'PAYMENT' ? 'text-red-600' : 'text-blue-600'
                                             }`}>
                                             {entry.voucher_type === 'RECEIPT' ? '+' : entry.voucher_type === 'PAYMENT' ? '-' : ''}
                                             ₹{parseFloat(entry.total_amount || '0').toLocaleString('en-IN')}

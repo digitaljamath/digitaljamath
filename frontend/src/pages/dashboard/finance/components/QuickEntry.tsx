@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2, ArrowRight, Check } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Sparkles, Loader2, ArrowRight, Check, Plus, Receipt, CreditCard, FileText } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export function QuickEntry() {
     const [text, setText] = useState("");
@@ -46,7 +47,6 @@ export function QuickEntry() {
         setError("");
 
         try {
-            // Navigate to voucher form with prefilled data
             navigate(`/dashboard/finance/voucher?type=${parsed.voucher_type}`, {
                 state: {
                     prefill: {
@@ -59,7 +59,6 @@ export function QuickEntry() {
                     }
                 }
             });
-
         } catch (err) {
             setError("Failed to process. Please try again.");
         } finally {
@@ -68,25 +67,59 @@ export function QuickEntry() {
     };
 
     return (
-        <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-100 mb-6">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-indigo-800 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-indigo-600" />
-                    Basira Quick Entry (AI)
+        <Card className="border-2 border-dashed border-gray-200 bg-gradient-to-r from-slate-50 to-gray-50">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-gray-600" />
+                    Add New Entry
                 </CardTitle>
-                <CardDescription className="text-xs text-indigo-600/80">
-                    Describe transaction naturally (e.g., "Chanda by Rahman 500")
+                <CardDescription className="text-xs">
+                    Use AI to describe naturally, or manually create a voucher
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
+            <CardContent className="space-y-4">
+                {/* Manual Entry Buttons */}
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" className="flex-1 min-w-[120px] border-green-200 hover:bg-green-50 hover:border-green-300" asChild>
+                        <Link to="/dashboard/finance/voucher?type=RECEIPT">
+                            <Receipt className="h-4 w-4 mr-2 text-green-600" />
+                            <span className="text-green-700">Receipt</span>
+                        </Link>
+                    </Button>
+                    <Button variant="outline" className="flex-1 min-w-[120px] border-red-200 hover:bg-red-50 hover:border-red-300" asChild>
+                        <Link to="/dashboard/finance/voucher?type=PAYMENT">
+                            <CreditCard className="h-4 w-4 mr-2 text-red-600" />
+                            <span className="text-red-700">Payment</span>
+                        </Link>
+                    </Button>
+                    <Button variant="outline" className="flex-1 min-w-[120px] border-blue-200 hover:bg-blue-50 hover:border-blue-300" asChild>
+                        <Link to="/dashboard/finance/voucher?type=JOURNAL">
+                            <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                            <span className="text-blue-700">Journal</span>
+                        </Link>
+                    </Button>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <Separator className="flex-1" />
+                    <span>OR use AI</span>
+                    <Separator className="flex-1" />
+                </div>
+
+                {/* AI Quick Entry */}
+                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-100">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="h-4 w-4 text-indigo-600" />
+                        <span className="text-sm font-medium text-indigo-800">Basira AI Quick Entry</span>
+                    </div>
+
                     {!parsed ? (
                         <div className="flex gap-2">
                             <Textarea
-                                placeholder="Type here... e.g 'Paid electrician 1200', 'Zakat from Ahmed 5000'"
+                                placeholder="Describe naturally... e.g. 'Chanda by Rahman 500' or 'Paid electrician 1200'"
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
-                                className="min-h-[80px] bg-white border-indigo-200 focus-visible:ring-indigo-500 resize-none"
+                                className="min-h-[60px] bg-white border-indigo-200 focus-visible:ring-indigo-500 resize-none text-sm"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
@@ -97,7 +130,7 @@ export function QuickEntry() {
                             <Button
                                 onClick={handleProcess}
                                 disabled={isProcessing || !text.trim()}
-                                className="h-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                className="h-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm px-4"
                             >
                                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                             </Button>
@@ -150,7 +183,7 @@ export function QuickEntry() {
                     )}
 
                     {error && (
-                        <div className="bg-red-50 text-red-600 px-4 py-2 rounded-md text-sm font-medium">
+                        <div className="bg-red-50 text-red-600 px-4 py-2 rounded-md text-sm font-medium mt-3">
                             {error}
                         </div>
                     )}
