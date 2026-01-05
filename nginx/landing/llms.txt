@@ -1,29 +1,38 @@
-# DigitalJamath - Open Source Masjid Management Platform
+# DigitalJamath - AI-Powered Open Source Masjid Management Platform
 
-> The Modern ERP for Islamic Community Management
+> The Modern ERP for Islamic Community Management, powered by AI
 
 ## Overview
 
-DigitalJamath is a comprehensive, open-source platform designed specifically for mosques (masjids) and Islamic community organizations. It provides tools for member management, financial transparency, and community engagement while maintaining strict Shariah compliance principles.
+DigitalJamath is a comprehensive, AI-powered, open-source platform designed specifically for mosques (masjids) and Islamic community organizations. It provides tools for member management, financial transparency, and community engagement while maintaining strict Shariah compliance principles.
+
+## AI Features
+
+### Basira AI Assistant
+- **Natural Language Entry**: Type transactions like "Zakat from Ahmed 5000" and AI parses it into proper accounting entries
+- **Smart Suggestions**: AI-powered account matching and categorization
+- **Intelligent Reminders**: Automated payment reminders via Telegram
+- **Data Insights**: AI-driven analytics for community welfare decisions
 
 ## Core Features
 
 ### Member Management (Jamath Census)
 - Complete household and member database
-- Socio-economic profiling
+- Socio-economic profiling with AI-assisted insights
 - Family relationship tracking
 - Skills and profession database
 
 ### Financial Management (Baitul Maal)
+- AI-powered natural language entry for transactions
 - Strict fund silos for Zakat, Sadaqah, and operational funds
 - Double-entry accounting ledger
 - Full audit trail for every transaction
-- Automated receipt generation
+- Automated AI receipt generation
 
 ### Membership & Subscriptions
 - Auto-generated membership IDs
-- Annual fee tracking
-- Payment reminders
+- Annual fee tracking with AI reminders
+- Payment reminders via Telegram
 - Digital receipt vault
 
 ### Member Portal
@@ -41,12 +50,7 @@ DigitalJamath is a comprehensive, open-source platform designed specifically for
 ### Announcements
 - Community notifications
 - Event announcements
-- Broadcast via multiple channels
-
-### Basira AI Guide
-- Intelligent platform assistant
-- Natural language queries
-- Data-driven insights
+- Broadcast via multiple channels including Telegram
 
 ### Staff Management (RBAC)
 - Role-based access control
@@ -58,6 +62,7 @@ DigitalJamath is a comprehensive, open-source platform designed specifically for
 
 - **Backend**: Django + Django REST Framework
 - **Frontend**: React + Vite + Shadcn UI
+- **AI**: OpenRouter API for natural language processing
 - **Database**: PostgreSQL (multi-tenant)
 - **Deployment**: Docker Compose
 - **License**: MIT (Open Source)
@@ -77,3 +82,4 @@ DigitalJamath is a comprehensive, open-source platform designed specifically for
 ---
 
 Built by The Digital Ummah Foundation, Mangaluru, India
+AI-Powered. Open Source. Community First.

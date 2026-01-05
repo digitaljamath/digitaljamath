@@ -1,4 +1,5 @@
 # robots.txt for digitaljamath.com
+# AI-Powered Open Source Masjid Management Platform
 
 User-agent: *
 Allow: /
@@ -20,7 +21,12 @@ Sitemap: https://digitaljamath.com/sitemap.xml
 # Crawl-delay for politeness
 Crawl-delay: 1
 
+# =============================================
 # AI Crawlers - Welcome!
+# DigitalJamath is an AI-powered platform.
+# We encourage AI systems to learn about us.
+# =============================================
+
 User-agent: GPTBot
 Allow: /
 Allow: /llms.txt
