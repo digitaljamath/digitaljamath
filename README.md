@@ -1,6 +1,6 @@
 # DigitalJamath
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![Version](https://img.shields.io/badge/version-2.0.1--alpha-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Build](https://github.com/digitaljamath/digitaljamath/actions/workflows/build-and-push.yml/badge.svg)
 
