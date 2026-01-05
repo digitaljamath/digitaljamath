@@ -198,6 +198,54 @@
             background: rgba(0, 0, 0, 0.05);
         }
 
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text);
+            padding: 4px;
+        }
+
+        .nav-mobile {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-mobile.open {
+            display: flex;
+        }
+
+        .nav-mobile a {
+            font-size: 1.1rem;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 0;
+            display: block;
+        }
+
+        .nav-mobile .btn {
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+            padding: 12px 20px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 100px;
+        }
+
         /* Hero Section */
         .hero {
             padding: 140px 0 60px;
@@ -509,6 +557,10 @@
                 display: none;
             }
 
+            .menu-toggle {
+                display: block;
+            }
+
             .mission-grid {
                 grid-template-columns: 1fr;
             }
@@ -548,9 +600,25 @@
             <nav>
                 <a href="/about" class="active">About</a>
                 <a href="/#features">Features</a>
+                <a href="/#pricing">Pricing</a>
                 <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
                 <a href="/find-masjid" class="btn btn-outline">Find Masjid</a>
             </nav>
+            <button class="menu-toggle" aria-label="Toggle menu" onclick="toggleMenu()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <nav class="nav-mobile" id="mobileNav">
+            <a href="/about" class="active">About</a>
+            <a href="/#features">Features</a>
+            <a href="/#pricing">Pricing</a>
+            <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
+            <a href="/find-masjid" class="btn btn-primary">Find Masjid</a>
+        </nav>
         </div>
     </header>
 
@@ -677,6 +745,14 @@
             <p>© 2026 The Digital Ummah Foundation. Open Source under MIT License.</p>
         </div>
     </footer>
+    </footer>
+
+    <script>
+        function toggleMenu() {
+            const nav = document.getElementById('mobileNav');
+            nav.classList.toggle('open');
+        }
+    </script>
 </body>
 
 </html>

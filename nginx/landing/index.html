@@ -150,6 +150,54 @@
             gap: 24px;
         }
 
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text);
+            padding: 4px;
+        }
+
+        .nav-mobile {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-mobile.open {
+            display: flex;
+        }
+
+        .nav-mobile a {
+            font-size: 1.1rem;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 0;
+            display: block;
+        }
+
+        .nav-mobile .btn {
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+            padding: 12px 20px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 100px;
+        }
+
         nav a {
             color: var(--text-muted);
             text-decoration: none;
@@ -528,6 +576,155 @@
                 font-size: 0.8rem;
             }
         }
+
+
+
+        /* Pricing Section */
+        .pricing {
+            padding: 100px 0;
+            background: linear-gradient(to bottom, #fff, #f5f5f5);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s;
+            position: relative;
+            position: relative;
+            /* overflow: hidden; Removed to allow badge to float */
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+
+        .pricing-card.featured {
+            border: 2px solid var(--accent-blue);
+            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.15);
+        }
+
+        .pricing-card.featured::before {
+            content: none;
+        }
+
+        .pricing-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-blue);
+            color: white;
+            padding: 4px 16px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                display: none;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .pricing-card.featured::before {
+                top: 25px;
+                right: -42px;
+                padding: 4px 40px;
+                font-size: 0.7rem;
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .pricing-card {
+                padding: 30px 24px;
+            }
+        }
+
+        .price-header {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .price-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+        }
+
+        .price-amount {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        .price-period {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .price-features {
+            margin: 32px 0;
+            flex-grow: 1;
+            list-style: none;
+        }
+
+        .price-features li {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .price-features li svg {
+            color: var(--accent-green);
+            flex-shrink: 0;
+        }
+
+        .trial-badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            padding: 6px 16px;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 16px;
+            display: inline-block;
+        }
+
+        .payment-note {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 16px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 
@@ -546,10 +743,26 @@
             <nav>
                 <a href="/about">About</a>
                 <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
                 <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
                 <a href="/find-masjid" class="btn btn-outline">Find Masjid</a>
             </nav>
+            <button class="menu-toggle" aria-label="Toggle menu" onclick="toggleMenu()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
         </div>
+        <nav class="nav-mobile" id="mobileNav">
+            <a href="/about">About</a>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
+            <a href="/find-masjid" class="btn btn-primary">Find Masjid</a>
+        </nav>
+
     </header>
 
     <!-- Hero Section -->
@@ -654,6 +867,121 @@
         </div>
     </section>
 
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <h2>Simple, Transparent Pricing</h2>
+                <p>Choose the best way to power your Masjid</p>
+            </div>
+
+            <div class="pricing-grid">
+                <!-- Self Hosted -->
+                <div class="pricing-card">
+                    <div class="price-header">
+                        <div class="price-title">Self-Hosted</div>
+                        <div class="price-amount">Free</div>
+                        <div class="price-period">Forever</div>
+                    </div>
+                    <ul class="price-features">
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Open Source (MIT License)
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Full Source Code Access
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Community Support
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Host on Your own Server
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Full Data Control
+                        </li>
+                    </ul>
+                    <a href="https://github.com/digitaljamath/digitaljamath" target="_blank" class="btn btn-outline"
+                        style="width: 100%; justify-content: center;">View on GitHub</a>
+                </div>
+
+                <!-- Cloud Managed -->
+                <div class="pricing-card featured">
+                    <div class="pricing-badge">Most Popular</div>
+                    <div class="price-header">
+                        <div class="price-title">Cloud Managed Service</div>
+                        <div class="price-amount">₹999</div>
+                        <div class="price-period">per month</div>
+                        <div class="price-period" style="font-size: 0.9rem; margin-top: 4px;">or ₹9999/year</div>
+                        <span class="trial-badge">✨ 3 Months Free Trial</span>
+                    </div>
+                    <ul class="price-features">
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Everything in Open Source
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Zero Setup Required
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Automatic Updates
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Daily Auto-Backups
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Priority Support
+                        </li>
+                    </ul>
+                    <a href="/register" class="btn btn-primary" style="width: 100%; justify-content: center;">Start Free
+                        Trial</a>
+                    <p class="payment-note">
+                        No payment required now. Enjoy the trial period 3 months free. Our team will reach out to you at
+                        the end of the trial.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- CTA Section -->
     <section class="cta">
         <div class="container">
@@ -692,7 +1020,13 @@
             document.getElementById('demo-' + type).classList.remove('hidden');
             event.target.classList.add('active');
         }
+
+        function toggleMenu() {
+            const nav = document.getElementById('mobileNav');
+            nav.classList.toggle('open');
+        }
     </script>
 </body>
 
 </html>
+```

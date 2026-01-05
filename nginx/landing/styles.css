@@ -262,6 +262,25 @@ ul {
     background: var(--gray-100);
 }
 
+.nav-mobile .btn {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--blue-600);
+    /* Use var for consistency or hardcoded blue */
+    color: white;
+    border: none;
+    border-radius: 6.25rem;
+    /* 100px equivalent */
+    width: 100%;
+}
+
+.nav-mobile .btn:hover {
+    opacity: 0.9;
+    background: var(--blue-700);
+}
+
 @media (min-width: 768px) {
     .nav-desktop {
         display: flex;
@@ -1449,6 +1468,7 @@ ul {
     font-weight: 600;
     margin-bottom: 2rem;
 }
+
 /* Sticky Footer for Onboarding Pages */
 body.bg-gray-50 {
     display: flex;
