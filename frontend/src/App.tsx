@@ -8,6 +8,8 @@ import { HouseholdFormPage } from './pages/dashboard/households/HouseholdFormPag
 import { HouseholdDetailPage } from './pages/dashboard/households/HouseholdDetailPage'
 import { AnnouncementsPage } from './pages/dashboard/announcements/AnnouncementsPage'
 import { FinancePage } from './pages/dashboard/finance/FinancePage'
+import { TransactionsPage } from './pages/dashboard/finance/TransactionsPage'
+import { VoucherDetailPage } from './pages/dashboard/finance/VoucherDetailPage'
 import { VoucherEntryPage } from './pages/dashboard/finance/voucher/VoucherEntryPage'
 import { ChartOfAccountsPage } from './pages/dashboard/finance/accounts/ChartOfAccountsPage'
 import { ReportsPage } from './pages/dashboard/finance/reports/ReportsPage'
@@ -73,7 +75,9 @@ function App() {
           <Route path="announcements" element={<AnnouncementsPage />} />
 
           <Route path="finance" element={<FinancePage />} />
+          <Route path="finance/transactions" element={<TransactionsPage />} />
           <Route path="finance/voucher" element={<VoucherEntryPage />} />
+          <Route path="finance/voucher/:id" element={<VoucherDetailPage />} />
           <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
           <Route path="finance/reports" element={<ReportsPage />} />
 

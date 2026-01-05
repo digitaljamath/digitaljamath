@@ -7,7 +7,7 @@ import {
     Wallet, Building2, TrendingUp, TrendingDown, Loader2, RotateCcw
 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
-import { QuickEntry } from "./components/QuickEntry";
+import { List } from "lucide-react";
 
 type JournalEntry = {
     id: number;
@@ -132,13 +132,16 @@ export function FinancePage() {
                             <Plus className="mr-2 h-4 w-4" /> New Entry
                         </Link>
                     </Button>
+                    <Button variant="secondary" asChild>
+                        <Link to="/dashboard/finance/transactions">
+                            <List className="mr-2 h-4 w-4" /> View All
+                        </Link>
+                    </Button>
                 </div>
             </div>
 
-            {/* AI Quick Entry */}
-            <QuickEntry />
-
-            {/* Quick Stats */}<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Cash & Bank</CardTitle>
