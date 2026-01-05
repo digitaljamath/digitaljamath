@@ -25,7 +25,6 @@ import {
     TrendingUp, TrendingDown, FileText, Search, Filter
 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
-import { QuickEntry } from "./components/QuickEntry";
 
 type JournalEntry = {
     id: number;
@@ -173,9 +172,6 @@ export function TransactionsPage() {
                     </Button>
                 </div>
             </div>
-
-            {/* AI Quick Entry */}
-            <QuickEntry />
 
             {/* Filters */}
             <Card>

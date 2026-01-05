@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Trash2, Save, Loader2, AlertCircle } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
 import { Link } from "react-router-dom";
+import { QuickEntry } from "../components/QuickEntry";
 
 type Ledger = {
     id: number;
@@ -263,6 +264,9 @@ function VoucherFormContent() {
                     <p className="text-gray-500 text-sm">Record a financial transaction</p>
                 </div>
             </div>
+
+            {/* AI Quick Entry */}
+            <QuickEntry />
 
             {/* Voucher Type Tabs */}
             <Tabs value={voucherType} onValueChange={setVoucherType}>
