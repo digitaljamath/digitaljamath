@@ -118,14 +118,13 @@ docker-compose logs -f web
 docker-compose logs -f frontend
 ```
 
-### Update Code (Fast)
-To deploy updates without 30-minute rebuilds:
+### Safe Update (Recommended)
+This script will pull the latest code, rebuild containers, and run migrations **without** deleting your data.
 ```bash
-git pull origin main
+cd ~/workspace/digitaljamath
 ./deploy.sh
 ```
 
-### Full Rebuild (If Dockerfile changes)
-```bash
-docker-compose -f docker-compose.prod.yml up -d --build
-```
+### Automated Updates
+This project relies on GitHub Actions. Pushing to `main` will automatically deploy updates to the server safely.
+

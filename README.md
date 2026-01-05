@@ -236,8 +236,8 @@ The interactive installer handles everything:
 
 | Script | Purpose |
 |--------|---------|
-| `setup.sh` | Full installation wizard (dev or prod) |
-| `deploy.sh` | Quick update - pulls latest Docker images |
+| `setup.sh` | Full installation (wipes data if not careful - use only for fresh install) |
+| `deploy.sh` | **Safe Update** - Pulls code, rebuilds containers, runs migrations (No data loss) |
 | `scripts/bump_version.sh` | Updates version across all files |
 | `scripts/populate_demo_data.py` | Populates sample data for testing |
 
