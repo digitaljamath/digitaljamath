@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -7,8 +7,6 @@
     <title>About Us | DigitalJamath</title>
     <meta name="description"
         content="Learn about the Digital Ummah Foundation and our mission to modernize masjid management through open-source technology.">
-    <meta name="keywords"
-        content="Digital Ummah Foundation, about DigitalJamath, masjid software, Islamic community, open source">
 
     <!-- Open Graph -->
     <meta property="og:type" content="website">
@@ -16,217 +14,669 @@
     <meta property="og:description"
         content="Learn about the Digital Ummah Foundation and our mission to modernize masjid management.">
     <meta property="og:image" content="/img/og-image.png">
-    <meta property="og:url" content="https://digitaljamath.com/about">
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="About Us | DigitalJamath">
-    <meta name="twitter:description"
-        content="Learn about the Digital Ummah Foundation and our mission to modernize masjid management.">
-    <meta name="twitter:image" content="/img/og-image.png">
-
-    <!-- Canonical -->
-    <link rel="canonical" href="https://digitaljamath.com/about">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+    <!-- Favicon -->
     <link rel="icon" href="/img/icon.png" type="image/png">
-    <link rel="stylesheet" href="/styles.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #fafafa;
+            --text: #111;
+            --text-muted: #666;
+            --primary: #111;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* Mesh Gradient Background */
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .mesh-bg::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .mesh-bg::after {
+            content: '';
+            position: absolute;
+            top: 30%;
+            right: -5%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+            animation: float 25s ease-in-out infinite reverse;
+        }
+
+        .mesh-blob {
+            position: absolute;
+            bottom: 20%;
+            left: 20%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            animation: float 22s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+            }
+
+            50% {
+                transform: translate(30px, -30px);
+            }
+        }
+
+        /* Container */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(250, 250, 250, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+            max-width: 1200px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .logo img {
+            width: 28px;
+            height: 28px;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover,
+        nav a.active {
+            color: var(--text);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-outline:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 140px 0 60px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Story Section */
+        .story {
+            padding: 60px 0;
+        }
+
+        .story-content {
+            background: white;
+            border-radius: 24px;
+            padding: 48px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            margin-bottom: 40px;
+        }
+
+        .story-content p {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: var(--text-muted);
+        }
+
+        .story-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .story-content .lead {
+            font-size: 1.25rem;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .story-content .highlight {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Mission Cards */
+        .mission-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .mission-card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .mission-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .mission-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 28px;
+        }
+
+        .mission-icon.green {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .mission-icon.blue {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .mission-icon.purple {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .mission-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .mission-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Quote */
+        .quote {
+            background: linear-gradient(135deg, #111, #333);
+            border-radius: 20px;
+            padding: 40px;
+            color: white;
+            text-align: center;
+            font-size: 1.2rem;
+            font-style: italic;
+            margin-bottom: 60px;
+        }
+
+        /* Team Section */
+        .team {
+            padding: 40px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .team-card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .team-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .team-info h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .team-role {
+            color: var(--accent-purple);
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .team-info p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .team-link {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .team-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Join Section */
+        .join {
+            padding: 60px 0;
+        }
+
+        .join-card {
+            background: linear-gradient(135deg, #111, #222);
+            border-radius: 24px;
+            padding: 48px;
+            color: white;
+            text-align: center;
+        }
+
+        .join-card h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .join-card>p {
+            opacity: 0.8;
+            margin-bottom: 32px;
+        }
+
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+            text-align: left;
+        }
+
+        .role-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .role-card h4 {
+            font-size: 1rem;
+            margin-bottom: 6px;
+        }
+
+        .role-card h4.green {
+            color: #10b981;
+        }
+
+        .role-card h4.purple {
+            color: #a78bfa;
+        }
+
+        .role-card h4.red {
+            color: #f87171;
+        }
+
+        .role-card h4.amber {
+            color: #fbbf24;
+        }
+
+        .role-card p {
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        .join-card .btn-primary {
+            background: white;
+            color: #111;
+        }
+
+        .join-note {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.6;
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            nav {
+                display: none;
+            }
+
+            .mission-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .roles-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .team-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .team-avatar {
+                margin: 0 auto;
+            }
+
+            .story-content {
+                padding: 28px;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <div class="mesh-bg">
+        <div class="mesh-blob"></div>
+    </div>
+
     <!-- Header -->
-    <header class="header">
+    <header>
         <div class="container header-content">
             <a href="/" class="logo">
-                <img src="/img/icon.png" alt="DigitalJamath" width="32" height="32">
+                <img src="/img/icon.png" alt="DigitalJamath">
                 <span>DigitalJamath</span>
             </a>
-            <nav class="nav-desktop">
+            <nav>
                 <a href="/about" class="active">About</a>
                 <a href="/#features">Features</a>
                 <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
-                <span class="nav-divider"></span>
                 <a href="/find-masjid" class="btn btn-outline">Find Masjid</a>
             </nav>
-            <button class="menu-toggle" aria-label="Toggle menu" onclick="toggleMenu()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-            </button>
         </div>
-        <nav class="nav-mobile" id="mobileNav">
-            <a href="/about">About</a>
-            <a href="/#features">Features</a>
-            <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
-            <a href="/find-masjid" class="btn btn-primary">Find Masjid</a>
-        </nav>
     </header>
 
-    <!-- Page Header -->
-    <section class="page-header">
+    <!-- Hero Section -->
+    <section class="hero">
         <div class="container">
-            <h1>About Us</h1>
+            <h1>Empowering the<br><span>Heart of the Community</span></h1>
+            <p class="hero-subtitle">
+                We're building open-source tools to help Masjids operate with modern efficiency while preserving
+                traditional values.
+            </p>
         </div>
     </section>
 
-    <!-- Origin Story Section -->
-    <section class="about-story">
+    <!-- Story Section -->
+    <section class="story">
         <div class="container">
             <div class="story-content">
-                <h2 class="gradient-text">Empowering the Heart of the Community</h2>
-                <div class="story-text">
-                    <p class="lead">Masjids have always been the center of our social fabric. However, the tools we use
-                        to manage them haven't kept pace with the times. While the world runs on data and automation,
-                        our institutions often struggle with manual processes.</p>
-                    <p class="highlight">Enter DigitalJamath.</p>
-                    <p>We exist to bridge the gap between traditional values and modern efficiency. We believe that
-                        managing the affairs of the Ummah requires more than just sincerity; it requires precision,
-                        transparency, and accountability.</p>
-                </div>
+                <p class="lead">Masjids have always been the center of our social fabric. However, the tools we use to
+                    manage them haven't kept pace with the times.</p>
+                <p class="highlight">Enter DigitalJamath.</p>
+                <p>We exist to bridge the gap between traditional values and modern efficiency. We believe that managing
+                    the affairs of the Ummah requires more than just sincerity; it requires precision, transparency, and
+                    accountability.</p>
             </div>
 
-            <div class="mission-cards">
+            <!-- Mission Cards -->
+            <div class="mission-grid">
                 <div class="mission-card">
-                    <div class="mission-icon blue">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-                        </svg>
-                    </div>
+                    <div class="mission-icon blue">☁️</div>
                     <h3>Modernize Infrastructure</h3>
-                    <p>Replacing fragmented paper trails and Excel sheets with secure, centralized cloud solutions.</p>
+                    <p>Replacing paper trails and Excel sheets with secure, centralized cloud solutions.</p>
                 </div>
                 <div class="mission-card">
-                    <div class="mission-icon purple">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            <path d="m9 12 2 2 4-4" />
-                        </svg>
-                    </div>
+                    <div class="mission-icon purple">🛡️</div>
                     <h3>Ensure Transparency</h3>
                     <p>Creating audit-ready financial tools that build trust with every transaction.</p>
                 </div>
                 <div class="mission-card">
-                    <div class="mission-icon green">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-                            <polyline points="16 7 22 7 22 13" />
-                        </svg>
-                    </div>
+                    <div class="mission-icon green">📈</div>
                     <h3>Optimize Impact</h3>
-                    <p>Using AI to help committees make data-driven decisions for the community's benefit.</p>
+                    <p>Using AI to help committees make data-driven decisions for the community.</p>
                 </div>
             </div>
 
-            <div class="story-quote">
-                <p>"At DigitalJamath, we are ensuring that the institutions carrying the community's trust have the
-                    technology to support it."</p>
+            <!-- Quote -->
+            <div class="quote">
+                "At DigitalJamath, we are ensuring that the institutions carrying the community's trust have the
+                technology to support it."
             </div>
         </div>
     </section>
 
     <!-- Team Section -->
-    <section class="team-section">
+    <section class="team">
         <div class="container">
-            <h2>The Team</h2>
+            <div class="section-header">
+                <h2>The Team</h2>
+            </div>
             <div class="team-card">
                 <div class="team-avatar">AZ</div>
                 <div class="team-info">
                     <h3>Mohammed Azzan Patni</h3>
                     <p class="team-role">Founder & Lead Volunteer</p>
-                    <p class="team-desc"><strong>Role:</strong> Entrepreneur, Founder & Product Manager</p>
-                    <p class="team-bio">Azzan is bootstrapping the Digital Ummah Foundation to bridge the gap between
-                        modern technology and the local Jamath. He believes the Ummah doesn't just need more donations;
-                        it needs better systems.</p>
-                    <p class="team-status">Current Status: Volunteering part-time on this project and actively seeking
-                        Code Contributors who want to turn their GitHub commits into Sadaqah Jariyah.</p>
+                    <p>Azzan is bootstrapping the Digital Ummah Foundation to bridge the gap between modern technology
+                        and the local Jamath. He believes the Ummah doesn't just need more donations; it needs better
+                        systems.</p>
+                    <p><strong>Currently seeking:</strong> Code Contributors who want to turn their GitHub commits into
+                        Sadaqah Jariyah.</p>
                     <a href="https://linkedin.com/in/azzaxp" target="_blank" class="team-link">Connect on LinkedIn →</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Join Movement Section -->
-    <section class="join-section">
+    <!-- Join Section -->
+    <section class="join">
         <div class="container">
-            <h2>Your Code can be a Service</h2>
-            <p class="join-subtitle">DigitalJamath is 100% Open Source. We are looking for:</p>
+            <div class="join-card">
+                <h2>Your Code can be a Service</h2>
+                <p>DigitalJamath is 100% Open Source. We are looking for:</p>
 
-            <div class="join-roles">
-                <div class="join-role">
-                    <h4 class="green">Django Developers</h4>
-                    <p>To build the compliance engine.</p>
+                <div class="roles-grid">
+                    <div class="role-card">
+                        <h4 class="green">Django Developers</h4>
+                        <p>To build the compliance engine.</p>
+                    </div>
+                    <div class="role-card">
+                        <h4 class="purple">React Wizards</h4>
+                        <p>To craft accessible UIs for our elders.</p>
+                    </div>
+                    <div class="role-card">
+                        <h4 class="red">Reviewers & Testers</h4>
+                        <p>To hunt bugs and ensure stability.</p>
+                    </div>
+                    <div class="role-card">
+                        <h4 class="amber">Shariah Analysts</h4>
+                        <p>To verify financial logic and Zakat calculations.</p>
+                    </div>
                 </div>
-                <div class="join-role">
-                    <h4 class="purple">React Wizards</h4>
-                    <p>To craft accessible UIs for our elders.</p>
-                </div>
-                <div class="join-role">
-                    <h4 class="red">Reviewers & Testers</h4>
-                    <p>To hunt bugs, verify releases, and ensure stability.</p>
-                </div>
-                <div class="join-role">
-                    <h4 class="amber">Shariah Analysts</h4>
-                    <p>To help us verify financial logic and Zakat calculations.</p>
-                </div>
+
+                <a href="https://github.com/digitaljamath/digitaljamath" target="_blank" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                    Contribute on GitHub
+                </a>
+                <p class="join-note">Whether you write code, design UIs, or just understand the problems of a local
+                    Masjid, there is a place for you here.</p>
             </div>
-
-            <a href="https://github.com/digitaljamath/digitaljamath" target="_blank" class="btn btn-white btn-lg">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 8px;">
-                    <path
-                        d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                </svg>
-                Contribute on GitHub
-            </a>
-            <p class="join-note">Whether you write code, design UIs, or just understand the problems of a local Masjid,
-                there is a place for you here.</p>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="footer">
+    <footer>
         <div class="container">
-            <div class="footer-grid">
-                <div>
-                    <h4>Digital Ummah Foundation</h4>
-                    <p>Mangaluru, India (The Silicon Beach of India)</p>
-                </div>
-                <div>
-                    <h4>Contact</h4>
-                    <ul>
-                        <li>General: <a href="mailto:salam@digitaljamath.com">salam@digitaljamath.com</a></li>
-                        <li>Contributors: <a href="mailto:contribute@digitaljamath.com">contribute@digitaljamath.com</a>
-                        </li>
-                    </ul>
-                </div>
-                <div>
-                    <h4>Legal</h4>
-                    <nav>
-                        <a href="/terms">Terms of Service</a>
-                        <a href="/privacy">Privacy Policy</a>
-                    </nav>
-                </div>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/privacy">Privacy</a>
+                <a href="/terms">Terms</a>
+                <a href="https://github.com/digitaljamath/digitaljamath">GitHub</a>
             </div>
-            <div class="footer-bottom">
-                <p>© 2025 DigitalJamath. Open Source under MIT License.</p>
-            </div>
+            <p>© 2026 The Digital Ummah Foundation. Open Source under MIT License.</p>
         </div>
     </footer>
-
-    <script>
-        function toggleMenu() {
-            const nav = document.getElementById('mobileNav');
-            nav.classList.toggle('open');
-        }
-    </script>
 </body>
 
 </html>
