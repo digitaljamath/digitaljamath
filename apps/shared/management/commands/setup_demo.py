@@ -103,6 +103,34 @@ class Command(BaseCommand):
         # Switch to demo schema
         connection.set_tenant(demo_client)
         
+        # --- DATA WIPE START ---
+        self.stdout.write(self.style.WARNING("Wiping existing demo data..."))
+        
+        # Finance
+        from apps.jamath.models import JournalEntry, Ledger, Budget
+        # Note: We keep Ledgers (Chart of Accounts) but delete transactions
+        JournalEntry.objects.all().delete()
+        Budget.objects.all().delete()
+        
+        # Welfare
+        from apps.welfare.models import GrantApplication, Volunteer
+        GrantApplication.objects.all().delete()
+        Volunteer.objects.all().delete()
+
+        # Surveys
+        from apps.jamath.models import Survey, SurveyResponse
+        SurveyResponse.objects.all().delete()
+        Survey.objects.all().delete()
+
+        # Member Data (Households cascade delete Members)
+        Household.objects.all().delete()
+        
+        # Announcements
+        Announcement.objects.all().delete()
+        
+        self.stdout.write(self.style.SUCCESS("Demo data wiped successfully."))
+        # --- DATA WIPE END ---
+        
         # Create demo user
         User = get_user_model()
         demo_user, user_created = User.objects.get_or_create(

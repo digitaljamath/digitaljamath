@@ -20,4 +20,8 @@ docker-compose exec -T web python manage.py setup_demo
 # Run rich data population
 docker-compose exec -T web python scripts/populate_demo_data.py
 
+# Restart services to clear caches and stale connections
+echo "Restarting services..."
+docker-compose restart web worker
+
 echo "Demo Reset Complete: $(date)"
