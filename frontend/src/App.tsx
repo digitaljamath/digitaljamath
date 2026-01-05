@@ -22,6 +22,7 @@ import { InboxPage } from './pages/dashboard/inbox/InboxPage'
 import { BasiraPage } from './pages/dashboard/basira/BasiraPage'
 import { ProfilePage } from './pages/dashboard/profile/ProfilePage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { Toaster } from './components/ui/toaster'
 import './index.css'
 
 // Placeholder pages - to be migrated
@@ -44,63 +45,66 @@ import { TenantHomePage } from './pages/TenantHomePage'
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Auth Routes (public) */}
-        <Route path="/auth/signin" element={<LoginPage />} />
-        <Route path="/auth/login" element={<Navigate to="/auth/signin" replace />} />
-        <Route path="/find-masjid" element={<FindWorkspacePage />} />
+    <>
+      <BrowserRouter>
+        <Routes>
+          {/* Auth Routes (public) */}
+          <Route path="/auth/signin" element={<LoginPage />} />
+          <Route path="/auth/login" element={<Navigate to="/auth/signin" replace />} />
+          <Route path="/find-masjid" element={<FindWorkspacePage />} />
 
-        {/* Portal Routes (public) */}
-        <Route path="/portal/login" element={<PortalLoginPage />} />
-        <Route path="/portal/dashboard" element={<PortalDashboardPage />} />
-        <Route path="/portal" element={<Navigate to="/portal/dashboard" replace />} />
-        <Route path="/portal/receipts" element={<PortalReceiptsPage />} />
-        <Route path="/portal/family" element={<PortalFamilyPage />} />
-        <Route path="/portal/announcements" element={<PortalAnnouncementsPage />} />
-        <Route path="/portal/services" element={<PortalServicesPage />} />
+          {/* Portal Routes (public) */}
+          <Route path="/portal/login" element={<PortalLoginPage />} />
+          <Route path="/portal/dashboard" element={<PortalDashboardPage />} />
+          <Route path="/portal" element={<Navigate to="/portal/dashboard" replace />} />
+          <Route path="/portal/receipts" element={<PortalReceiptsPage />} />
+          <Route path="/portal/family" element={<PortalFamilyPage />} />
+          <Route path="/portal/announcements" element={<PortalAnnouncementsPage />} />
+          <Route path="/portal/services" element={<PortalServicesPage />} />
 
-        {/* Dashboard Routes (protected) */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<DashboardHome />} />
-          <Route path="households" element={<HouseholdsPage />} />
-          <Route path="households/new" element={<HouseholdFormPage />} />
-          <Route path="households/:id" element={<HouseholdDetailPage />} />
-          <Route path="households/:id/edit" element={<HouseholdFormPage />} />
+          {/* Dashboard Routes (protected) */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<DashboardHome />} />
+            <Route path="households" element={<HouseholdsPage />} />
+            <Route path="households/new" element={<HouseholdFormPage />} />
+            <Route path="households/:id" element={<HouseholdDetailPage />} />
+            <Route path="households/:id/edit" element={<HouseholdFormPage />} />
 
-          <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="announcements" element={<AnnouncementsPage />} />
 
-          <Route path="finance" element={<FinancePage />} />
-          <Route path="finance/transactions" element={<TransactionsPage />} />
-          <Route path="finance/voucher" element={<VoucherEntryPage />} />
-          <Route path="finance/voucher/:id" element={<VoucherDetailPage />} />
-          <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
-          <Route path="finance/reports" element={<ReportsPage />} />
+            <Route path="finance" element={<FinancePage />} />
+            <Route path="finance/transactions" element={<TransactionsPage />} />
+            <Route path="finance/voucher" element={<VoucherEntryPage />} />
+            <Route path="finance/voucher/:id" element={<VoucherDetailPage />} />
+            <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
+            <Route path="finance/reports" element={<ReportsPage />} />
 
-          <Route path="surveys" element={<SurveysPage />} />
-          <Route path="surveys/builder" element={<SurveyBuilderPage />} />
+            <Route path="surveys" element={<SurveysPage />} />
+            <Route path="surveys/builder" element={<SurveyBuilderPage />} />
 
-          <Route path="welfare" element={<WelfarePage />} />
+            <Route path="welfare" element={<WelfarePage />} />
 
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="inbox" element={<InboxPage />} />
-          <Route path="basira" element={<BasiraPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="inbox" element={<InboxPage />} />
+            <Route path="basira" element={<BasiraPage />} />
+            <Route path="profile" element={<ProfilePage />} />
 
-          {/* Any remaining placeholders or sub-routes */}
-          <Route path="reports" element={<PlaceholderPage title="Reports" />} />
-        </Route>
+            {/* Any remaining placeholders or sub-routes */}
+            <Route path="reports" element={<PlaceholderPage title="Reports" />} />
+          </Route>
 
-        {/* Tenant Home Page */}
-        <Route path="/" element={<TenantHomePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Tenant Home Page */}
+          <Route path="/" element={<TenantHomePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+      <Toaster />
+    </>
   )
 }
 
