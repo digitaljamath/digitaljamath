@@ -1,0 +1,67 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          if_key_exists: replace
+
+      - name: Adding Known Hosts
+        run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/workspace/digitaljamath
+            git pull origin main
+            
+            # Generate .env file from Secrets
+            echo "Generating .env file..."
+            cat > .env <<EOF
+            DOMAIN_NAME=digitaljamath.com
+            DEBUG=False
+            ALLOWED_HOSTS=*
+            DATABASE_NAME=digitaljamath_db
+            DATABASE_USER=postgres
+            DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}
+            DATABASE_HOST=db
+            DATABASE_PORT=5432
+            SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+            BREVO_EMAIL_USER=${{ secrets.BREVO_EMAIL_USER }}
+            BREVO_SMTP_KEY=${{ secrets.BREVO_SMTP_KEY }}
+            DEFAULT_FROM_EMAIL=noreply@digitaljamath.com
+            FRONTEND_URL=https://digitaljamath.com
+            VITE_API_URL=https://digitaljamath.com
+            VITE_DOMAIN_SUFFIX=digitaljamath.com
+            OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
+            RECAPTCHA_SITE_KEY=${{ secrets.RECAPTCHA_SITE_KEY }}
+            RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+            TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+            TELEGRAM_BOT_USERNAME=digitaljamath_bot
+            EOF
+            
+            # Rebuild and Deploy
+            echo "Deploying..."
+            docker-compose up -d --build
+            
+            # Optional: Reset Demo
+            # ./scripts/reset_demo.sh
+            
+            echo "Deployment Complete!"
