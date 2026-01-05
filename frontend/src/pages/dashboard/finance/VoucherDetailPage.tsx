@@ -149,7 +149,12 @@ export function VoucherDetailPage() {
         );
     }
 
-    const partyName = entry.donor_name || entry.donor_name_manual || entry.supplier_name || 'N/A';
+    // Use correct party field based on voucher type
+    const partyName = entry.voucher_type === 'RECEIPT'
+        ? (entry.donor_name !== 'Unknown' ? entry.donor_name : null) || entry.donor_name_manual || 'Guest Donor'
+        : entry.voucher_type === 'PAYMENT'
+            ? entry.supplier_name || 'Direct Payment'
+            : 'N/A';
 
     return (
         <div className="space-y-6">
@@ -195,7 +200,7 @@ export function VoucherDetailPage() {
                             </div>
                             <div className="text-right">
                                 <div className={`text-3xl font-bold ${entry.voucher_type === 'RECEIPT' ? 'text-green-600' :
-                                        entry.voucher_type === 'PAYMENT' ? 'text-red-600' : 'text-blue-600'
+                                    entry.voucher_type === 'PAYMENT' ? 'text-red-600' : 'text-blue-600'
                                     }`}>
                                     ₹{parseFloat(entry.total_amount || '0').toLocaleString('en-IN')}
                                 </div>
