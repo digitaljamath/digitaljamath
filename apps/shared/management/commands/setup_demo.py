@@ -107,10 +107,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING("Wiping existing demo data..."))
         
         # Finance
-        from apps.jamath.models import JournalEntry, Ledger, Budget
+        from apps.jamath.models import JournalEntry, Ledger
         # Note: We keep Ledgers (Chart of Accounts) but delete transactions
         JournalEntry.objects.all().delete()
-        Budget.objects.all().delete()
+        # Budget.objects.all().delete() # Removed as model doesn't exist
         
         # Welfare
         from apps.welfare.models import GrantApplication, Volunteer
