@@ -134,6 +134,48 @@ npm run dev
 
 Access: http://localhost:5173 (frontend) | http://localhost:8000 (backend)
 
+### Local Development with Nginx (Multi-Tenant Subdomains)
+
+For testing multi-tenant subdomain routing locally (e.g., `demo.localhost`), use the local nginx config:
+
+**Prerequisites:**
+- Install nginx: `brew install nginx` (macOS) or `apt install nginx` (Linux)
+
+**1. Start all services (3 terminals):**
+
+```bash
+# Terminal 1 - Django backend
+cd digitaljamath
+source venv/bin/activate
+python manage.py runserver
+
+# Terminal 2 - Vite frontend
+cd digitaljamath/frontend
+npm run dev
+
+# Terminal 3 - Nginx proxy
+cd digitaljamath
+nginx -c $(pwd)/nginx/nginx.local.conf
+```
+
+**2. Access URLs:**
+
+| URL | What it serves |
+|-----|----------------|
+| http://localhost | Landing page (static HTML) |
+| http://demo.localhost | React app (tenant workspace) |
+| http://anyname.localhost | React app (any subdomain works) |
+| http://localhost/api/ | Django API |
+| http://localhost/admin/ | Django Admin |
+
+**3. Stop nginx when done:**
+
+```bash
+nginx -s stop
+```
+
+> **Note:** The `nginx.local.conf` proxies requests to `localhost:5173` (Vite) and `localhost:8000` (Django). Make sure both dev servers are running before starting nginx.
+
 ### Production Docker Setup
 
 ```bash
