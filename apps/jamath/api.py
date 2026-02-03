@@ -1118,8 +1118,55 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
         
         return queryset.order_by('-date', '-created_at')
 
+    def create(self, request, *args, **kwargs):
+        """Override create to add payment validation."""
+        voucher_type = request.data.get('voucher_type')
+        
+        # Validate payment amount doesn't exceed available balance
+        if voucher_type == 'PAYMENT':
+            items_data = request.data.get('items', [])
+            
+            # Calculate total payment amount (sum of expense debits, excluding Zakat)
+            total_payment = Decimal('0')
+            is_zakat_payment = False
+            
+            for item_data in items_data:
+                ledger_id = item_data.get('ledger')
+                debit_amt = Decimal(str(item_data.get('debit_amount', 0)))
+                
+                try:
+                    ledger = Ledger.objects.get(id=ledger_id)
+                    # Check if this is a Zakat expense
+                    if ledger.fund_type == 'RESTRICTED_ZAKAT':
+                        is_zakat_payment = True
+                    # Sum up expense amounts (debits to expense accounts)
+                    if ledger.account_type == 'EXPENSE' and debit_amt > 0:
+                        total_payment += debit_amt
+                except Ledger.DoesNotExist:
+                    pass
+            
+            # Only validate balance for General payments (not Zakat)
+            if not is_zakat_payment and total_payment > 0:
+                # Get available balance (Cash + Bank, excluding Zakat)
+                cash_ledger = Ledger.objects.filter(code='1001').first()  # Cash
+                bank_ledger = Ledger.objects.filter(code='1002').first()  # Bank
+                
+                available_balance = Decimal('0')
+                if cash_ledger:
+                    available_balance += cash_ledger.balance
+                if bank_ledger:
+                    available_balance += bank_ledger.balance
+                
+                if total_payment > available_balance:
+                    return Response({
+                        'error': f'Insufficient funds. Available balance: ₹{available_balance}, Payment amount: ₹{total_payment}'
+                    }, status=400)
+        
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
 
     @action(detail=True, methods=['post'])
     def finalize(self, request, pk=None):
@@ -1200,6 +1247,34 @@ class LedgerReportsView(APIView):
                     'total_payments': entries.filter(voucher_type='PAYMENT').aggregate(
                         total=Sum('items__debit_amount'))['total'] or 0,
                 }
+            })
+
+        elif report_type == 'dashboard-stats':
+            today = timezone.now().date()
+            start_of_month = today.replace(day=1)
+            # Simple assumption: monthly stats
+            
+            # Income: Sum of CREDITS to INCOME accounts (excluding Zakat)
+            income_this_month = JournalItem.objects.filter(
+                journal_entry__date__gte=start_of_month,
+                journal_entry__date__lte=today,
+                ledger__account_type='INCOME'
+            ).exclude(
+                ledger__fund_type='RESTRICTED_ZAKAT'
+            ).aggregate(total=Sum('credit_amount'))['total'] or Decimal('0.00')
+
+            # Expense: Sum of DEBITS to EXPENSE accounts (excluding Zakat)
+            expense_this_month = JournalItem.objects.filter(
+                journal_entry__date__gte=start_of_month,
+                journal_entry__date__lte=today,
+                ledger__account_type='EXPENSE'
+            ).exclude(
+                ledger__fund_type='RESTRICTED_ZAKAT'
+            ).aggregate(total=Sum('debit_amount'))['total'] or Decimal('0.00')
+
+            return Response({
+                'income_this_month': income_this_month,
+                'expense_this_month': expense_this_month
             })
 
         elif report_type == 'trial-balance':

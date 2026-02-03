@@ -117,7 +117,11 @@ function VoucherFormContent() {
         }
     };
 
-    // Journal Items
+    // Simplified Mode State (for Receipt/Payment)
+    const [simpleCategory, setSimpleCategory] = useState("GENERAL"); // GENERAL or ZAKAT
+    const [simpleAmount, setSimpleAmount] = useState("");
+
+    // Journal Items (for Journal mode only)
     const [items, setItems] = useState<JournalItem[]>([
         { ledger: 0, debit_amount: 0, credit_amount: 0, particulars: "" },
         { ledger: 0, debit_amount: 0, credit_amount: 0, particulars: "" },
@@ -149,29 +153,7 @@ function VoucherFormContent() {
             console.log("Applying Prefill:", p);
 
             if (p.narration) setNarration(p.narration);
-
-            // Find Cash Ledger (Code 1001)
-            const cashLedger = ledgers.find(l => l.code === '1001');
-            const cashLedgerId = cashLedger ? cashLedger.id : 4; // Default to 4 if not found
-
-            if (p.amount) {
-                const amount = parseFloat(p.amount);
-                const partyName = p.party_name || "";
-
-                if (initialType === 'RECEIPT') {
-                    setItems([
-                        { ledger: cashLedgerId, debit_amount: amount, credit_amount: 0, particulars: "Cash Received" },
-                        { ledger: p.ledger_id || 0, debit_amount: 0, credit_amount: amount, particulars: p.narration || "" }
-                    ]);
-                    if (partyName) setDonorNameManual(partyName);
-                } else if (initialType === 'PAYMENT') {
-                    setItems([
-                        { ledger: p.ledger_id || 0, debit_amount: amount, credit_amount: 0, particulars: p.narration || "" },
-                        { ledger: cashLedgerId, debit_amount: 0, credit_amount: amount, particulars: "Cash Paid" }
-                    ]);
-                    // Try to match supplier by name? For now just manual
-                }
-            }
+            if (p.amount) setSimpleAmount(p.amount.toString());
 
             // Clear state to prevent re-apply
             window.history.replaceState({}, document.title);
@@ -199,26 +181,113 @@ function VoucherFormContent() {
     };
 
     const handleSubmit = async () => {
-        if (!isBalanced) {
-            setError("Debits must equal Credits");
-            return;
-        }
-
         setIsSubmitting(true);
         setError("");
 
         try {
+            let generatedItems: any[] = [];
+
+            // For RECEIPT and PAYMENT: Auto-generate journal items from simplified form
+            if (voucherType === 'RECEIPT' || voucherType === 'PAYMENT') {
+                const amount = parseFloat(simpleAmount);
+                if (!amount || amount <= 0) {
+                    setError("Please enter a valid amount");
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                if (!narration.trim()) {
+                    setError("Please enter particulars/description");
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                // Always use the general Cash account (1001) for all transactions
+                // Zakat tracking is done via the Income/Expense accounts, not separate cash accounts
+                const cashLedger = ledgers.find(l => l.code === '1001'); // Cash in Hand
+
+                if (!cashLedger) {
+                    setError("Cash ledger not found. Please ensure the Chart of Accounts is seeded.");
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                let incomeLedger, expenseLedger;
+
+                if (simpleCategory === 'ZAKAT') {
+                    // Zakat transactions use Zakat-specific income/expense accounts
+                    incomeLedger = ledgers.find(l => l.code === '3002'); // Donation - Zakat
+                    expenseLedger = ledgers.find(l => l.code === '4006'); // Zakat Distribution
+                } else {
+                    // General transactions
+                    incomeLedger = ledgers.find(l => l.code === '3001'); // Donation - General
+                    expenseLedger = ledgers.find(l => l.code === '4001'); // General Expense (Electricity as default)
+                }
+
+                if (voucherType === 'RECEIPT') {
+                    if (!incomeLedger) {
+                        setError(`${simpleCategory === 'ZAKAT' ? 'Zakat' : 'General'} income ledger not found`);
+                        setIsSubmitting(false);
+                        return;
+                    }
+                    // Receipt: Debit Cash, Credit Income
+                    generatedItems = [
+                        {
+                            ledger: cashLedger.id,
+                            debit_amount: amount.toString(),
+                            credit_amount: "0",
+                            particulars: narration
+                        },
+                        {
+                            ledger: incomeLedger.id,
+                            debit_amount: "0",
+                            credit_amount: amount.toString(),
+                            particulars: narration
+                        }
+                    ];
+                } else if (voucherType === 'PAYMENT') {
+                    if (!expenseLedger) {
+                        setError(`${simpleCategory === 'ZAKAT' ? 'Zakat' : 'General'} expense ledger not found`);
+                        setIsSubmitting(false);
+                        return;
+                    }
+                    // Payment: Debit Expense, Credit Cash
+                    generatedItems = [
+                        {
+                            ledger: expenseLedger.id,
+                            debit_amount: amount.toString(),
+                            credit_amount: "0",
+                            particulars: narration
+                        },
+                        {
+                            ledger: cashLedger.id,
+                            debit_amount: "0",
+                            credit_amount: amount.toString(),
+                            particulars: narration
+                        }
+                    ];
+                }
+            } else {
+                // For JOURNAL: Use the selected items from ledger table
+                if (!isBalanced) {
+                    setError("Debits must equal Credits");
+                    setIsSubmitting(false);
+                    return;
+                }
+                generatedItems = items.filter(i => i.ledger > 0).map(i => ({
+                    ledger: i.ledger,
+                    debit_amount: i.debit_amount.toString(),
+                    credit_amount: i.credit_amount.toString(),
+                    particulars: i.particulars
+                }));
+            }
+
             const payload: any = {
                 voucher_type: voucherType,
                 date,
                 narration,
                 payment_mode: paymentMode,
-                items: items.filter(i => i.ledger > 0).map(i => ({
-                    ledger: i.ledger,
-                    debit_amount: i.debit_amount.toString(),
-                    credit_amount: i.credit_amount.toString(),
-                    particulars: i.particulars
-                }))
+                items: generatedItems
             };
 
             if (voucherType === 'RECEIPT') {
@@ -243,7 +312,7 @@ function VoucherFormContent() {
                 navigate('/dashboard/finance');
             } else {
                 const data = await res.json();
-                setError(typeof data === 'string' ? data : JSON.stringify(data));
+                setError(data.error || typeof data === 'string' ? data : JSON.stringify(data));
             }
         } catch (err: any) {
             setError(err.message || "Failed to save");
@@ -461,120 +530,231 @@ function VoucherFormContent() {
                 </TabsContent>
             </Tabs>
 
-            {/* Journal Items */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Ledger Entries</CardTitle>
-                        <CardDescription>Debit and Credit accounts</CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={addItem}>
-                        <Plus className="h-4 w-4 mr-1" /> Add Line
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {/* Header - Hidden on Mobile */}
-                        <div className="hidden md:grid grid-cols-12 gap-2 text-sm font-medium text-gray-500 px-2">
-                            <div className="col-span-5">Account</div>
-                            <div className="col-span-2 text-right">Debit (₹)</div>
-                            <div className="col-span-2 text-right">Credit (₹)</div>
-                            <div className="col-span-2">Particulars</div>
-                            <div className="col-span-1"></div>
-                        </div>
-
-                        {/* Items */}
-                        {items.map((item, index) => (
-                            <div key={index} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-2 p-4 md:p-0 border md:border-0 rounded-lg bg-gray-50 md:bg-transparent">
-                                <div className="md:col-span-5">
-                                    <Label className="md:hidden text-xs text-gray-500 mb-1 block">Account</Label>
-                                    <Select
-                                        value={item.ledger.toString()}
-                                        onValueChange={(v) => updateItem(index, 'ledger', parseInt(v))}
-                                    >
-                                        <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                                        <SelectContent>
-                                            {ledgers
-                                                .filter(l => !fundCategory || fundCategory === '__ALL__' || l.fund_type === fundCategory)
-                                                .map(l => (
-                                                    <SelectItem key={l.id} value={l.id.toString()}>
-                                                        {l.code} - {l.name}
-                                                        {l.fund_type && <Badge className="ml-2 text-xs" variant="outline">{l.fund_type}</Badge>}
-                                                    </SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Debit/Credit Group for Mobile */}
-                                <div className="grid grid-cols-2 gap-3 md:contents">
-                                    <div className="md:col-span-2">
-                                        <Label className="md:hidden text-xs text-gray-500 mb-1 block">Debit</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={item.debit_amount || ''}
-                                            onChange={(e) => updateItem(index, 'debit_amount', parseFloat(e.target.value) || 0)}
-                                            className="text-right"
-                                            placeholder="Dr"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <Label className="md:hidden text-xs text-gray-500 mb-1 block">Credit</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={item.credit_amount || ''}
-                                            onChange={(e) => updateItem(index, 'credit_amount', parseFloat(e.target.value) || 0)}
-                                            className="text-right"
-                                            placeholder="Cr"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <Label className="md:hidden text-xs text-gray-500 mb-1 block">Particulars</Label>
-                                    <Input
-                                        value={item.particulars}
-                                        onChange={(e) => updateItem(index, 'particulars', e.target.value)}
-                                        placeholder="Note"
-                                    />
-                                </div>
-                                <div className="md:col-span-1 flex justify-end md:block">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => removeItem(index)}
-                                        disabled={items.length <= 2}
-                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
+            {/* Simple Entry Form for Receipt/Payment */}
+            {(voucherType === 'RECEIPT' || voucherType === 'PAYMENT') && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            {voucherType === 'RECEIPT' ? 'Receipt Entry' : 'Payment Entry'}
+                        </CardTitle>
+                        <CardDescription>
+                            {voucherType === 'RECEIPT'
+                                ? 'Record money received into the masjid'
+                                : 'Record money paid out from the masjid'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Category <span className="text-red-500">*</span></Label>
+                                <Select value={simpleCategory} onValueChange={setSimpleCategory}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="GENERAL">
+                                            General {voucherType === 'RECEIPT' ? 'Income' : 'Expense'}
+                                        </SelectItem>
+                                        <SelectItem value="ZAKAT">
+                                            {voucherType === 'RECEIPT' ? 'Zakat Collection' : 'Zakat Distribution'}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-gray-500">
+                                    {simpleCategory === 'ZAKAT'
+                                        ? '⚠️ Zakat funds are tracked separately'
+                                        : 'Regular income/expense that affects available balance'}
+                                </p>
                             </div>
-                        ))}
 
-                        {/* Totals */}
-                        <div className="grid grid-cols-2 md:grid-cols-12 gap-2 border-t pt-4 font-bold items-center">
-                            <div className="md:col-span-5 text-left md:text-right">Total:</div>
-                            <div className={`md:col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
-                                ₹{totalDebit.toLocaleString('en-IN')}
-                            </div>
-                            <div className={`md:col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
-                                <span className="md:hidden mr-2 text-gray-400 font-normal">/</span>
-                                ₹{totalCredit.toLocaleString('en-IN')}
-                            </div>
-                            <div className="col-span-2 md:col-span-3 text-right md:text-left mt-2 md:mt-0">
-                                {isBalanced ? (
-                                    <Badge className="bg-green-100 text-green-700">✓ Balanced</Badge>
-                                ) : (
-                                    <Badge className="bg-red-100 text-red-700">⚠ Unbalanced</Badge>
-                                )}
+                            <div className="space-y-2">
+                                <Label>Amount (₹) <span className="text-red-500">*</span></Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={simpleAmount}
+                                    onChange={(e) => setSimpleAmount(e.target.value)}
+                                    placeholder="0.00"
+                                    className="text-lg font-semibold"
+                                />
                             </div>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+
+                        <div className="space-y-2">
+                            <Label>Particulars / Description <span className="text-red-500">*</span></Label>
+                            <Textarea
+                                value={narration}
+                                onChange={(e) => setNarration(e.target.value)}
+                                placeholder={voucherType === 'RECEIPT'
+                                    ? 'e.g., Membership renewal, Donation from guest, etc.'
+                                    : 'e.g., Electricity bill, Maintenance work, etc.'}
+                                rows={3}
+                            />
+                        </div>
+
+                        {/* Summary Preview */}
+                        {simpleAmount && parseFloat(simpleAmount) > 0 && (
+                            <div className={`p-4 rounded-lg border-2 ${voucherType === 'RECEIPT'
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
+                                }`}>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-gray-600">Transaction Summary:</p>
+                                        <p className="font-bold text-lg">
+                                            ₹{parseFloat(simpleAmount).toLocaleString('en-IN')}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {voucherType === 'RECEIPT' ? (
+                                                simpleCategory === 'ZAKAT'
+                                                    ? '→ Will be added to Zakat Fund'
+                                                    : '→ Will increase Total Available Balance'
+                                            ) : (
+                                                simpleCategory === 'ZAKAT'
+                                                    ? '→ Will be deducted from Zakat Fund'
+                                                    : '→ Will decrease Total Available Balance'
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className={`text-4xl ${voucherType === 'RECEIPT' ? 'text-green-600' : 'text-red-600'
+                                        }`}>
+                                        {voucherType === 'RECEIPT' ? '↑' : '↓'}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Journal Items (only for JOURNAL type) */}
+            {voucherType === 'JOURNAL' && (
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Ledger Entries</CardTitle>
+                            <CardDescription>Manual double-entry accounting</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={addItem}>
+                            <Plus className="h-4 w-4 mr-1" /> Add Line
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {/* Header - Hidden on Mobile */}
+                            <div className="hidden md:grid grid-cols-12 gap-2 text-sm font-medium text-gray-500 px-2 pb-2 border-b">
+                                <div className="col-span-5">Account / Category</div>
+                                <div className="col-span-2 text-right">Debit (₹)</div>
+                                <div className="col-span-2 text-right">Credit (₹)</div>
+                                <div className="col-span-2">Particulars</div>
+                                <div className="col-span-1"></div>
+                            </div>
+
+                            {/* Items */}
+                            {items.map((item, index) => (
+                                <div key={index} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-2 p-4 md:p-0 border md:border-0 rounded-lg bg-gray-50 md:bg-transparent relative">
+                                    <div className="md:col-span-5">
+                                        <Label className="md:hidden text-xs text-gray-500 mb-1 block">Account</Label>
+                                        <Select
+                                            value={item.ledger.toString()}
+                                            onValueChange={(v) => updateItem(index, 'ledger', parseInt(v))}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                                            <SelectContent>
+                                                {ledgers
+                                                    .filter(l => !fundCategory || fundCategory === '__ALL__' || l.fund_type === fundCategory)
+                                                    .map(l => (
+                                                        <SelectItem key={l.id} value={l.id.toString()}>
+                                                            {l.code} - {l.name}
+                                                            {l.fund_type && <Badge className="ml-2 text-xs" variant="outline">{l.fund_type}</Badge>}
+                                                        </SelectItem>
+                                                    ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Debit/Credit Group for Mobile */}
+                                    <div className="grid grid-cols-2 gap-3 md:contents">
+                                        <div className="md:col-span-2">
+                                            <Label className="md:hidden text-xs text-gray-500 mb-1 block">Debit</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                value={item.debit_amount || ''}
+                                                onChange={(e) => updateItem(index, 'debit_amount', parseFloat(e.target.value) || 0)}
+                                                className="text-right"
+                                                placeholder="Dr"
+                                            />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <Label className="md:hidden text-xs text-gray-500 mb-1 block">Credit</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                value={item.credit_amount || ''}
+                                                onChange={(e) => updateItem(index, 'credit_amount', parseFloat(e.target.value) || 0)}
+                                                className="text-right"
+                                                placeholder="Cr"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <Label className="md:hidden text-xs text-gray-500 mb-1 block">Particulars</Label>
+                                        <Input
+                                            value={item.particulars}
+                                            onChange={(e) => updateItem(index, 'particulars', e.target.value)}
+                                            placeholder="Note"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-1 flex justify-end md:block">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => removeItem(index)}
+                                            disabled={items.length <= 2}
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Totals & Warning */}
+                            <div className="grid grid-cols-2 md:grid-cols-12 gap-2 border-t pt-4 font-bold items-center">
+                                <div className="md:col-span-5 text-left md:text-right">Total:</div>
+                                <div className={`md:col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
+                                    ₹{totalDebit.toLocaleString('en-IN')}
+                                </div>
+                                <div className={`md:col-span-2 text-right ${totalDebit !== totalCredit ? 'text-red-500' : 'text-green-600'}`}>
+                                    <span className="md:hidden mr-2 text-gray-400 font-normal">/</span>
+                                    ₹{totalCredit.toLocaleString('en-IN')}
+                                </div>
+                                <div className="col-span-2 md:col-span-3 text-right md:text-left mt-2 md:mt-0">
+                                    {isBalanced ? (
+                                        <Badge className="bg-green-100 text-green-700">✓ Balanced</Badge>
+                                    ) : (
+                                        <Badge className="bg-red-100 text-red-700">⚠ Unbalanced</Badge>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Accounting Logic Hint */}
+                            {isBalanced && (
+                                <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded text-sm text-blue-800 flex items-start gap-2">
+                                    <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p><strong>Accounting Check:</strong> Manual Journal entries must be carefully verified for correct balance impact.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
 
             {/* Error */}
             {error && (
@@ -589,7 +769,14 @@ function VoucherFormContent() {
                 <Button variant="outline" asChild>
                     <Link to="/dashboard/finance">Cancel</Link>
                 </Button>
-                <Button onClick={handleSubmit} disabled={!isBalanced || isSubmitting}>
+                <Button
+                    onClick={handleSubmit}
+                    disabled={
+                        isSubmitting ||
+                        (voucherType === 'JOURNAL' && !isBalanced) ||
+                        ((voucherType === 'RECEIPT' || voucherType === 'PAYMENT') && (!simpleAmount || parseFloat(simpleAmount) <= 0))
+                    }
+                >
                     {isSubmitting ? (
                         <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
                     ) : (

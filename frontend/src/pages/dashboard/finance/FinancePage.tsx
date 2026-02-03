@@ -25,20 +25,23 @@ type LedgerAccount = {
     code: string;
     name: string;
     account_type: string;
+    fund_type?: string;
     balance: string;
 };
 
 export function FinancePage() {
     const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
+    const [stats, setStats] = useState({ income: "0", expense: "0" });
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         async function fetchData() {
             try {
-                const [entriesRes, accountsRes] = await Promise.all([
+                const [entriesRes, accountsRes, statsRes] = await Promise.all([
                     fetchWithAuth('/api/ledger/journal-entries/'),
-                    fetchWithAuth('/api/ledger/accounts/?flat=1')
+                    fetchWithAuth('/api/ledger/accounts/?flat=1'),
+                    fetchWithAuth('/api/ledger/reports/dashboard-stats/')
                 ]);
 
                 if (entriesRes.ok) {
@@ -50,6 +53,14 @@ export function FinancePage() {
                     const data = await accountsRes.json();
                     setAccounts(data);
                 }
+
+                if (statsRes.ok) {
+                    const data = await statsRes.json();
+                    setStats({
+                        income: data.income_this_month,
+                        expense: data.expense_this_month
+                    });
+                }
             } catch (error) {
                 console.error("Failed to fetch finance data", error);
             } finally {
@@ -59,14 +70,28 @@ export function FinancePage() {
         fetchData();
     }, []);
 
-    // Calculate summary balances
-    const cashBalance = accounts
-        .filter(a => ['1001', '1002'].includes(a.code))
+    // 1. Calculate Gross Cash Position (Physical Money in Hand/Bank)
+    const grossCashPosition = accounts
+        .filter(a => ['1001', '1002'].includes(a.code)) // Cash & Bank Ledgers
         .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
 
-    const zakatBalance = accounts
-        .filter(a => a.code === '1003')
+    // 2. Calculate Restricted Zakat Balance
+    // Formula: (Zakat Income Balances) - (Zakat Expense Balances)
+    // Note: API returns positive balance for natural side (Income=Credit, Expense=Debit)
+    const zakatIncome = accounts
+        .filter(a => a.fund_type === 'ZAKAT' && a.account_type === 'INCOME')
         .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
+
+    const zakatExpense = accounts
+        .filter(a => a.fund_type === 'ZAKAT' && a.account_type === 'EXPENSE')
+        .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
+
+    const zakatBalance = zakatIncome - zakatExpense;
+
+    // 3. Calculate Unrestricted (General) Available Balance
+    // General Available = Total Cash - Restricted Funds
+    // This assumes all Restricted funds are held in Cash/Bank.
+    const generalBalance = grossCashPosition - zakatBalance;
 
     const getVoucherIcon = (type: string) => {
         switch (type) {
@@ -144,16 +169,18 @@ export function FinancePage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium opacity-90">Cash & Bank</CardTitle>
+                        <CardTitle className="text-sm font-medium opacity-90">Total Available Balance</CardTitle>
+                        <CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{cashBalance.toLocaleString('en-IN')}</div>
+                        <div className="text-2xl font-bold">₹{generalBalance.toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 
                 <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Zakat Fund</CardTitle>
+                        <CardDescription className="text-blue-100 text-xs">Restricted</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">₹{zakatBalance.toLocaleString('en-IN')}</div>
@@ -162,19 +189,21 @@ export function FinancePage() {
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">This Month Income</CardTitle>
+                        <CardTitle className="text-sm font-medium text-gray-500">Income This Month</CardTitle>
+                        <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">₹0</div>
+                        <div className="text-2xl font-bold text-green-600">₹{parseFloat(stats.income).toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">This Month Expenses</CardTitle>
+                        <CardTitle className="text-sm font-medium text-gray-500">Expenses This Month</CardTitle>
+                        <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-red-600">₹0</div>
+                        <div className="text-2xl font-bold text-red-600">₹{parseFloat(stats.expense).toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
             </div>

@@ -481,6 +481,95 @@ class JournalEntry(models.Model):
                                 f"Compliance Violation: Cannot use Zakat funds for {item.ledger.name}. "
                                 "Zakat funds can only be used for Zakat-eligible expenses."
                             )
+        
+        # Rule 3: Insufficient Funds Validation
+        self.check_sufficient_funds(items)
+
+    def check_sufficient_funds(self, items):
+        """Ensure we have enough money in the respective fund before spending."""
+        from django.db.models import Sum, Q
+        from django.core.exceptions import ValidationError
+        
+        # We need to check if we are booking an Expense.
+        expense_items = [i for i in items if i.debit_amount > 0 and i.ledger.account_type == Ledger.AccountType.EXPENSE]
+
+        # Helper to get balance excluding current transaction
+        def get_balance(filters, exclude_entry=None):
+            queryset = JournalItem.objects.filter(**filters)
+            if exclude_entry:
+                queryset = queryset.exclude(journal_entry=exclude_entry)
+            
+            credits = queryset.aggregate(sum=Sum('credit_amount'))['sum'] or Decimal('0.00')
+            debits = queryset.aggregate(sum=Sum('debit_amount'))['sum'] or Decimal('0.00')
+            return credits, debits
+
+        # 1. Calculate Pre-Transaction Zakat Balance
+        # Income (Credit) - Expense (Debit)
+        z_inc_c, z_inc_d = get_balance({
+            'ledger__fund_type': Ledger.FundType.RESTRICTED_ZAKAT,
+            'ledger__account_type': Ledger.AccountType.INCOME
+        }, exclude_entry=self)
+        
+        z_exp_c, z_exp_d = get_balance({
+            'ledger__fund_type': Ledger.FundType.RESTRICTED_ZAKAT,
+            'ledger__account_type': Ledger.AccountType.EXPENSE
+        }, exclude_entry=self)
+
+        pre_zakat_balance = (z_inc_c - z_inc_d) - (z_exp_d - z_exp_c) 
+        # Note: Income is Credit normal (Cr - Dr). Expense is Debit normal (Dr - Cr).
+        # Balance = Net Income - Net Expense.
+        # Logic: Zakat Fund = (All Zakat Income Credits) - (All Zakat Expense Debits)
+        # Simplified: (z_inc_c) - (z_exp_d) usually, but covering reversals too.
+        
+        pre_zakat_balance = (z_inc_c - z_inc_d) + (z_exp_c - z_exp_d) 
+        # Wait. 
+        # Income Ledger: Credit increases balance.
+        # Expense Ledger: Debit increases "Expense", reducing Fund.
+        # Fund Balance = (Income Credit - Income Debit) - (Expense Debit - Expense Credit)
+        #              = z_inc_c - z_inc_d - z_exp_d + z_exp_c. Correct.
+
+        # 2. Calculate Pre-Transaction Liquid Cash
+        # Using code__startswith='100' to capture 1001, 1002, 1003 etc.
+        cash_c, cash_d = get_balance({
+            'ledger__account_type': Ledger.AccountType.ASSET,
+            'ledger__code__startswith': '100' 
+        }, exclude_entry=self)
+        
+        # Cash is Asset (Debit normal). Balance = Debit - Credit.
+        pre_liquid_cash = cash_d - cash_c
+        pre_general_available = pre_liquid_cash - pre_zakat_balance
+
+        # 3. Calculate Deltas from Current Items
+        current_zakat_delta = Decimal('0.00')
+        current_cash_delta = Decimal('0.00')
+
+        for item in items:
+            # Zakat Delta
+            if item.ledger.fund_type == Ledger.FundType.RESTRICTED_ZAKAT:
+                if item.ledger.account_type == Ledger.AccountType.INCOME:
+                    current_zakat_delta += (item.credit_amount - item.debit_amount)
+                elif item.ledger.account_type == Ledger.AccountType.EXPENSE:
+                    current_zakat_delta -= (item.debit_amount - item.credit_amount)
+            
+            # Cash Delta (Liquid Assets)
+            if item.ledger.account_type == Ledger.AccountType.ASSET and item.ledger.code.startswith('100'):
+                current_cash_delta += (item.debit_amount - item.credit_amount)
+
+        # 4. Final Balances
+        post_zakat_balance = pre_zakat_balance + current_zakat_delta
+        post_liquid_cash = pre_liquid_cash + current_cash_delta
+        post_general_available = post_liquid_cash - post_zakat_balance
+
+        # 5. Check Constraints
+        # Rule: You cannot make the balance negative. 
+        # If it is already negative, you cannot make it WORSE (lower).
+        
+        if post_zakat_balance < 0 and post_zakat_balance < pre_zakat_balance:
+             raise ValidationError(f"Insufficient Zakat Funds. Balance would be negative (₹{post_zakat_balance}).")
+
+        if post_general_available < 0 and post_general_available < pre_general_available:
+             raise ValidationError(f"Insufficient General Funds. Balance would be negative (₹{post_general_available}).")
+
 
     def save(self, *args, **kwargs):
         # Auto-generate voucher number if not set
