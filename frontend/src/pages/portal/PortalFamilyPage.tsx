@@ -60,7 +60,10 @@ export function PortalFamilyPage() {
         marital_status: 'SINGLE',
         profession: '',
         education: '',
+        dob: '',
     });
+
+    const [editingMember, setEditingMember] = useState<Member | null>(null);
 
     useEffect(() => {
         fetchFamily();
@@ -78,7 +81,7 @@ export function PortalFamilyPage() {
 
             if (res.ok) {
                 const data = await res.json();
-                setHousehold(data);
+                setHousehold(data.household);
             } else if (res.status === 401) {
                 navigate('/portal/login');
             }
@@ -89,7 +92,35 @@ export function PortalFamilyPage() {
         }
     };
 
-    const handleAddMember = async () => {
+    const handleOpenAdd = () => {
+        setEditingMember(null);
+        setFormData({
+            full_name: '',
+            relationship_to_head: 'OTHER',
+            gender: 'MALE',
+            marital_status: 'SINGLE',
+            profession: '',
+            education: '',
+            dob: '',
+        });
+        setIsDialogOpen(true);
+    };
+
+    const handleOpenEdit = (member: Member) => {
+        setEditingMember(member);
+        setFormData({
+            full_name: member.full_name,
+            relationship_to_head: member.relationship_to_head,
+            gender: member.gender,
+            marital_status: member.marital_status,
+            profession: member.profession || '',
+            education: member.education || '',
+            dob: member.dob || '',
+        });
+        setIsDialogOpen(true);
+    };
+
+    const handleSubmit = async () => {
         if (!formData.full_name) {
             setError("Full name is required");
             return;
@@ -101,29 +132,32 @@ export function PortalFamilyPage() {
         try {
             const token = localStorage.getItem('access_token');
             const apiBase = getApiBaseUrl();
+
+            // Determine API method and payload
+            const method = editingMember ? 'PUT' : 'POST';
+
+            // Sanitize payload: convert empty strings to null for optional fields like dob
+            const payload = {
+                ...(editingMember ? { ...formData, id: editingMember.id } : formData),
+                dob: formData.dob || null,
+                // profession/education/skills allow blank strings in model usually, but dob must be null if blank
+            };
+
             const res = await fetch(`${apiBase}/api/portal/members/`, {
-                method: 'POST',
+                method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 setIsDialogOpen(false);
-                setFormData({
-                    full_name: '',
-                    relationship_to_head: 'OTHER',
-                    gender: 'MALE',
-                    marital_status: 'SINGLE',
-                    profession: '',
-                    education: '',
-                });
                 fetchFamily(); // Refresh list
             } else {
                 const data = await res.json();
-                setError(data.error || "Failed to add member");
+                setError(data.error || "Failed to save member");
             }
         } catch (err) {
             setError("Network error. Please try again.");
@@ -163,16 +197,18 @@ export function PortalFamilyPage() {
 
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button className="bg-blue-600 hover:bg-blue-700">
+                            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleOpenAdd}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Member
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
-                                <DialogTitle>Add Family Member</DialogTitle>
+                                <DialogTitle>{editingMember ? 'Edit Member' : 'Add Family Member'}</DialogTitle>
                                 <DialogDescription>
-                                    Enter details for the new family member. Note: All additions require approval from the Jamath office.
+                                    {editingMember
+                                        ? 'Update details for this family member.'
+                                        : 'Enter details for the new family member.'}
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -257,18 +293,73 @@ export function PortalFamilyPage() {
                                             onChange={(e) => setFormData({ ...formData, profession: e.target.value })}
                                         />
                                     </div>
+                                    <div className="grid gap-2">
+                                        <Label>Date of Birth</Label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={formData.dob ? formData.dob.split('-')[2] : ''}
+                                                onChange={(e) => {
+                                                    const day = e.target.value;
+                                                    const current = formData.dob ? formData.dob.split('-') : ['', '', ''];
+                                                    const month = current[1] || '01';
+                                                    const year = current[0] || '2000';
+                                                    if (day) setFormData({ ...formData, dob: `${year}-${month}-${day}` });
+                                                }}
+                                            >
+                                                <option value="">Day</option>
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                                    <option key={d} value={d.toString().padStart(2, '0')}>{d}</option>
+                                                ))}
+                                            </select>
+
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={formData.dob ? formData.dob.split('-')[1] : ''}
+                                                onChange={(e) => {
+                                                    const month = e.target.value;
+                                                    const current = formData.dob ? formData.dob.split('-') : ['', '', ''];
+                                                    const day = current[2] || '01';
+                                                    const year = current[0] || '2000';
+                                                    if (month) setFormData({ ...formData, dob: `${year}-${month}-${day}` });
+                                                }}
+                                            >
+                                                <option value="">Month</option>
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={m} value={(i + 1).toString().padStart(2, '0')}>{m}</option>
+                                                ))}
+                                            </select>
+
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={formData.dob ? formData.dob.split('-')[0] : ''}
+                                                onChange={(e) => {
+                                                    const year = e.target.value;
+                                                    const current = formData.dob ? formData.dob.split('-') : ['', '', ''];
+                                                    const day = current[2] || '01';
+                                                    const month = current[1] || '01';
+                                                    if (year) setFormData({ ...formData, dob: `${year}-${month}-${day}` });
+                                                }}
+                                            >
+                                                <option value="">Year</option>
+                                                {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                                 <Button
-                                    onClick={handleAddMember}
+                                    onClick={handleSubmit}
                                     className="bg-blue-600 hover:bg-blue-700"
                                     disabled={isSubmitting}
                                 >
                                     {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                    Submit for Approval
+                                    {editingMember ? 'Update Member' : 'Add Member'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -317,8 +408,8 @@ export function PortalFamilyPage() {
                                         <TableRow>
                                             <TableHead>Name</TableHead>
                                             <TableHead>Relation</TableHead>
-                                            <TableHead>Age</TableHead>
                                             <TableHead>Details</TableHead>
+                                            <TableHead className="text-right">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -327,33 +418,38 @@ export function PortalFamilyPage() {
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-4 w-4 text-gray-400" />
-                                                        <span className="font-medium">{member.full_name}</span>
-                                                        {member.is_head_of_family && (
-                                                            <Badge variant="outline" className="text-xs">Head</Badge>
-                                                        )}
+                                                        <div>
+                                                            <div className="font-medium">{member.full_name}</div>
+                                                            {member.is_head_of_family && (
+                                                                <Badge variant="outline" className="text-[10px] h-4">Head</Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {getRelationshipLabel(member.relationship_to_head)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {member.age ? `${member.age} yrs` : '-'}
+                                                    <div className="text-xs">
+                                                        {getRelationshipLabel(member.relationship_to_head)}
+                                                        <div className="text-gray-500 mt-0.5">{member.age ? `${member.age}y` : ''}</div>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1 text-xs text-gray-500">
                                                         {member.profession && (
-                                                            <span className="flex items-center gap-1">
-                                                                <Briefcase className="h-3 w-3" />
+                                                            <span className="truncate max-w-[80px]">
                                                                 {member.profession}
                                                             </span>
                                                         )}
-                                                        {member.education && (
-                                                            <span className="flex items-center gap-1">
-                                                                <GraduationCap className="h-3 w-3" />
-                                                                {member.education}
-                                                            </span>
-                                                        )}
                                                     </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0"
+                                                        onClick={() => handleOpenEdit(member)}
+                                                    >
+                                                        <span className="text-blue-600 font-medium text-xs">Edit</span>
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -361,10 +457,6 @@ export function PortalFamilyPage() {
                                 </Table>
                             </CardContent>
                         </Card>
-
-                        <div className="text-center text-sm text-gray-500">
-                            <p>To update family information, please contact the Jamath office.</p>
-                        </div>
                     </>
                 ) : (
                     <div className="text-center py-12 text-gray-500">

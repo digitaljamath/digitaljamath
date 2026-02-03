@@ -775,7 +775,7 @@
                 automation. Free and open source.
             </p>
             <div class="hero-buttons">
-                <a href="https://demo.digitaljamath.com" class="btn btn-demo">Live Demo</a>
+                <button onclick="redirectToSubdomain('demo')" class="btn btn-demo">Live Demo</button>
                 <a href="/register" class="btn btn-primary">Get Started Free</a>
                 <a href="https://github.com/digitaljamath/digitaljamath" target="_blank" class="btn btn-outline">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -1024,6 +1024,26 @@
         function toggleMenu() {
             const nav = document.getElementById('mobileNav');
             nav.classList.toggle('open');
+        }
+
+        /**
+         * Build a subdomain URL based on current window location
+         * @param {string} subdomain - The subdomain to prepend (e.g., "demo")
+         * @returns {string} Full URL like "http://demo.localhost:3000" or "https://demo.digitaljamath.com"
+         */
+        function getSubdomainUrl(subdomain) {
+            const protocol = window.location.protocol; // "http:" or "https:"
+            const hostname = window.location.hostname; // "localhost" or "digitaljamath.com"
+            const port = window.location.port; // "3000" or "" (empty for default ports)
+
+            // Build the subdomain URL
+            const portSuffix = port ? ':' + port : '';
+            return `${protocol}//${subdomain}.${hostname}${portSuffix}`;
+        }
+
+        function redirectToSubdomain(subdomain) {
+            const url = getSubdomainUrl(subdomain);
+            window.location.href = url;
         }
     </script>
 </body>

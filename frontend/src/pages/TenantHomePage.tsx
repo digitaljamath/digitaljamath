@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Phone, Loader2, Home } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/config";
+import { getSubdomainLink, getSubdomainUrl } from "@/utils/domainHelpers";
 
 export function TenantHomePage() {
     const [tenantName, setTenantName] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export function TenantHomePage() {
     const Footer = () => (
         <footer className="border-t bg-white/80 py-4 mt-auto">
             <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-                <p>Powered by <a href="https://digitaljamath.com" className="text-blue-600 hover:underline">DigitalJamath</a></p>
+                <p>Powered by <a href={getSubdomainLink()} className="text-blue-600 hover:underline">DigitalJamath</a></p>
             </div>
         </footer>
     );

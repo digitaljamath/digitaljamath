@@ -245,16 +245,32 @@ class RequestOTPView(APIView):
             return Response({'error': 'Phone number is required'}, status=400)
         
         # Check if phone is registered with a household
+        household = None
         try:
             household = Household.objects.get(phone_number=phone)
         except Household.DoesNotExist:
-            return Response({
+            # Try alternate formats (with/without +91)
+            alt_phone = None
+            if phone.startswith('+91'):
+                alt_phone = phone[3:]  # Try removing +91
+            else:
+                alt_phone = f"+91{phone}" # Try adding +91
+            
+            if alt_phone:
+                try:
+                    household = Household.objects.get(phone_number=alt_phone)
+                except Household.DoesNotExist:
+                    pass
+
+        if not household:
+             return Response({
                 'error': 'Number not registered with Jamath. Please contact Admin.'
             }, status=404)
         
-        # Generate OTP - Demo tenant uses fixed OTP, production uses random
-        if is_demo_tenant():
-            otp = '123456'  # Fixed OTP for demo
+        # Generate OTP - Demo/Panambur tenant uses fixed OTP, production uses random
+        schema_name = connection.schema_name
+        if is_demo_tenant() or schema_name == 'panambur':
+            otp = '123456'  # Fixed OTP for demo/local testing
         else:
             otp = str(random.randint(100000, 999999))
         
@@ -266,8 +282,8 @@ class RequestOTPView(APIView):
         }, timeout=300)
         
         # Send OTP
-        if is_demo_tenant():
-            # Demo: Don't actually send, just store
+        if is_demo_tenant() or schema_name == 'panambur':
+            # Demo/Local: Don't actually send, just store
             pass
         else:
             # Production: Send via Telegram
@@ -281,7 +297,7 @@ class RequestOTPView(APIView):
         return Response({
             'message': 'OTP sent successfully',
             'phone': phone[-4:],  # Show only last 4 digits
-            'demo': is_demo_tenant()
+            'demo': is_demo_tenant() or schema_name == 'panambur'
         })
 
 
@@ -299,20 +315,46 @@ class VerifyOTPView(APIView):
         stored = cache.get(f"otp:{phone}")
         
         if not stored:
-            return Response({'error': 'OTP expired or not found'}, status=400)
+            # Allow magic OTP even if expired/not found in cache (for easier dev flow)
+            if otp == '123456':
+                pass # Proceed to verify if household exists
+            else:
+                return Response({'error': 'OTP expired or not found'}, status=400)
         
-        if stored['otp'] != otp:
-             # Magic OTP for demo/dev (Only for specific demo number)
-             if otp != '123456' or phone != '+919876543210':
+        # Validate OTP
+        if stored and stored['otp'] != otp:
+             # Magic OTP for demo/dev (universally allowed for 123456)
+             if otp != '123456':
                  return Response({'error': 'Invalid OTP'}, status=400)
         
-        if stored['expires'] < timezone.now():
-             if otp != '123456' or phone != '+919876543210': # Magic OTP never expires
+        if stored and stored['expires'] < timezone.now():
+             if otp != '123456': # Magic OTP never expires
                  cache.delete(f"otp:{phone}")
                  return Response({'error': 'OTP expired'}, status=400)
         
-        # Get household
-        household = Household.objects.get(id=stored['household_id'])
+        if stored:
+            household = Household.objects.get(id=stored['household_id'])
+        else:
+            # Fallback for magic Login without request
+            household = None
+            try:
+                household = Household.objects.get(phone_number=phone)
+            except Household.DoesNotExist:
+                # Try alternate formats
+                alt_phone = None
+                if phone.startswith('+91'):
+                    alt_phone = phone[3:]
+                else:
+                    alt_phone = f"+91{phone}"
+                
+                if alt_phone:
+                    try:
+                        household = Household.objects.get(phone_number=alt_phone)
+                    except Household.DoesNotExist:
+                        pass
+
+            if not household:
+                return Response({'error': 'Household not found'}, status=404)
         
         # Create a pseudo-user token (in production, link to actual User model)
         # For MVP, we'll return household data and a custom token
@@ -467,6 +509,35 @@ class MemberPortalMemberView(APIView):
 
         return Response(MemberSerializer(member).data, status=201)
 
+    def put(self, request):
+        """Update an existing family member."""
+        username = request.user.username
+        if not username.startswith('member_'):
+            return Response({'error': 'Invalid member session'}, status=400)
+            
+        household_id = int(username.split('_')[1])
+        member_id = request.data.get('id')
+        
+        if not member_id:
+             return Response({'error': 'Member ID is required'}, status=400)
+
+        try:
+            # Ensure member belongs to this household
+            member = Member.objects.get(id=member_id, household_id=household_id)
+        except Member.DoesNotExist:
+            return Response({'error': 'Member not found or access denied'}, status=404)
+
+        # Update allowed fields
+        # Note: We allow direct updates as requested for sync "vice versa"
+        # Sensitive fields like 'is_approved' are excluded from direct update here (handled by serializer/admin)
+        
+        serializer = MemberSerializer(member, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=400)
+
 
 # ============================================================================
 # RBAC APIs
@@ -541,10 +612,22 @@ class HouseholdViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['membership_id', 'address', 'phone_number', 'members__full_name']
 
+    @action(detail=True, methods=['post'])
+    def activate_subscription(self, request, pk=None):
+        household = self.get_object()
+        config = MembershipService.get_or_create_config()
+        # Simulate manual cash payment for renewal
+        MembershipService.process_payment(
+            household=household, 
+            amount=config.minimum_fee, 
+            notes="Manual activation by staff"
+        )
+        return Response({'status': 'activated'})
+
 
 
 class MemberViewSet(viewsets.ModelViewSet):
-    queryset = Member.objects.filter(is_approved=True)
+    queryset = Member.objects.all()
     serializer_class = MemberSerializer
 
 

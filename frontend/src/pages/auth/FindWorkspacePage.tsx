@@ -26,8 +26,8 @@ export function FindWorkspacePage() {
         setIsLoading(true);
 
         try {
-            // Force absolute URL to ensure we hit the API and not Frontend (Nginx routing)
-            const apiBase = "https://digitaljamath.com";
+            // Use configured API base URL (works for local and prod)
+            const apiBase = getApiBaseUrl();
             console.log("Fetching API:", `${apiBase}/api/find-workspace/`);
 
             const res = await fetch(`${apiBase}/api/find-workspace/`, {

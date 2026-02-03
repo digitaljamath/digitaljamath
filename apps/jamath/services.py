@@ -250,12 +250,13 @@ class MembershipService:
         """Get a summary of household's membership status."""
         subscription = MembershipService.get_current_subscription(household)
         
+        config = MembershipService.get_or_create_config()
         if not subscription:
             return {
                 'status': 'EXPIRED',
                 'is_active': False,
                 'amount_paid': Decimal('0.00'),
-                'minimum_required': Decimal('0.00'),
+                'minimum_required': config.minimum_fee,
                 'subscription': None
             }
         

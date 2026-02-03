@@ -363,7 +363,9 @@ export function PortalDashboardPage() {
                             {amountDue > 0 && (
                                 <div className="flex items-end justify-between mb-4 animate-in fade-in duration-500">
                                     <div>
-                                        <p className="text-[12px] text-gray-500 font-medium">Amount Due</p>
+                                        <p className="text-[12px] text-gray-500 font-medium">
+                                            {membership.status === 'EXPIRED' ? 'Renewal Fee' : 'Amount Due'}
+                                        </p>
                                         <p className="text-2xl font-bold text-gray-900 leading-tight">₹{amountDue}</p>
                                     </div>
                                     <div className="text-right">
@@ -381,7 +383,7 @@ export function PortalDashboardPage() {
                                             : 'bg-blue-600 hover:bg-blue-700'
                                             }`}
                                     >
-                                        {amountDue > 0 ? "Pay Now" : "Make a Donation"}
+                                        {amountDue > 0 ? (membership.status === 'EXPIRED' ? "Renew Membership" : "Pay Now") : "Make a Donation"}
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-md rounded-t-[24px]">
