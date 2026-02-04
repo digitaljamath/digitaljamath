@@ -158,6 +158,7 @@ class JournalEntrySerializer(serializers.ModelSerializer):
     donor_name = serializers.SerializerMethodField()
     supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    is_zakat = serializers.SerializerMethodField()
     narration = serializers.CharField(required=True, allow_blank=False, 
                                        error_messages={'blank': 'Narration is mandatory. Describe the transaction.'})
 
@@ -166,10 +167,18 @@ class JournalEntrySerializer(serializers.ModelSerializer):
         fields = ['id', 'voucher_number', 'voucher_type', 'date', 'narration',
                   'donor', 'donor_name', 'donor_name_manual', 'donor_pan', 'donor_intent',
                   'supplier', 'supplier_name', 'vendor_invoice_no', 'vendor_invoice_date', 'proof_document',
-                  'payment_mode', 'is_finalized', 'total_amount', 'items',
+                  'payment_mode', 'is_finalized', 'total_amount', 'items', 'is_zakat',
                   'created_by_name', 'created_at']
         read_only_fields = ['voucher_number', 'is_finalized', 'created_at']
 
+    def get_is_zakat(self, obj):
+        # Efficiently check if any item is a Zakat fund
+        # We iterate to use prefetch cache if available
+        for item in obj.items.all():
+            if item.ledger.fund_type == 'ZAKAT':
+                return True
+        return False
+        
     def get_donor_name(self, obj):
         if obj.donor:
             return obj.donor.full_name
@@ -1054,7 +1063,13 @@ class LedgerViewSet(viewsets.ModelViewSet):
     """Chart of Accounts management."""
     queryset = Ledger.objects.filter(parent=None, is_active=True)  # Only top-level by default
     serializer_class = LedgerSerializer
-    permission_classes = [IsAdminUser]
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         queryset = Ledger.objects.filter(is_active=True)
@@ -1086,7 +1101,13 @@ class SupplierViewSet(viewsets.ModelViewSet):
     """Vendor/Supplier management."""
     queryset = Supplier.objects.filter(is_active=True)
     serializer_class = SupplierSerializer
-    permission_classes = [IsAdminUser]
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -1101,7 +1122,15 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
     """Journal Entry (Voucher) management."""
     queryset = JournalEntry.objects.all()
     serializer_class = JournalEntrySerializer
-    permission_classes = [IsAdminUser]
+    queryset = JournalEntry.objects.all()
+    serializer_class = JournalEntrySerializer
+    
+    def get_permissions(self):
+        if self.action in ['create', 'list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         queryset = JournalEntry.objects.all()
@@ -1115,6 +1144,10 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(date__gte=date_from)
         if date_to:
             queryset = queryset.filter(date__lte=date_to)
+            
+        exclude_zakat = self.request.query_params.get('exclude_zakat')
+        if exclude_zakat == 'true':
+            queryset = queryset.exclude(items__ledger__fund_type='ZAKAT')
         
         return queryset.order_by('-date', '-created_at')
 
@@ -1137,7 +1170,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
                 try:
                     ledger = Ledger.objects.get(id=ledger_id)
                     # Check if this is a Zakat expense
-                    if ledger.fund_type == 'RESTRICTED_ZAKAT':
+                    if ledger.fund_type == 'ZAKAT':
                         is_zakat_payment = True
                     # Sum up expense amounts (debits to expense accounts)
                     if ledger.account_type == 'EXPENSE' and debit_amt > 0:
@@ -1233,19 +1266,62 @@ class LedgerReportsView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request, report_type):
-        from django.db.models import Sum
+        from django.db.models import Sum, Q
 
         if report_type == 'day-book':
-            date = request.query_params.get('date', timezone.now().date().isoformat())
-            entries = JournalEntry.objects.filter(date=date).order_by('created_at')
+            # Default to Date view (how it was)
+            filter_mode = request.query_params.get('mode', 'date') # 'date' or 'month'
+            target_date_str = request.query_params.get('date', timezone.now().date().isoformat())
+            target_date = timezone.datetime.fromisoformat(target_date_str).date()
+            fund_type = request.query_params.get('fund_type')
+            
+            # Base query
+            entries = JournalEntry.objects.exclude(voucher_type='JOURNAL')
+            
+            date_label = target_date_str
+            if filter_mode == 'date':
+                entries = entries.filter(date=target_date)
+            else:
+                # Month mode: Filter from start of that month to end of that month
+                start_date = target_date.replace(day=1)
+                # Logic to get end of month
+                if start_date.month == 12:
+                    end_date = start_date.replace(year=start_date.year + 1, month=1, day=1) - timezone.timedelta(days=1)
+                else:
+                    end_date = start_date.replace(month=start_date.month + 1, day=1) - timezone.timedelta(days=1)
+                
+                entries = entries.filter(date__gte=start_date, date__lte=end_date)
+                date_label = start_date.strftime("%B %Y")
+
+            if fund_type == 'ZAKAT':
+                # Strictly Zakat-related entries
+                entries = entries.filter(items__ledger__fund_type='ZAKAT').distinct()
+                sum_filter = Q(items__ledger__fund_type='ZAKAT')
+                
+            elif fund_type == 'GENERAL':
+                # "General" View: Strictly exclude any transaction that involves Zakat funds.
+                # This ensures mixed receipts or pure Zakat receipts are hidden.
+                # Transactions like "Activation" (Bank + General Income) will remain visible because they have NO Zakat items.
+                entries = entries.exclude(items__ledger__fund_type='ZAKAT')
+                
+                # Aggregation: Sum everything in the remaining entries
+                # (Since we excluded Zakat entries entirely, we don't need a complex sum filter, 
+                # but to be safe and consistent with previous logic, we can keep it simple)
+                sum_filter = ~Q(items__ledger__fund_type='ZAKAT')
+            
+            else:
+                # ALL
+                sum_filter = Q()
+
+            entries = entries.order_by('created_at')
             return Response({
-                'date': date,
+                'date': date_label,
                 'entries': JournalEntrySerializer(entries, many=True).data,
                 'summary': {
                     'total_receipts': entries.filter(voucher_type='RECEIPT').aggregate(
-                        total=Sum('items__credit_amount'))['total'] or 0,
+                        total=Sum('items__credit_amount', filter=sum_filter))['total'] or 0,
                     'total_payments': entries.filter(voucher_type='PAYMENT').aggregate(
-                        total=Sum('items__debit_amount'))['total'] or 0,
+                        total=Sum('items__debit_amount', filter=sum_filter))['total'] or 0,
                 }
             })
 
@@ -1254,27 +1330,66 @@ class LedgerReportsView(APIView):
             start_of_month = today.replace(day=1)
             # Simple assumption: monthly stats
             
-            # Income: Sum of CREDITS to INCOME accounts (excluding Zakat)
+            # Income: Sum of CREDITS to INCOME accounts (excluding Zakat & Journal Entries)
             income_this_month = JournalItem.objects.filter(
                 journal_entry__date__gte=start_of_month,
                 journal_entry__date__lte=today,
                 ledger__account_type='INCOME'
             ).exclude(
-                ledger__fund_type='RESTRICTED_ZAKAT'
+                ledger__fund_type='ZAKAT'
+            ).exclude(
+                journal_entry__voucher_type='JOURNAL'
             ).aggregate(total=Sum('credit_amount'))['total'] or Decimal('0.00')
 
-            # Expense: Sum of DEBITS to EXPENSE accounts (excluding Zakat)
+            # Expense: Sum of DEBITS for PAYMENT vouchers (excluding Zakat)
+            # This captures actual cash outflow regardless of the ledger type (Expense, Liability, Asset)
             expense_this_month = JournalItem.objects.filter(
                 journal_entry__date__gte=start_of_month,
                 journal_entry__date__lte=today,
-                ledger__account_type='EXPENSE'
+                journal_entry__voucher_type='PAYMENT'
             ).exclude(
-                ledger__fund_type='RESTRICTED_ZAKAT'
+                ledger__fund_type='ZAKAT'
             ).aggregate(total=Sum('debit_amount'))['total'] or Decimal('0.00')
+
+            # Total Available Balance (Cash + Bank, excluding Zakat & Journal Entries)
+            # We calculate actual Liquid Assets available
+            liquid_assets = JournalItem.objects.filter(
+                ledger__account_type='ASSET',
+                ledger__code__startswith='100'  # Cash & Bank codes
+            ).exclude(
+                journal_entry__voucher_type='JOURNAL'
+            ).aggregate(
+                debit=Sum('debit_amount'),
+                credit=Sum('credit_amount')
+            )
+            
+            # Asset Balance = Debit - Credit
+            gross_cash = (liquid_assets['debit'] or Decimal('0')) - (liquid_assets['credit'] or Decimal('0'))
+
+            # Calculate Restricted Zakat Balance (to deduct from Gross Cash)
+            # Zakat Balance = (Zakat Income - Zakat Expense)
+            zakat_stats = JournalItem.objects.filter(
+                ledger__fund_type='ZAKAT'
+            ).exclude(
+                journal_entry__voucher_type='JOURNAL'
+            ).aggregate(
+                income=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
+                # For expenses, we look at the expense ledger debit
+                expense=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE'))
+            )
+            
+            z_income = zakat_stats['income'] or Decimal('0')
+            z_expense = zakat_stats['expense'] or Decimal('0')
+            zakat_balance = z_income - z_expense
+            
+            # General Available = Gross Liquid Cash - Zakat Balance
+            general_available = gross_cash - zakat_balance
 
             return Response({
                 'income_this_month': income_this_month,
-                'expense_this_month': expense_this_month
+                'expense_this_month': expense_this_month,
+                'general_balance': general_available,
+                'zakat_balance': zakat_balance
             })
 
         elif report_type == 'trial-balance':

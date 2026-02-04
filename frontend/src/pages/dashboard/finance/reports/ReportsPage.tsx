@@ -27,6 +27,7 @@ type DayBookEntry = {
     total_amount: string;
     donor_name?: string;
     supplier_name?: string;
+    is_zakat?: boolean;
 };
 
 type TrialBalanceItem = {
@@ -41,6 +42,7 @@ export function ReportsPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     // Day Book State
+    const [reportView, setReportView] = useState("GENERAL"); // Default to General to hide Zakat
     const [dayBookDate, setDayBookDate] = useState(new Date().toISOString().split('T')[0]);
     const [dayBookEntries, setDayBookEntries] = useState<DayBookEntry[]>([]);
     const [dayBookSummary, setDayBookSummary] = useState({ total_receipts: 0, total_payments: 0 });
@@ -86,7 +88,12 @@ export function ReportsPage() {
     const fetchDayBook = async () => {
         setIsLoading(true);
         try {
-            const res = await fetchWithAuth(`/api/ledger/reports/day-book/?date=${dayBookDate}`);
+            let url = `/api/ledger/reports/day-book/?date=${dayBookDate}`;
+            if (reportView !== 'ALL') {
+                url += `&fund_type=${reportView}`;
+            }
+
+            const res = await fetchWithAuth(url);
             if (res.ok) {
                 const data = await res.json();
                 setDayBookEntries(data.entries || []);
@@ -125,7 +132,7 @@ export function ReportsPage() {
         } else if (activeTab === 'trial-balance') {
             fetchTrialBalance();
         }
-    }, [activeTab]);
+    }, [activeTab, dayBookDate, reportView]);
 
     return (
         <div className="space-y-6">
@@ -157,16 +164,44 @@ export function ReportsPage() {
                                     <CardDescription>Daily record of all transactions</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Label>Date:</Label>
-                                    <Input
-                                        type="date"
-                                        value={dayBookDate}
-                                        onChange={(e) => setDayBookDate(e.target.value)}
-                                        className="w-40"
-                                    />
-                                    <Button onClick={fetchDayBook} disabled={isLoading}>
-                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
-                                    </Button>
+                                    <div className="flex bg-slate-100 rounded-lg p-1">
+                                        <button
+                                            onClick={() => setReportView('GENERAL')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${reportView === 'GENERAL' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                        >
+                                            General
+                                        </button>
+                                        <button
+                                            onClick={() => setReportView('ZAKAT')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${reportView === 'ZAKAT' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-900'}`}
+                                        >
+                                            Zakat Only
+                                        </button>
+                                        <button
+                                            onClick={() => setReportView('ALL')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${reportView === 'ALL' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                        >
+                                            All
+                                        </button>
+                                    </div>
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+                                    <div className="flex items-center gap-2">
+                                        <Label>Date:</Label>
+                                        <Input
+                                            type="date"
+                                            value={dayBookDate}
+                                            onChange={(e) => setDayBookDate(e.target.value)}
+                                            className="w-36 h-9"
+                                        />
+                                        <Button onClick={fetchDayBook} disabled={isLoading} size="sm">
+                                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </CardHeader>
@@ -201,7 +236,16 @@ export function ReportsPage() {
                                                             {entry.voucher_type}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell>{entry.narration}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <span>{entry.narration}</span>
+                                                            {entry.is_zakat && (
+                                                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-200 text-blue-700 bg-blue-50">
+                                                                    Zakat
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell>{entry.donor_name || entry.supplier_name || '-'}</TableCell>
                                                     <TableCell className={`text-right font-medium ${entry.voucher_type === 'RECEIPT' ? 'text-green-600' : entry.voucher_type === 'PAYMENT' ? 'text-red-600' : ''}`}>
                                                         {entry.voucher_type === 'RECEIPT' ? '+' : entry.voucher_type === 'PAYMENT' ? '-' : ''}

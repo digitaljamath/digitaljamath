@@ -127,6 +127,14 @@ function VoucherFormContent() {
         { ledger: 0, debit_amount: 0, credit_amount: 0, particulars: "" },
     ]);
 
+    // Sync voucherType with URL params
+    useEffect(() => {
+        const type = searchParams.get('type');
+        if (type && ['RECEIPT', 'PAYMENT', 'JOURNAL'].includes(type)) {
+            setVoucherType(type);
+        }
+    }, [searchParams]);
+
     useEffect(() => {
         async function fetchMasters() {
             try {
@@ -136,11 +144,21 @@ function VoucherFormContent() {
                     fetchWithAuth('/api/jamath/members/')
                 ]);
 
-                if (ledgersRes.ok) setLedgers(await ledgersRes.json());
+                if (ledgersRes.ok) {
+                    const data = await ledgersRes.json();
+                    setLedgers(data);
+                    if (data.length === 0) {
+                        setError("Chart of Accounts is empty. Please contact support.");
+                    }
+                } else {
+                    setError(`Failed to load ledgers: ${ledgersRes.status} ${ledgersRes.statusText}`);
+                }
+
                 if (suppliersRes.ok) setSuppliers(await suppliersRes.json());
                 if (membersRes.ok) setMembers(await membersRes.json());
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Failed to fetch masters", err);
+                setError(`Network error loading data: ${err.message}`);
             }
         }
         fetchMasters();
@@ -203,11 +221,16 @@ function VoucherFormContent() {
                 }
 
                 // Always use the general Cash account (1001) for all transactions
-                // Zakat tracking is done via the Income/Expense accounts, not separate cash accounts
-                const cashLedger = ledgers.find(l => l.code === '1001'); // Cash in Hand
+                // Try finding by code 1001, then fallback to name search
+                const cashLedger = ledgers.find(l => l.code === '1001') ||
+                    ledgers.find(l => l.name.toLowerCase().includes('cash in hand')) ||
+                    ledgers.find(l => l.name.toLowerCase().includes('cash'));
 
                 if (!cashLedger) {
-                    setError("Cash ledger not found. Please ensure the Chart of Accounts is seeded.");
+                    const msg = ledgers.length === 0
+                        ? "Chart of Accounts not loaded. Please refresh or check permissions."
+                        : "Cash ledger (1001) not found. Please ensure the Chart of Accounts is seeded.";
+                    setError(msg);
                     setIsSubmitting(false);
                     return;
                 }
@@ -312,7 +335,35 @@ function VoucherFormContent() {
                 navigate('/dashboard/finance');
             } else {
                 const data = await res.json();
-                setError(data.error || typeof data === 'string' ? data : JSON.stringify(data));
+                console.error("Submission failed:", data);
+
+                // Helper to safely extract string message from any error structure
+                let errorMsg = "Failed to save";
+                if (typeof data === 'string') {
+                    errorMsg = data;
+                } else if (data?.__all__) {
+                    // Handle Django form validation errors (Higher priority)
+                    errorMsg = Array.isArray(data.__all__) ? data.__all__.join(', ') : data.__all__;
+                } else if (data?.error) {
+                    // Normalize data.error
+                    if (typeof data.error === 'string') errorMsg = data.error;
+                    else if (Array.isArray(data.error)) errorMsg = data.error.join(', ');
+                    else if (typeof data.error === 'object') errorMsg = JSON.stringify(data.error);
+                } else if (data?.non_field_errors) {
+                    errorMsg = data.non_field_errors.join(', ');
+                } else if (data?.__all__) {
+                    // Handle Django form validation errors
+                    errorMsg = Array.isArray(data.__all__) ? data.__all__.join(', ') : data.__all__;
+                } else if (data?.detail) {
+                    errorMsg = data.detail;
+                } else if (Array.isArray(data)) {
+                    // e.g. ["Insufficient Funds"]
+                    errorMsg = data.join(', ');
+                } else {
+                    // Last resort: stringify entire object
+                    errorMsg = JSON.stringify(data);
+                }
+                setError(errorMsg);
             }
         } catch (err: any) {
             setError(err.message || "Failed to save");

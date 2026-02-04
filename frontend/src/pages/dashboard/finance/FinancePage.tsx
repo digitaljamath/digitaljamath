@@ -18,6 +18,7 @@ type JournalEntry = {
     total_amount: string;
     donor_name?: string;
     supplier_name?: string;
+    is_zakat?: boolean;
 };
 
 type LedgerAccount = {
@@ -32,7 +33,12 @@ type LedgerAccount = {
 export function FinancePage() {
     const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
-    const [stats, setStats] = useState({ income: "0", expense: "0" });
+    const [stats, setStats] = useState({
+        income: "0",
+        expense: "0",
+        general_balance: "0",
+        zakat_balance: "0"
+    });
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -58,7 +64,9 @@ export function FinancePage() {
                     const data = await statsRes.json();
                     setStats({
                         income: data.income_this_month,
-                        expense: data.expense_this_month
+                        expense: data.expense_this_month,
+                        general_balance: data.general_balance,
+                        zakat_balance: data.zakat_balance
                     });
                 }
             } catch (error) {
@@ -173,7 +181,7 @@ export function FinancePage() {
                         <CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{generalBalance.toLocaleString('en-IN')}</div>
+                        <div className="text-2xl font-bold">₹{parseFloat(stats.general_balance).toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 
@@ -183,29 +191,33 @@ export function FinancePage() {
                         <CardDescription className="text-blue-100 text-xs">Restricted</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{zakatBalance.toLocaleString('en-IN')}</div>
+                        <div className="text-2xl font-bold">₹{parseFloat(stats.zakat_balance).toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">Income This Month</CardTitle>
-                        <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">₹{parseFloat(stats.income).toLocaleString('en-IN')}</div>
-                    </CardContent>
-                </Card>
+                <Link to={`/dashboard/finance/transactions?from=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01&to=${new Date().toISOString().split('T')[0]}&type=RECEIPT&exclude_zakat=true`}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-green-300">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-gray-500">Income This Month</CardTitle>
+                            <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">₹{parseFloat(stats.income).toLocaleString('en-IN')}</div>
+                        </CardContent>
+                    </Card>
+                </Link>
 
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">Expenses This Month</CardTitle>
-                        <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">₹{parseFloat(stats.expense).toLocaleString('en-IN')}</div>
-                    </CardContent>
-                </Card>
+                <Link to={`/dashboard/finance/transactions?from=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01&to=${new Date().toISOString().split('T')[0]}&type=PAYMENT&exclude_zakat=true`}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-red-300">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-gray-500">Expenses This Month</CardTitle>
+                            <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-600">₹{parseFloat(stats.expense).toLocaleString('en-IN')}</div>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
 
             {/* Quick Actions */}
@@ -276,7 +288,14 @@ export function FinancePage() {
                                             {getVoucherIcon(entry.voucher_type)}
                                         </div>
                                         <div>
-                                            <p className="font-medium">{entry.narration}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium">{entry.narration}</p>
+                                                {entry.is_zakat && (
+                                                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                        Zakat
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-sm text-gray-500">
                                                 {entry.voucher_number} • {new Date(entry.date).toLocaleDateString('en-IN')}
                                             </p>

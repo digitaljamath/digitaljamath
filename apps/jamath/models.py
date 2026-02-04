@@ -565,10 +565,10 @@ class JournalEntry(models.Model):
         # If it is already negative, you cannot make it WORSE (lower).
         
         if post_zakat_balance < 0 and post_zakat_balance < pre_zakat_balance:
-             raise ValidationError(f"Insufficient Zakat Funds. Balance would be negative (₹{post_zakat_balance}).")
+             raise ValidationError("Insufficient Funds")
 
         if post_general_available < 0 and post_general_available < pre_general_available:
-             raise ValidationError(f"Insufficient General Funds. Balance would be negative (₹{post_general_available}).")
+             raise ValidationError("Insufficient Funds")
 
 
     def save(self, *args, **kwargs):
