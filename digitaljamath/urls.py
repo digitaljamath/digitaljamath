@@ -29,7 +29,9 @@ from apps.jamath.api import (
     # Telegram
     TelegramBroadcastAnnouncementView, TelegramPaymentRemindersView, TelegramStatsView, TelegramIndividualReminderView,
     # Receipts PDF
-    ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView
+    ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView,
+    # Reminders
+    ReminderViewSet
 )
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
@@ -57,6 +59,7 @@ router.register(r'jamath/members', MemberViewSet)
 router.register(r'jamath/surveys', SurveyViewSet)
 router.register(r'jamath/responses', SurveyResponseViewSet)
 router.register(r'jamath/announcements', AnnouncementViewSet)
+router.register(r'jamath/reminders', ReminderViewSet, basename='reminders')
 router.register(r'jamath/service-requests', ServiceRequestViewSet)
 router.register(r'jamath/staff-roles', StaffRoleViewSet)
 router.register(r'jamath/staff-members', StaffMemberViewSet)

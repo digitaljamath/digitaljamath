@@ -181,7 +181,7 @@ export function FinancePage() {
                         <CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{parseFloat(stats.general_balance).toLocaleString('en-IN')}</div>
+                        <div className="text-2xl font-bold">₹{generalBalance.toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 
@@ -191,7 +191,7 @@ export function FinancePage() {
                         <CardDescription className="text-blue-100 text-xs">Restricted</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{parseFloat(stats.zakat_balance).toLocaleString('en-IN')}</div>
+                        <div className="text-2xl font-bold">₹{zakatBalance.toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 

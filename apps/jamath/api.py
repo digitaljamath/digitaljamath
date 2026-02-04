@@ -442,14 +442,26 @@ class MemberPortalAnnouncementsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
+        # Get member's household
+        if not request.user.username.startswith('member_'):
+            return Response({'error': 'Not authenticated as member'}, status=401)
+
+        try:
+            household_id = int(request.user.username.split('_')[1])
+        except (IndexError, ValueError):
+            return Response({'error': 'Invalid member identification'}, status=400)
+
         now = timezone.now()
         announcements = Announcement.objects.filter(
             is_active=True,
             published_at__lte=now
         ).filter(
             models.Q(expires_at__isnull=True) | models.Q(expires_at__gte=now)
+        ).filter(
+            # Show general announcements (no target) OR announcements targeted to this household
+            models.Q(target_household__isnull=True) | models.Q(target_household_id=household_id)
         )
-        
+
         return Response(AnnouncementSerializer(announcements, many=True).data)
 
 
@@ -1326,71 +1338,73 @@ class LedgerReportsView(APIView):
             })
 
         elif report_type == 'dashboard-stats':
-            today = timezone.now().date()
-            start_of_month = today.replace(day=1)
-            # Simple assumption: monthly stats
-            
-            # Income: Sum of CREDITS to INCOME accounts (excluding Zakat & Journal Entries)
-            income_this_month = JournalItem.objects.filter(
-                journal_entry__date__gte=start_of_month,
-                journal_entry__date__lte=today,
-                ledger__account_type='INCOME'
-            ).exclude(
-                ledger__fund_type='ZAKAT'
-            ).exclude(
-                journal_entry__voucher_type='JOURNAL'
-            ).aggregate(total=Sum('credit_amount'))['total'] or Decimal('0.00')
+            try:
+                today = timezone.now().date()
+                start_of_month = today.replace(day=1)
+                
+                # Income: Sum of CREDITS to INCOME accounts (excluding Zakat & Journal Entries)
+                income_this_month = JournalItem.objects.filter(
+                    journal_entry__date__gte=start_of_month,
+                    journal_entry__date__lte=today,
+                    ledger__account_type='INCOME'
+                ).exclude(
+                    ledger__fund_type='ZAKAT'
+                ).exclude(
+                    journal_entry__voucher_type='JOURNAL'
+                ).aggregate(total=Sum('credit_amount'))['total'] or Decimal('0.00')
 
-            # Expense: Sum of DEBITS for PAYMENT vouchers (excluding Zakat)
-            # This captures actual cash outflow regardless of the ledger type (Expense, Liability, Asset)
-            expense_this_month = JournalItem.objects.filter(
-                journal_entry__date__gte=start_of_month,
-                journal_entry__date__lte=today,
-                journal_entry__voucher_type='PAYMENT'
-            ).exclude(
-                ledger__fund_type='ZAKAT'
-            ).aggregate(total=Sum('debit_amount'))['total'] or Decimal('0.00')
+                # Expense: Sum of DEBITS for PAYMENT vouchers (excluding Zakat)
+                expense_this_month = JournalItem.objects.filter(
+                    journal_entry__date__gte=start_of_month,
+                    journal_entry__date__lte=today,
+                    journal_entry__voucher_type='PAYMENT'
+                ).exclude(
+                    ledger__fund_type='ZAKAT'
+                ).aggregate(total=Sum('debit_amount'))['total'] or Decimal('0.00')
 
-            # Total Available Balance (Cash + Bank, excluding Zakat & Journal Entries)
-            # We calculate actual Liquid Assets available
-            liquid_assets = JournalItem.objects.filter(
-                ledger__account_type='ASSET',
-                ledger__code__startswith='100'  # Cash & Bank codes
-            ).exclude(
-                journal_entry__voucher_type='JOURNAL'
-            ).aggregate(
-                debit=Sum('debit_amount'),
-                credit=Sum('credit_amount')
-            )
-            
-            # Asset Balance = Debit - Credit
-            gross_cash = (liquid_assets['debit'] or Decimal('0')) - (liquid_assets['credit'] or Decimal('0'))
+                # Total Available Balance (Cash + Bank, excluding Zakat & Journal Entries)
+                liquid_assets = JournalItem.objects.filter(
+                    ledger__account_type='ASSET',
+                    ledger__code__startswith='100'  # Cash & Bank codes
+                ).exclude(
+                    journal_entry__voucher_type='JOURNAL'
+                ).aggregate(
+                    debit=Sum('debit_amount'),
+                    credit=Sum('credit_amount')
+                )
+                
+                gross_cash = (liquid_assets['debit'] or Decimal('0')) - (liquid_assets['credit'] or Decimal('0'))
 
-            # Calculate Restricted Zakat Balance (to deduct from Gross Cash)
-            # Zakat Balance = (Zakat Income - Zakat Expense)
-            zakat_stats = JournalItem.objects.filter(
-                ledger__fund_type='ZAKAT'
-            ).exclude(
-                journal_entry__voucher_type='JOURNAL'
-            ).aggregate(
-                income=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
-                # For expenses, we look at the expense ledger debit
-                expense=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE'))
-            )
-            
-            z_income = zakat_stats['income'] or Decimal('0')
-            z_expense = zakat_stats['expense'] or Decimal('0')
-            zakat_balance = z_income - z_expense
-            
-            # General Available = Gross Liquid Cash - Zakat Balance
-            general_available = gross_cash - zakat_balance
+                # Calculate Restricted Zakat Balance
+                zakat_stats = JournalItem.objects.filter(
+                    ledger__fund_type='ZAKAT'
+                ).exclude(
+                    journal_entry__voucher_type='JOURNAL'
+                ).aggregate(
+                    income=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
+                    expense=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE'))
+                )
+                
+                z_income = zakat_stats['income'] or Decimal('0')
+                z_expense = zakat_stats['expense'] or Decimal('0')
+                zakat_balance = z_income - z_expense
+                
+                general_available = gross_cash - zakat_balance
 
-            return Response({
-                'income_this_month': income_this_month,
-                'expense_this_month': expense_this_month,
-                'general_balance': general_available,
-                'zakat_balance': zakat_balance
-            })
+                return Response({
+                    'income_this_month': str(income_this_month),
+                    'expense_this_month': str(expense_this_month),
+                    'general_balance': str(general_available),
+                    'zakat_balance': str(zakat_balance)
+                })
+            except Exception as e:
+                return Response({
+                    'error': str(e),
+                    'income_this_month': '0',
+                    'expense_this_month': '0',
+                    'general_balance': '0',
+                    'zakat_balance': '0'
+                })
 
         elif report_type == 'trial-balance':
             ledgers = Ledger.objects.filter(is_active=True).order_by('code')
@@ -1749,3 +1763,66 @@ class PortalReceiptPDFView(APIView):
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="Receipt_{receipt_number}.pdf"'
         return response
+class ReminderViewSet(viewsets.ViewSet):
+    """ViewSet to manage reminders and custom messages via portal announcements."""
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'])
+    def send(self, request):
+        """Send a reminder or custom message as a targeted announcement."""
+        household_id = request.data.get('household_id')
+        message_type = request.data.get('type', 'REMINDER') # REMINDER or MESSAGE
+        custom_text = request.data.get('message', '')
+
+        try:
+            household = Household.objects.get(id=household_id)
+        except Household.DoesNotExist:
+            return Response({'error': 'Household not found'}, status=404)
+
+        head = household.members.filter(is_head_of_family=True).first()
+        head_name = head.full_name if head else "Member"
+
+        if message_type == 'REMINDER':
+            title = "Membership Renewal Reminder"
+            content = f"""Assalamu Alaikum {head_name},
+
+Kindly renew your membership.
+
+Jazakallah Khair
+— DigitalJamath Office"""
+
+        elif message_type == 'MESSAGE':
+            if not custom_text:
+                 return Response({'error': 'Message text is required'}, status=400)
+
+            title = "Message from Jamath Office"
+            content = f"""Assalamu Alaikum {head_name},
+
+{custom_text}
+
+— DigitalJamath Office"""
+
+        else:
+            return Response({'error': 'Invalid message type'}, status=400)
+
+        # Create targeted announcement
+        try:
+            announcement = Announcement.objects.create(
+                title=title,
+                content=content,
+                status='PUBLISHED',
+                target_household=household,
+                created_by=request.user
+            )
+            
+            # FUTURE: Integration point for Telegram Notifications
+            # if household.telegram_chat_id:
+            #     send_telegram_message(household.telegram_chat_id, content)
+
+            return Response({
+                'success': True,
+                'message': f'Announcement sent successfully to {head_name}',
+                'announcement_id': announcement.id
+            })
+        except Exception as e:
+            return Response({'error': f'Failed to create announcement: {str(e)}'}, status=500)

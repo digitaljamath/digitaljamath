@@ -7,6 +7,7 @@ import { HouseholdsPage } from './pages/dashboard/households/HouseholdsPage'
 import { HouseholdFormPage } from './pages/dashboard/households/HouseholdFormPage'
 import { HouseholdDetailPage } from './pages/dashboard/households/HouseholdDetailPage'
 import { AnnouncementsPage } from './pages/dashboard/announcements/AnnouncementsPage'
+import RemindersPage from './pages/dashboard/reminders/RemindersPage'
 import { FinancePage } from './pages/dashboard/finance/FinancePage'
 import { TransactionsPage } from './pages/dashboard/finance/TransactionsPage'
 import { VoucherDetailPage } from './pages/dashboard/finance/VoucherDetailPage'
@@ -75,6 +76,7 @@ function App() {
             <Route path="households/:id/edit" element={<HouseholdFormPage />} />
 
             <Route path="announcements" element={<AnnouncementsPage />} />
+            <Route path="reminders" element={<RemindersPage />} />
 
             <Route path="finance" element={<FinancePage />} />
             <Route path="finance/transactions" element={<TransactionsPage />} />

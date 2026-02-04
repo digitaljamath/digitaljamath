@@ -216,7 +216,7 @@ export function DashboardHome() {
                             <p className="text-sm text-gray-500">Log income or expense</p>
                         </div>
                     </Link>
-                    <Link to="/dashboard/announcements/new">
+                    <Link to="/dashboard/reminders">
                         <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-500 hover:bg-amber-50 transition-all cursor-pointer">
                             <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
                             <h3 className="font-semibold">Send Reminder</h3>

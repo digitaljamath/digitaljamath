@@ -256,6 +256,7 @@ class Announcement(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    target_household = models.ForeignKey('Household', on_delete=models.SET_NULL, null=True, blank=True, related_name='announcements', help_text="If set, this announcement is visible ONLY to this household.")
 
     class Meta:
         ordering = ['-published_at']
