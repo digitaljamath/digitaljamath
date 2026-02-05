@@ -71,7 +71,7 @@ export function PortalFamilyPage() {
 
     const fetchFamily = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            const token = localStorage.getItem('portal_access_token');
             const res = await fetch('/api/portal/profile/', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -130,7 +130,7 @@ export function PortalFamilyPage() {
         setError("");
 
         try {
-            const token = localStorage.getItem('access_token');
+            const token = localStorage.getItem('portal_access_token');
             const apiBase = getApiBaseUrl();
 
             // Determine API method and payload

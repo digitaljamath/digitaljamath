@@ -25,9 +25,14 @@ function addRefreshSubscriber(callback: (token: string) => void) {
  * Make an authenticated fetch request.
  * Automatically handles 401 errors by attempting to refresh the token.
  */
+/**
+ * Make an authenticated fetch request.
+ * Automatically handles 401 errors by attempting to refresh the token.
+ */
 export async function fetchWithAuth(
     url: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    tokenType: 'staff' | 'portal' = 'staff'
 ): Promise<Response> {
     const apiBase = getApiBaseUrl();
     const fullUrl = url.startsWith('http') ? url : `${apiBase}${url}`;
@@ -44,7 +49,10 @@ export async function fetchWithAuth(
         return headers;
     };
 
-    let token = localStorage.getItem('access_token');
+    const storageKey = tokenType === 'staff' ? 'access_token' : 'portal_access_token';
+    const refreshKey = tokenType === 'staff' ? 'refresh_token' : 'portal_refresh_token';
+
+    let token = localStorage.getItem(storageKey);
 
     // 1. Initial Attempt
     let response = await fetch(fullUrl, {
@@ -54,57 +62,20 @@ export async function fetchWithAuth(
 
     // 2. Handle 401 (Unauthorized)
     if (response.status === 401) {
-        if (!isRefreshing) {
-            isRefreshing = true;
-            const refreshSuccess = await attemptRefreshToken();
-            isRefreshing = false;
-
-            if (refreshSuccess) {
-                const newToken = localStorage.getItem('access_token');
-                if (newToken) {
-                    onRefreshed(newToken);
-                } else {
-                    logout(); // Should not happen if success
-                }
-            } else {
-                logout();
-                // Optionally redirect here or let the caller handle it
-                // window.location.href = '/auth/signin'; 
-                return response; // Return the 401
-            }
-        }
-
-        // Wait for refresh to complete (if another request started it)
-        const retryPromise = new Promise<Response>((resolve) => {
-            addRefreshSubscriber(async (newToken) => {
-                // Retry original request with new token
-                const retryResponse = await fetch(fullUrl, {
-                    ...options,
-                    headers: getHeaders(newToken),
-                });
-                resolve(retryResponse);
-            });
-        });
-
-        // If we just refreshed successfully, we can't rely on subscribers for *this* instance's trigger
-        // actually if isRefreshing was true, subscribers are populated.
-        // if isRefreshing was false (we did it), we must trigger manually or just retry.
-        // Simpler approach: Just retry immediately if we were the refresher.
-
-        // REFACTOR: The above "mutex" logic is complex with fetch.
-        // Simplified Logic: 
-        // If 401, try refresh. If successful, retry. If fail, logout.
-        // We will ignore concurrent refresh optimization for now to keep it robust.
-
-        const refreshed = await attemptRefreshToken();
+        // Simplified Logic: Try refresh, if success retry, else logout
+        const refreshed = await attemptRefreshToken(tokenType);
         if (refreshed) {
-            token = localStorage.getItem('access_token');
+            token = localStorage.getItem(storageKey);
             return fetch(fullUrl, {
                 ...options,
                 headers: getHeaders(token),
             });
         } else {
-            logout();
+            if (tokenType === 'staff') {
+                logout();
+            } else {
+                logoutPortal();
+            }
             return response;
         }
     }
@@ -115,8 +86,11 @@ export async function fetchWithAuth(
 /**
  * Attempt to refresh the access token using the refresh token.
  */
-async function attemptRefreshToken(): Promise<boolean> {
-    const refreshToken = localStorage.getItem('refresh_token');
+async function attemptRefreshToken(tokenType: 'staff' | 'portal' = 'staff'): Promise<boolean> {
+    const storageKey = tokenType === 'staff' ? 'access_token' : 'portal_access_token';
+    const refreshKey = tokenType === 'staff' ? 'refresh_token' : 'portal_refresh_token';
+
+    const refreshToken = localStorage.getItem(refreshKey);
     if (!refreshToken) return false;
 
     const apiBase = getApiBaseUrl();
@@ -129,10 +103,10 @@ async function attemptRefreshToken(): Promise<boolean> {
 
         if (response.ok) {
             const data: TokenResponse = await response.json();
-            localStorage.setItem('access_token', data.access);
+            localStorage.setItem(storageKey, data.access);
             // Some APIs rotate refresh tokens too
             if (data.refresh) {
-                localStorage.setItem('refresh_token', data.refresh);
+                localStorage.setItem(refreshKey, data.refresh);
             }
             return true;
         }
@@ -140,6 +114,18 @@ async function attemptRefreshToken(): Promise<boolean> {
         console.error("Token refresh failed", error);
     }
     return false;
+}
+
+/**
+ * Portal Logout
+ */
+export function logoutPortal(): void {
+    localStorage.removeItem('portal_access_token');
+    localStorage.removeItem('portal_refresh_token');
+    localStorage.removeItem('portal_household_id');
+    localStorage.removeItem('portal_membership_id');
+    localStorage.removeItem('portal_head_name');
+    window.location.href = '/portal/login';
 }
 
 /**

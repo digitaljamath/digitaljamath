@@ -126,11 +126,11 @@ export function PortalLoginPage() {
                 return;
             }
 
-            localStorage.setItem("access_token", data.access);
-            localStorage.setItem("refresh_token", data.refresh);
-            localStorage.setItem("household_id", data.household_id);
-            localStorage.setItem("membership_id", data.membership_id);
-            localStorage.setItem("head_name", data.head_name);
+            localStorage.setItem("portal_access_token", data.access);
+            localStorage.setItem("portal_refresh_token", data.refresh);
+            localStorage.setItem("portal_household_id", data.household_id);
+            localStorage.setItem("portal_membership_id", data.membership_id);
+            localStorage.setItem("portal_head_name", data.head_name);
 
             navigate("/portal/dashboard");
         } catch (err) {

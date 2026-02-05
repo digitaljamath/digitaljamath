@@ -65,7 +65,7 @@ export function PortalDashboardPage() {
     const [donorPan, setDonorPan] = useState("");
 
     useEffect(() => {
-        const token = localStorage.getItem("access_token");
+        const token = localStorage.getItem("portal_access_token");
         if (!token) {
             navigate("/portal/login");
             return;
@@ -82,7 +82,7 @@ export function PortalDashboardPage() {
             verifyCashfree(orderId, panParam || "", token);
         }
 
-        setHeadName(localStorage.getItem("head_name") || "Member");
+        setHeadName(localStorage.getItem("portal_head_name") || "Member");
         fetchProfile(token);
     }, [navigate]);
 
@@ -126,7 +126,9 @@ export function PortalDashboardPage() {
             });
 
             if (res.status === 401) {
-                localStorage.clear();
+                // Use imported logoutPortal if available, or manual clear
+                localStorage.removeItem('portal_access_token');
+                localStorage.removeItem('portal_refresh_token');
                 navigate("/portal/login");
                 return;
             }
@@ -144,7 +146,11 @@ export function PortalDashboardPage() {
     };
 
     const handleLogout = () => {
-        localStorage.clear();
+        localStorage.removeItem('portal_access_token');
+        localStorage.removeItem('portal_refresh_token');
+        localStorage.removeItem('portal_household_id');
+        localStorage.removeItem('portal_membership_id');
+        localStorage.removeItem('portal_head_name');
         navigate("/portal/login");
     };
 
@@ -178,7 +184,7 @@ export function PortalDashboardPage() {
             return;
         }
 
-        const token = localStorage.getItem("access_token");
+        const token = localStorage.getItem("portal_access_token");
         const apiBase = getApiBaseUrl();
 
         // Calculate total

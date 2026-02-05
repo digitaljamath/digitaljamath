@@ -25,7 +25,7 @@ export function PortalAnnouncementsPage() {
 
     const fetchAnnouncements = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            const token = localStorage.getItem('portal_access_token');
             const apiBase = getApiBaseUrl();
             const res = await fetch(`${apiBase}/api/portal/announcements/`, {
                 headers: {
