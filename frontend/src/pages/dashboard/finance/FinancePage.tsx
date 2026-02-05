@@ -19,6 +19,7 @@ type JournalEntry = {
     donor_name?: string;
     supplier_name?: string;
     is_zakat?: boolean;
+    created_by_name?: string;
 };
 
 type LedgerAccount = {
@@ -296,8 +297,13 @@ export function FinancePage() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-gray-500">
+                                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
                                                 {entry.voucher_number} • {new Date(entry.date).toLocaleDateString('en-IN')}
+                                                {entry.created_by_name && (
+                                                    <span className="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-md border border-gray-200">
+                                                        Entry by: {entry.created_by_name}
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                     </div>

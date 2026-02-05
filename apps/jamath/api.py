@@ -8,14 +8,170 @@ from django.db import models
 from django.utils import timezone
 from decimal import Decimal
 import random
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 from .models import (
     Household, Member, Survey, SurveyResponse,
     MembershipConfig, Subscription, Receipt, Announcement, ServiceRequest,
-    Ledger, Supplier, JournalEntry, JournalItem, StaffRole, StaffMember
+    Ledger, Supplier, JournalEntry, JournalItem, StaffRole, StaffMember, ActivityLog
 )
 from .serializers import SurveySerializer, SurveyResponseSerializer, StaffRoleSerializer, StaffMemberSerializer
 from .services import MembershipService, ProfileService, NotificationService
+
+
+
+# ============================================================================
+# PERMISSIONS
+# ============================================================================
+
+class HasStaffPermission(permissions.BasePermission):
+    """
+    Checks if the user has specific module-level permissions via their assigned StaffRole.
+    """
+    def has_permission(self, request, view):
+        if request.user.is_superuser:
+            return True
+        if not request.user.is_authenticated:
+            return False
+            
+        try:
+            # Use staff_profile (OneToOne) 
+            staff_member = request.user.staff_profile
+            if not staff_member or not staff_member.is_active:
+                return False
+        except Exception:
+            return False
+            
+        required_module = getattr(view, 'required_module', None)
+        if not required_module:
+            return True
+            
+        user_permissions = staff_member.role.permissions
+        access_level = user_permissions.get(required_module)
+        
+        if not access_level or access_level == 'none':
+            return False
+            
+        if access_level == 'read' and request.method not in permissions.SAFE_METHODS:
+            return False
+            
+        return True
+
+
+# ============================================================================
+# AUDIT LOGGING
+# ============================================================================
+
+class AuditLogMixin:
+    """
+    Mixin to automatically log CREATE, UPDATE, DELETE actions to ActivityLog.
+    Also handles setting 'created_by' field if it exists on the model.
+    """
+    def perform_create(self, serializer):
+        # Auto-set created_by if model has it
+        if hasattr(serializer.Meta.model, 'created_by'):
+            instance = serializer.save(created_by=self.request.user)
+        else:
+            instance = serializer.save()
+            
+        self._log_activity('CREATE', instance, "Created new entry", self.request.user)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        self._log_activity('UPDATE', instance, "Updated entry", self.request.user)
+
+    def perform_destroy(self, instance):
+        # Capture ID/Str before deletion
+        pk = instance.pk
+        display = str(instance)
+        instance.delete()
+        
+        # Log after deletion or before? Before is better for retrieving details, but we need to know it succeeded.
+        # But 'instance' is still in memory.
+        self._log_activity('DELETE', instance, f"Deleted: {display}", self.request.user, object_id=str(pk))
+
+    def _log_activity(self, action, instance, details, user, object_id=None):
+        try:
+             # Determine module from ViewSet
+             module = getattr(self, 'required_module', 'Unknown')
+             if hasattr(instance._meta, 'verbose_name'):
+                 model_name = instance._meta.verbose_name
+             else:
+                 model_name = instance.__class__.__name__
+             
+             final_object_id = object_id or str(instance.pk)
+
+             ActivityLog.objects.create(
+                 user=user,
+                 action=action,
+                 module=module,
+                 model_name=model_name,
+                 object_id=final_object_id,
+                 details=details
+             )
+        except Exception as e:
+            # Fail silently to not block the transaction, but log to console if needed
+            print(f"Audit Log Error: {e}")
+
+
+# ============================================================================
+# STAFF & MEMBER LOOKUP
+# ============================================================================
+
+class MemberStaffLookupView(APIView):
+    """
+    Search for Members or Users to assign as staff.
+    Returns list of potential candidates.
+    """
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'users'
+
+    def get(self, request):
+        with_user = request.query_params.get('with_user', 'false') == 'true'
+        query = request.query_params.get('q', '').strip()
+        
+        if not query or len(query) < 2:
+            return Response([])
+            
+        
+        results = []
+        
+        # 1. Search Family Heads (Primary source)
+        members = Member.objects.filter(
+            is_head_of_family=True,  # Only family heads
+            is_alive=True  # Only living members
+        ).filter(
+            models.Q(full_name__icontains=query) | 
+            models.Q(household__phone_number__icontains=query)
+        ).select_related('household')[:10]
+        
+        for m in members:
+            results.append({
+                'type': 'member',
+                'id': m.id,
+                'name': m.full_name,
+                'detail': f"Family Head - Household #{m.household.membership_id}",
+                'has_login': False
+            })
+            
+        # 2. Search Existing Users (Secondary)
+        users = User.objects.filter(
+            models.Q(username__icontains=query) | 
+            models.Q(email__icontains=query)
+        ).exclude(staff_roles__isnull=False)[:5]
+        
+        for u in users:
+             results.append({
+                'type': 'user',
+                'id': u.id,
+                'name': u.username,
+                'detail': u.email or "No Email",
+                'has_login': True
+            })
+            
+        return Response(results)
 
 
 # ============================================================================
@@ -25,12 +181,14 @@ from .services import MembershipService, ProfileService, NotificationService
 class MemberSerializer(serializers.ModelSerializer):
     age = serializers.SerializerMethodField()
     
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
     class Meta:
         model = Member
         fields = ['id', 'full_name', 'is_head_of_family', 'relationship_to_head',
                   'gender', 'dob', 'age', 'marital_status', 'profession', 
                   'education', 'skills', 'is_employed', 'monthly_income', 
-                  'requirements', 'is_alive', 'is_approved', 'household']
+                  'requirements', 'is_alive', 'is_approved', 'household', 'created_by_name']
     
     def get_age(self, obj):
         if obj.dob:
@@ -45,12 +203,13 @@ class HouseholdSerializer(serializers.ModelSerializer):
     member_count = serializers.IntegerField(read_only=True)
     head_name = serializers.SerializerMethodField()
     is_membership_active = serializers.BooleanField(read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     
     class Meta:
         model = Household
         fields = ['id', 'membership_id', 'address', 'economic_status', 'housing_status',
                   'phone_number', 'is_verified', 'zakat_score', 'member_count', 
-                  'head_name', 'is_membership_active', 'members', 'custom_data', 'created_at']
+                  'head_name', 'is_membership_active', 'members', 'custom_data', 'created_at', 'created_by_name']
         read_only_fields = ['zakat_score', 'member_count', 'is_membership_active']
     
     def get_head_name(self, obj):
@@ -59,10 +218,11 @@ class HouseholdSerializer(serializers.ModelSerializer):
 
 
 class ReceiptSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
     class Meta:
         model = Receipt
         fields = ['id', 'receipt_number', 'amount', 'membership_portion', 
-                  'donation_portion', 'payment_date', 'pdf_url', 'notes']
+                  'donation_portion', 'payment_date', 'pdf_url', 'notes', 'created_by_name']
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
@@ -572,7 +732,109 @@ class StaffRoleViewSet(viewsets.ModelViewSet):
 class StaffMemberViewSet(viewsets.ModelViewSet):
     queryset = StaffMember.objects.all()
     serializer_class = StaffMemberSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'users'
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        """
+        Get current user's staff profile and permissions.
+        Allows bootstrapping the UI without needing 'users' permission.
+        """
+        # Find staff member for current user
+        staff_member = StaffMember.objects.filter(user=request.user, is_active=True).select_related('role').first()
+        
+        if not staff_member:
+            return Response({'error': 'Not a staff member'}, status=403)
+            
+        data = StaffMemberSerializer(staff_member).data
+        # Include permissions directly for easier frontend consumption
+        data['permissions'] = staff_member.role.permissions if staff_member.role else {}
+        return Response(data)
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Handle staff assignment with Member promotion.
+        Accepts either 'user_id' or 'member_id'.
+        If member_id is provided and member has no User, creates one.
+        """
+        import secrets
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        member_id = request.data.get('member_id')
+        user_id = request.data.get('user_id')
+        role_id = request.data.get('role')
+        designation = request.data.get('designation')
+        
+        generated_credentials = None
+        
+        # Case 1: Member Promotion
+        if member_id:
+            try:
+                member = Member.objects.get(id=member_id)
+            except Member.DoesNotExist:
+                return Response({'error': 'Member not found'}, status=400)
+            
+            # Check if member already has a user account
+            # Heuristic: Try to find by username pattern or create new
+            username = f"staff_{member.id}_{member.full_name.lower().replace(' ', '_')}"[:30]
+            
+            # Check if user exists
+            user = User.objects.filter(username=username).first()
+            
+            if not user:
+                # Generate credentials
+                temp_password = secrets.token_urlsafe(12)
+                user = User.objects.create_user(
+                    username=username,
+                    password=temp_password,
+                    first_name=member.full_name,
+                    email=f"{username}@staff.local"  # Placeholder email
+                )
+                generated_credentials = {
+                    'username': username,
+                    'password': temp_password
+                }
+            
+            user_id = user.id
+        
+        # Case 2: Existing User
+        elif not user_id:
+            return Response({'error': 'Either user_id or member_id is required'}, status=400)
+        
+        # Create StaffMember
+        try:
+            staff_member = StaffMember.objects.create(
+                user_id=user_id,
+                role_id=role_id,
+                designation=designation
+            )
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+        
+        response_data = StaffMemberSerializer(staff_member).data
+        
+        if generated_credentials:
+            response_data['generated_credentials'] = generated_credentials
+        
+        return Response(response_data, status=201)
+    
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete StaffMember and associated User account.
+        """
+        staff_member = self.get_object()
+        user = staff_member.user
+        
+        # Delete the StaffMember first
+        staff_member.delete()
+        
+        # Then delete the User account (prevents login)
+        if user and not user.is_superuser:
+            user.delete()
+        
+        return Response(status=204)
 
 
 # ============================================================================
@@ -627,9 +889,11 @@ class AdminMembershipConfigView(APIView):
 # EXISTING VIEWSETS (Updated)
 # ============================================================================
 
-class HouseholdViewSet(viewsets.ModelViewSet):
+class HouseholdViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = Household.objects.prefetch_related('members').distinct()
     serializer_class = HouseholdSerializer
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'jamath'
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['membership_id', 'address', 'phone_number', 'members__full_name']
     ordering = ['membership_id']
@@ -649,14 +913,31 @@ class HouseholdViewSet(viewsets.ModelViewSet):
 
 
 
-class MemberViewSet(viewsets.ModelViewSet):
+class MembershipConfigViewSet(viewsets.ModelViewSet):
+    queryset = MembershipConfig.objects.all()
+    serializer_class = MembershipConfigSerializer
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
+    required_module = 'jamath'
+
+
+class MemberViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'jamath'
 
 
 class SurveyViewSet(viewsets.ModelViewSet):
     queryset = Survey.objects.all()
     serializer_class = SurveySerializer
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'jamath'
 
 
 class SurveyResponseViewSet(viewsets.ModelViewSet):
@@ -669,9 +950,11 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
         JamathService.process_survey_response(instance)
 
 
-class AnnouncementViewSet(viewsets.ModelViewSet):
+class AnnouncementViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'announcements'
     
     def get_queryset(self):
         queryset = Announcement.objects.all()
@@ -687,6 +970,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 class ServiceRequestViewSet(viewsets.ModelViewSet):
     queryset = ServiceRequest.objects.all()
     serializer_class = ServiceRequestSerializer
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'welfare'
     
     def get_queryset(self):
         queryset = ServiceRequest.objects.all()
@@ -1105,12 +1390,8 @@ class LedgerViewSet(viewsets.ModelViewSet):
     queryset = Ledger.objects.filter(parent=None, is_active=True)  # Only top-level by default
     serializer_class = LedgerSerializer
     
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAdminUser]
-        return [permission() for permission in permission_classes]
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'finance'
 
     def get_queryset(self):
         queryset = Ledger.objects.filter(is_active=True)
@@ -1142,13 +1423,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
     """Vendor/Supplier management."""
     queryset = Supplier.objects.filter(is_active=True)
     serializer_class = SupplierSerializer
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'finance'
     
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAdminUser]
-        return [permission() for permission in permission_classes]
+
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -1159,19 +1437,12 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Response(status=204)
 
 
-class JournalEntryViewSet(viewsets.ModelViewSet):
+class JournalEntryViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """Journal Entry (Voucher) management."""
-    queryset = JournalEntry.objects.all()
+    queryset = JournalEntry.objects.all().order_by('-date')
     serializer_class = JournalEntrySerializer
-    queryset = JournalEntry.objects.all()
-    serializer_class = JournalEntrySerializer
-    
-    def get_permissions(self):
-        if self.action in ['create', 'list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAdminUser]
-        return [permission() for permission in permission_classes]
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'finance'
 
     def get_queryset(self):
         queryset = JournalEntry.objects.all()
@@ -1238,8 +1509,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
         
         return super().create(request, *args, **kwargs)
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+
 
 
     @action(detail=True, methods=['post'])
@@ -1855,3 +2125,85 @@ Jazakallah Khair
             })
         except Exception as e:
             return Response({'error': f'Failed to create announcement: {str(e)}'}, status=500)
+
+# ============================================================================
+# ADMIN ACTIVITY LOGS
+# ============================================================================
+
+class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Admin-only view of staff activity logs."""
+    # Filter to show only Staff (either Django admin or App staff)
+    queryset = ActivityLog.objects.filter(
+        models.Q(user__is_superuser=True) | 
+        models.Q(user__staff_profile__isnull=False)
+    ).distinct().order_by('-timestamp', '-id')
+
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'settings' # Or users/jamath?
+    
+    class ActivityLogSerializer(serializers.ModelSerializer):
+        username = serializers.CharField(source='user.username', read_only=True)
+        class Meta:
+            model = ActivityLog
+            fields = '__all__'
+
+    serializer_class = ActivityLogSerializer
+
+class DashboardStatsView(APIView):
+    """Aggregated stats for the dashboard."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            from django.utils import timezone
+            from django.db import models
+            from decimal import Decimal
+            from apps.jamath.models import Household, Member, JournalItem
+            
+            now = timezone.now()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+            # Households
+            total_households = Household.objects.count()
+            total_members = Member.objects.count()
+            # Fix: Filter via related subscriptions instead of property
+            pending_renewals = Household.objects.exclude(
+                subscriptions__status='ACTIVE',
+                subscriptions__end_date__gte=now.date()
+            ).count()
+            
+            # Finance Aggregates
+            item_qs = JournalItem.objects.all()
+            
+            income_this_month = item_qs.filter(
+                journal_entry__voucher_type='RECEIPT',
+                journal_entry__date__gte=month_start.date(),
+                debit_amount__gt=0
+            ).aggregate(total=models.Sum('debit_amount'))['total'] or Decimal(0)
+            
+            expense_this_month = item_qs.filter(
+                journal_entry__voucher_type='PAYMENT',
+                journal_entry__date__gte=month_start.date(),
+                debit_amount__gt=0
+            ).aggregate(total=models.Sum('debit_amount'))['total'] or Decimal(0)
+
+            total_income = item_qs.filter(
+                journal_entry__voucher_type='RECEIPT',
+                debit_amount__gt=0
+            ).aggregate(total=models.Sum('debit_amount'))['total'] or Decimal(0)
+
+            return Response({
+                'households': total_households,
+                'members': total_members,
+                'pending_renewals': pending_renewals,
+                'income_this_month': income_this_month,
+                'expense_this_month': expense_this_month,
+                'total_income': total_income
+            })
+        except Exception as e:
+            # Return error message in fields to help debug if it happens again
+            return Response({
+                'households': 0, 'members': 0, 'pending_renewals': 0,
+                'income_this_month': 0, 'expense_this_month': 0, 'total_income': 0,
+                'debug_error': str(e)
+            })

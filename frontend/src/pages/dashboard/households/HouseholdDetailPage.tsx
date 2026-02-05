@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -50,6 +51,8 @@ type Household = {
     member_count: number;
     head_name: string;
     is_membership_active: boolean;
+    created_at?: string;
+    created_by_name?: string;
 };
 
 export function HouseholdDetailPage() {
@@ -202,7 +205,15 @@ export function HouseholdDetailPage() {
                             <h1 className="text-2xl font-bold tracking-tight">Household #{household.membership_id}</h1>
                             {household.is_verified && <Badge variant="secondary">Verified</Badge>}
                         </div>
-                        <p className="text-sm text-gray-500">{household.head_name} & Family</p>
+                        <p className="text-sm text-gray-500">
+                            {household.head_name} & Family
+                            {household.created_by_name && (
+                                <span className="ml-2 border-l pl-2">
+                                    Entry by <span className="font-medium text-gray-700">{household.created_by_name}</span>
+                                    {household.created_at && ` on ${format(new Date(household.created_at), "MMM d, yyyy")}`}
+                                </span>
+                            )}
+                        </p>
                     </div>
                 </div>
                 <div className="flex gap-2">

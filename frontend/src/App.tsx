@@ -19,6 +19,7 @@ import { SurveyBuilderPage } from './pages/dashboard/surveys/builder/SurveyBuild
 import { WelfarePage } from './pages/dashboard/welfare/WelfarePage'
 import { SettingsPage } from './pages/dashboard/settings/SettingsPage'
 import { UsersPage } from './pages/dashboard/users/UsersPage'
+import { ActivityLogPage } from './pages/dashboard/users/ActivityLogPage'
 import { InboxPage } from './pages/dashboard/inbox/InboxPage'
 import { BasiraPage } from './pages/dashboard/basira/BasiraPage'
 import { ProfilePage } from './pages/dashboard/profile/ProfilePage'
@@ -92,6 +93,7 @@ function App() {
 
             <Route path="settings" element={<SettingsPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="users/activity" element={<ActivityLogPage />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="basira" element={<BasiraPage />} />
             <Route path="profile" element={<ProfilePage />} />

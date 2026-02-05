@@ -25,13 +25,18 @@ from apps.jamath.api import (
     LedgerViewSet, SupplierViewSet, JournalEntryViewSet, LedgerReportsView,
     TallyExportView,
     # RBAC
-    StaffRoleViewSet, StaffMemberViewSet,
+    StaffRoleViewSet, StaffMemberViewSet, MemberStaffLookupView,
     # Telegram
     TelegramBroadcastAnnouncementView, TelegramPaymentRemindersView, TelegramStatsView, TelegramIndividualReminderView,
     # Receipts PDF
     ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView,
     # Reminders
-    ReminderViewSet
+    ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView,
+    # Reminders
+    ReminderViewSet,
+    # Logs
+    ActivityLogViewSet,
+    DashboardStatsView
 )
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
@@ -58,6 +63,7 @@ router.register(r'jamath/households', HouseholdViewSet)
 router.register(r'jamath/members', MemberViewSet)
 router.register(r'jamath/surveys', SurveyViewSet)
 router.register(r'jamath/responses', SurveyResponseViewSet)
+router.register(r'jamath/activity-logs', ActivityLogViewSet)
 router.register(r'jamath/announcements', AnnouncementViewSet)
 router.register(r'jamath/reminders', ReminderViewSet, basename='reminders')
 router.register(r'jamath/service-requests', ServiceRequestViewSet)
@@ -135,6 +141,10 @@ urlpatterns = [
     path('api/basira/', BasiraGuideView.as_view(), name='basira-guide'),
     path('api/basira/data-query/', BasiraDataAgentView.as_view(), name='basira-data-agent'),
     path('api/basira/simple-entry/', SimpleEntryView.as_view(), name='basira-simple-entry'),
+    
+    # Staff Lookup
+    path('api/jamath/staff-lookup/', MemberStaffLookupView.as_view(), name='member-staff-lookup'),
+    path('api/jamath/finance-summary/', DashboardStatsView.as_view(), name='finance-summary'),
     
     # REST API Router
     path('api/', include(router.urls)),

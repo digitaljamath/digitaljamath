@@ -46,30 +46,44 @@ export function RbacProvider({ children }: { children: React.ReactNode }) {
                     'finance': 'admin',
                     'welfare': 'admin',
                     'settings': 'admin',
+                    'jamath': 'admin',
                     'households': 'admin',
                     'surveys': 'admin',
                     'announcements': 'admin',
-                    'reports': 'admin'
+                    'reports': 'admin',
+                    'users': 'admin'
                 });
                 setIsStaff(true);
                 return;
             }
 
             // Step 2: Get Staff Entry for this user
-            const staffRes = await fetchWithAuth('/api/jamath/staff-members/');
-            if (staffRes.ok) {
-                const staffList = await staffRes.json();
-                const myStaffEntry = staffList.find((s: any) => s.user === profile.id);
+            // Use the dedicated 'me' endpoint to avoid permission issues
+            const staffRes = await fetchWithAuth('/api/jamath/staff-members/me/');
 
-                if (myStaffEntry) {
-                    setIsStaff(true);
-                    const roleId = myStaffEntry.role;
-                    const roleRes = await fetchWithAuth(`/api/jamath/staff-roles/${roleId}/`);
+            if (staffRes.ok) {
+                const myStaffEntry = await staffRes.json();
+                console.log("RBAC: Loaded staff entry:", myStaffEntry);
+
+                setIsStaff(true);
+                // Permissions are now included in the 'me' response
+                if (myStaffEntry.permissions) {
+                    console.log("RBAC: Using permissions from response:", myStaffEntry.permissions);
+                    setPermissions(myStaffEntry.permissions);
+                } else if (myStaffEntry.role) {
+                    // Fallback: Fetch role if permissions not in response (backward compatibility)
+                    const roleRes = await fetchWithAuth(`/api/jamath/staff-roles/${myStaffEntry.role}/`);
                     if (roleRes.ok) {
                         const roleData = await roleRes.json();
                         setPermissions(roleData.permissions || {});
                     }
                 }
+            } else if (staffRes.status === 403) {
+                // Not a staff member or access revoked
+                console.warn("RBAC: Access to staff profile denied (403), logging out");
+                localStorage.removeItem("access_token");
+                localStorage.removeItem("refresh_token");
+                window.location.href = "/auth/signin";
             }
         } catch (err) {
             console.warn("RBAC: Failed to load permissions", err);
@@ -87,7 +101,7 @@ export function RbacProvider({ children }: { children: React.ReactNode }) {
         // we can just stick to the check below.
 
         const userLevel = permissions[module];
-        if (!userLevel) return false;
+        if (!userLevel || userLevel === 'none') return false;
 
         if (minLevel === 'read') return true;
         if (minLevel === 'write') return ['write', 'admin'].includes(userLevel);

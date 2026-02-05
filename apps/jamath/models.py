@@ -29,6 +29,7 @@ class Household(models.Model):
     
     custom_data = models.JSONField(default=dict, blank=True, help_text="Ad-hoc fields like Village, Blood Group")
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_households')
 
     def __str__(self):
         return f"Household {self.membership_id or self.id} - {self.economic_status}"
@@ -125,7 +126,10 @@ class Member(models.Model):
     # Approval Workflow
     is_alive = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=True, help_text="False = Pending admin approval")
+    occupation_details = models.TextField(blank=True, null=True)
+    
     custom_data = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_members')
     
     def __str__(self):
         return f"{self.full_name} ({'Head' if self.is_head_of_family else 'Member'})"
@@ -233,7 +237,9 @@ class Receipt(models.Model):
     receipt_number = models.CharField(max_length=50, unique=True)
     donor_pan = models.CharField(max_length=15, blank=True, null=True, help_text="For 80G Compliance")
     pdf_url = models.URLField(null=True, blank=True)
+    pdf_url = models.URLField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_receipts')
 
     def __str__(self):
         return f"Receipt {self.receipt_number} - ₹{self.amount}"
@@ -516,12 +522,6 @@ class JournalEntry(models.Model):
             'ledger__account_type': Ledger.AccountType.EXPENSE
         }, exclude_entry=self)
 
-        pre_zakat_balance = (z_inc_c - z_inc_d) - (z_exp_d - z_exp_c) 
-        # Note: Income is Credit normal (Cr - Dr). Expense is Debit normal (Dr - Cr).
-        # Balance = Net Income - Net Expense.
-        # Logic: Zakat Fund = (All Zakat Income Credits) - (All Zakat Expense Debits)
-        # Simplified: (z_inc_c) - (z_exp_d) usually, but covering reversals too.
-        
         pre_zakat_balance = (z_inc_c - z_inc_d) + (z_exp_c - z_exp_d) 
         # Wait. 
         # Income Ledger: Credit increases balance.
@@ -648,17 +648,40 @@ class StaffRole(models.Model):
 
 class StaffMember(models.Model):
     """Assigns a user to a specific role within the tenant."""
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_roles')
-    role = models.ForeignKey(StaffRole, on_delete=models.PROTECT, related_name='members')
-    designation = models.CharField(max_length=100, help_text="Official title, e.g. 'General Secretary'")
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profile')
+    role = models.ForeignKey(StaffRole, on_delete=models.SET_NULL, null=True, related_name='members')
+    designation = models.CharField(max_length=100, blank=True, help_text="Official title, e.g. 'General Secretary'")
     is_active = models.BooleanField(default=True)
-    joined_at = models.DateField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('user', 'role')
+    joined_at = models.DateTimeField(auto_now_add=True)
+    
+    # Permissions Override (Optional)
+    permissions = models.JSONField(default=dict, blank=True, help_text="Override role permissions if set")
 
     def __str__(self):
         return f"{self.user.username} - {self.designation}"
+
+
+class ActivityLog(models.Model):
+    """Audit log for staff actions."""
+    ACTION_TYPES = (
+        ('CREATE', 'Created'),
+        ('UPDATE', 'Updated'),
+        ('DELETE', 'Deleted'),
+    )
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=20, choices=ACTION_TYPES)
+    module = models.CharField(max_length=50, blank=True) # e.g. Household, Finance
+    model_name = models.CharField(max_length=50) # e.g. Household
+    object_id = models.CharField(max_length=50, null=True) 
+    details = models.TextField(blank=True) # "Added Member John"
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user} {self.action} {self.model_name}"
 
 
 # ============================================================================

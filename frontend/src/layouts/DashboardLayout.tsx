@@ -32,10 +32,10 @@ const defaultNavigation = [
     { name: "Baitul Maal (Finance)", href: "/dashboard/finance", icon: DollarSign, id: 'finance' },
     { name: "Basira AI", href: "/dashboard/basira", icon: Sparkles },
     // { name: "Surveys / Tahqeeq", href: "/dashboard/surveys", icon: ClipboardCheck },
-    { name: "Announcements", href: "/dashboard/announcements", icon: Megaphone },
+    { name: "Announcements", href: "/dashboard/announcements", icon: Megaphone, id: 'announcements' },
     // { name: "Welfare (Khidmat)", href: "/dashboard/welfare", icon: Heart },
-    { name: "Settings", href: "/dashboard/settings", icon: Settings },
-    { name: "Staff (Zimmedar)", href: "/dashboard/users", icon: UserCog },
+    { name: "Settings", href: "/dashboard/settings", icon: Settings, id: 'settings' },
+    { name: "Staff (Zimmedar)", href: "/dashboard/users", icon: UserCog, id: 'users' },
 ];
 
 function DashboardInner() {
@@ -54,17 +54,22 @@ function DashboardInner() {
     };
 
     const navigation = defaultNavigation.filter(item => {
-        // ALWAYS SHOW CORE MODULES FOR NOW TO AVOID CONFUSION
-        return true;
+        // Always show Dashboard, Inbox, Basira
+        if (item.href === '/dashboard' || item.href === '/dashboard/inbox' || item.href === '/dashboard/basira') return true;
 
-        /* 
-        if (item.href === '/dashboard' || item.href === '/dashboard/inbox') return true;
+        // Permission-based filtering
+        if (item.id === 'households') {
+            const allowed = hasPermission('jamath');
+            console.log(`RBAC Check: Households (jamath) -> ${allowed}`);
+            return allowed;
+        }
         if (item.id === 'finance') return hasPermission('finance');
         if (item.id === 'welfare') return hasPermission('welfare');
-        if (item.name === 'Settings') return hasPermission('settings');
-        if (item.name === 'Staff (Zimmedar)') return hasPermission('settings');
-        return true; 
-        */
+        if (item.id === 'announcements') return hasPermission('announcements');
+        if (item.id === 'settings') return hasPermission('settings');
+        if (item.id === 'users') return hasPermission('users');
+
+        return true;
     }).map(item => {
         if (item.id === 'households' && config?.household_label) {
             return { ...item, name: `Jamath (${config.household_label})` };

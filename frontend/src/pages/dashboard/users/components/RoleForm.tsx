@@ -23,14 +23,15 @@ const MODULES = [
     { id: 'jamath', label: 'Jamath (Core)', description: 'Access to Households & Members' },
     { id: 'finance', label: 'Finance', description: 'Ledgers, Accounting, Vouchers' },
     { id: 'welfare', label: 'Welfare', description: 'Service Requests, Schemes' },
+    { id: 'announcements', label: 'Announcements', description: 'Manage Announcements' },
     { id: 'reports', label: 'Reports', description: 'View System Reports' },
+    { id: 'users', label: 'Staff Access', description: 'Manage Staff & Roles' },
     { id: 'settings', label: 'Settings', description: 'System Configuration' },
 ];
 
 const ACCESS_LEVELS = [
     { value: '', label: 'No Access' },
     { value: 'read', label: 'Read Only' },
-    { value: 'write', label: 'Write / Edit' },
     { value: 'admin', label: 'Full Admin' },
 ];
 
@@ -78,7 +79,20 @@ export function RoleForm({ role, onSuccess, onCancel }: RoleFormProps) {
                 onSuccess();
             } else {
                 const data = await res.json();
-                setError(data.error || "Failed to save role");
+                console.error("Role save failed:", data);
+                // Handle DRF standard error 'detail' or custom 'error'
+                let errorMessage = data.detail || data.error || "Failed to save role";
+
+                // transform object errors (validation errors) into string
+                if (!data.detail && !data.error && typeof data === 'object') {
+                    const firstKey = Object.keys(data)[0];
+                    if (firstKey) {
+                        const firstError = Array.isArray(data[firstKey]) ? data[firstKey][0] : data[firstKey];
+                        errorMessage = `${firstKey}: ${firstError}`;
+                    }
+                }
+
+                setError(errorMessage);
             }
         } catch (err) {
             setError("Something went wrong");
@@ -112,7 +126,7 @@ export function RoleForm({ role, onSuccess, onCancel }: RoleFormProps) {
 
             <div className="border rounded-lg p-4 bg-slate-50">
                 <h3 className="font-medium mb-4">Module Permissions</h3>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                     {MODULES.map(module => (
                         <div key={module.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center border-b pb-4 last:border-0 last:pb-0">
                             <div className="md:col-span-2">

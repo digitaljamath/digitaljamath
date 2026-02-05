@@ -290,7 +290,11 @@ export function TransactionsPage() {
                                             {entry.donor_name || entry.supplier_name || '-'}
                                         </TableCell>
                                         <TableCell className="text-sm text-gray-500">
-                                            {entry.created_by_name || '-'}
+                                            {entry.created_by_name ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                                    {entry.created_by_name}
+                                                </span>
+                                            ) : '-'}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex justify-end gap-1">
