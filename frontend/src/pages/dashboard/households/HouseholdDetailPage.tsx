@@ -223,20 +223,22 @@ export function HouseholdDetailPage() {
                             <CheckCircle className="h-4 w-4 mr-2" /> Activate Membership
                         </Button>
                     )}
-                    <Button
-                        variant="outline"
-                        onClick={async () => {
-                            const res = await fetchWithAuth(`/api/telegram/remind/${id}/`, { method: 'POST', body: JSON.stringify({}) });
-                            if (res.ok) {
-                                toast({ title: 'Reminder sent via Telegram' });
-                            } else {
-                                const data = await res.json();
-                                toast({ title: 'Failed', description: data.error, variant: 'destructive' });
-                            }
-                        }}
-                    >
-                        <Send className="h-4 w-4 mr-2" /> Send Reminder
-                    </Button>
+                    {!household.is_membership_active && (
+                        <Button
+                            variant="outline"
+                            onClick={async () => {
+                                const res = await fetchWithAuth(`/api/telegram/remind/${id}/`, { method: 'POST', body: JSON.stringify({}) });
+                                if (res.ok) {
+                                    toast({ title: 'Reminder sent via Telegram' });
+                                } else {
+                                    const data = await res.json();
+                                    toast({ title: 'Failed', description: data.error, variant: 'destructive' });
+                                }
+                            }}
+                        >
+                            <Send className="h-4 w-4 mr-2" /> Send Reminder
+                        </Button>
+                    )}
                     <Button variant="outline" asChild>
                         <Link to={`/dashboard/households/${id}/edit`}>
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
@@ -595,6 +597,6 @@ export function HouseholdDetailPage() {
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }

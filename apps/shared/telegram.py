@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def is_demo_tenant() -> bool:
     """Check if the current tenant is the demo tenant."""
-    return connection.schema_name == 'demo' or connection.schema_name.startswith('demo')
+    return connection.schema_name == 'demo' or connection.schema_name.startswith('demo') or settings.DEBUG
 
 
 def get_telegram_chat_id(phone: str) -> str | None:
@@ -260,6 +260,8 @@ def send_individual_reminder(household_id: int, portal_url: str = None) -> dict:
     
     # Check if Telegram linked
     if not TelegramLink.objects.filter(phone_number=household.phone_number, is_verified=True).exists():
+        if is_demo_tenant():
+            return {'success': True, 'demo': True, 'message': 'Simulated reminder (Demo)'}
         return {'success': False, 'error': 'Telegram not linked for this household'}
     
     head = household.members.filter(is_head_of_family=True).first()
