@@ -242,6 +242,28 @@ export function HouseholdDetailPage() {
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                         </Link>
                     </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={async () => {
+                            if (window.confirm("CRITICAL: Are you sure you want to delete this ENTIRE household? This action cannot be undone and will delete all members and data.")) {
+                                try {
+                                    const res = await fetchWithAuth(`/api/jamath/households/${id}/`, { method: 'DELETE' });
+                                    if (res.ok) {
+                                        toast({ title: 'Household Deleted', description: 'Redirecting...' });
+                                        // Wait a moment before redirect
+                                        setTimeout(() => window.location.href = "/dashboard/households", 1000);
+                                    } else {
+                                        const err = await res.text();
+                                        toast({ variant: 'destructive', title: 'Delete Failed', description: err || "Unknown error" });
+                                    }
+                                } catch (e) {
+                                    toast({ variant: 'destructive', title: 'Error', description: "Network error" });
+                                }
+                            }
+                        }}
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete Household
+                    </Button>
                 </div>
             </div>
 

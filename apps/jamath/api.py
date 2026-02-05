@@ -630,8 +630,10 @@ class AdminMembershipConfigView(APIView):
 class HouseholdViewSet(viewsets.ModelViewSet):
     queryset = Household.objects.prefetch_related('members').distinct()
     serializer_class = HouseholdSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['membership_id', 'address', 'phone_number', 'members__full_name']
+    ordering = ['membership_id']
+    ordering_fields = ['membership_id', 'id']
 
     @action(detail=True, methods=['post'])
     def activate_subscription(self, request, pk=None):
