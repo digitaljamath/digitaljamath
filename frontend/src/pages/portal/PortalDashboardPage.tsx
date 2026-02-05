@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { fetchWithAuth } from "@/lib/api";
 import {
     User, Receipt, Bell, FileText, LogOut,
     CheckCircle, AlertCircle, Users, Home, Loader2, CreditCard
@@ -65,6 +66,9 @@ export function PortalDashboardPage() {
     const [donorPan, setDonorPan] = useState("");
 
     useEffect(() => {
+        // fetchWithAuth will handle redirect if 401/token missing eventually, 
+        // but for initial load check we might still want to check token existence or just let the first call fail.
+        // Keeping explicit check for now for faster UI feedback, but using key directly is fine or could use helper.
         const token = localStorage.getItem("portal_access_token");
         if (!token) {
             navigate("/portal/login");
@@ -79,28 +83,24 @@ export function PortalDashboardPage() {
         if (orderId) {
             // Clear URL params to avoid re-trigger
             window.history.replaceState({}, '', window.location.pathname);
-            verifyCashfree(orderId, panParam || "", token);
+            verifyCashfree(orderId, panParam || "");
         }
 
         setHeadName(localStorage.getItem("portal_head_name") || "Member");
-        fetchProfile(token);
+        fetchProfile();
     }, [navigate]);
 
-    const verifyCashfree = async (orderId: string, pan: string, token: string) => {
+    const verifyCashfree = async (orderId: string, pan: string) => {
         setIsPaymentLoading(true);
-        const apiBase = getApiBaseUrl();
+        // const apiBase = getApiBaseUrl(); // fetchWithAuth handles this
         try {
-            const verifyRes = await fetch(`${apiBase}/api/portal/payment/verify/`, {
+            const verifyRes = await fetchWithAuth(`/api/portal/payment/verify/`, {
                 method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
                 body: JSON.stringify({
                     order_id: orderId,
                     donor_pan: pan
                 })
-            });
+            }, 'portal');
             const verifyData = await verifyRes.json();
             if (verifyData.status === 'success') {
                 alert("Payment Successful! Receipt Generated: " + verifyData.receipt);
@@ -117,18 +117,15 @@ export function PortalDashboardPage() {
         }
     };
 
-    const fetchProfile = async (token: string) => {
+    const fetchProfile = async () => {
         try {
-            const apiBase = getApiBaseUrl();
-
-            const res = await fetch(`${apiBase}/api/portal/profile/`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetchWithAuth(`/api/portal/profile/`, {}, 'portal');
 
             if (res.status === 401) {
-                // Use imported logoutPortal if available, or manual clear
-                localStorage.removeItem('portal_access_token');
-                localStorage.removeItem('portal_refresh_token');
+                // fetchWithAuth handles refresh, if it returns 401 it means refresh failed.
+                // We can rely on its internal Logout or manual here.
+                // API util already calls logoutPortal() on final fail if we want, 
+                // but let's keep the redirect here just in case.
                 navigate("/portal/login");
                 return;
             }
@@ -184,8 +181,7 @@ export function PortalDashboardPage() {
             return;
         }
 
-        const token = localStorage.getItem("portal_access_token");
-        const apiBase = getApiBaseUrl();
+
 
         // Calculate total
         const due = membership ? Math.max(0, parseFloat(membership.minimum_required) - parseFloat(membership.amount_paid)) : 0;
@@ -199,17 +195,13 @@ export function PortalDashboardPage() {
 
         try {
             // 1. Create Order
-            const orderRes = await fetch(`${apiBase}/api/portal/payment/create-order/`, {
+            const orderRes = await fetchWithAuth(`/api/portal/payment/create-order/`, {
                 method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
                 body: JSON.stringify({
                     amount: total,
                     donor_pan: donorPan
                 })
-            });
+            }, 'portal');
 
             if (!orderRes.ok) throw new Error("Failed to create order");
             const orderData = await orderRes.json();
@@ -243,12 +235,8 @@ export function PortalDashboardPage() {
                     handler: async function (response: any) {
                         // 3. Verify Payment
                         try {
-                            const verifyRes = await fetch(`${apiBase}/api/portal/payment/verify/`, {
+                            const verifyRes = await fetchWithAuth(`/api/portal/payment/verify/`, {
                                 method: "POST",
-                                headers: {
-                                    "Authorization": `Bearer ${token}`,
-                                    "Content-Type": "application/json"
-                                },
                                 body: JSON.stringify({
                                     razorpay_order_id: response.razorpay_order_id,
                                     razorpay_payment_id: response.razorpay_payment_id,
@@ -256,13 +244,13 @@ export function PortalDashboardPage() {
                                     amount: total, // Send total logic
                                     donor_pan: donorPan
                                 })
-                            });
+                            }, 'portal');
 
                             const verifyData = await verifyRes.json();
                             if (verifyData.status === 'success') {
                                 alert("Payment Successful! Receipt Generated: " + verifyData.receipt);
                                 setIsPaymentOpen(false);
-                                fetchProfile(token!); // Reload profile
+                                fetchProfile(); // Reload profile
                             } else {
                                 alert("Payment verification failed: " + verifyData.error);
                             }

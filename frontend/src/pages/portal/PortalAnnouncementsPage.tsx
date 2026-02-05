@@ -5,6 +5,7 @@ import { ArrowLeft, Megaphone, Calendar } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { getApiBaseUrl } from "@/lib/config";
+import { fetchWithAuth } from "@/lib/api";
 
 interface Announcement {
     id: number;
@@ -25,14 +26,7 @@ export function PortalAnnouncementsPage() {
 
     const fetchAnnouncements = async () => {
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const apiBase = getApiBaseUrl();
-            const res = await fetch(`${apiBase}/api/portal/announcements/`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const res = await fetchWithAuth(`/api/portal/announcements/`, {}, 'portal');
 
             if (res.ok) {
                 const data = await res.json();

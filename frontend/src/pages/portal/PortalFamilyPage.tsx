@@ -23,7 +23,8 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { getApiBaseUrl } from "@/lib/config";
+// import { getApiBaseUrl } from "@/lib/config";
+import { fetchWithAuth } from "@/lib/api";
 
 interface Member {
     id: number;
@@ -71,13 +72,8 @@ export function PortalFamilyPage() {
 
     const fetchFamily = async () => {
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const res = await fetch('/api/portal/profile/', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+
+            const res = await fetchWithAuth('/api/portal/profile/', {}, 'portal');
 
             if (res.ok) {
                 const data = await res.json();
@@ -130,9 +126,6 @@ export function PortalFamilyPage() {
         setError("");
 
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const apiBase = getApiBaseUrl();
-
             // Determine API method and payload
             const method = editingMember ? 'PUT' : 'POST';
 
@@ -143,14 +136,10 @@ export function PortalFamilyPage() {
                 // profession/education/skills allow blank strings in model usually, but dob must be null if blank
             };
 
-            const res = await fetch(`${apiBase}/api/portal/members/`, {
+            const res = await fetchWithAuth(`/api/portal/members/`, {
                 method: method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify(payload)
-            });
+            }, 'portal');
 
             if (res.ok) {
                 setIsDialogOpen(false);

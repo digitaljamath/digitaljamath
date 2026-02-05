@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Download, FileText, Loader2, Calendar, IndianRupee } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { fetchWithAuth } from "@/lib/api";
 
 interface Receipt {
     id: number;
@@ -28,13 +29,7 @@ export function PortalReceiptsPage() {
 
     const fetchReceipts = async () => {
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const res = await fetch('/api/portal/receipts/list/', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const res = await fetchWithAuth('/api/portal/receipts/list/', {}, 'portal');
 
             if (res.ok) {
                 const data = await res.json();
@@ -52,12 +47,7 @@ export function PortalReceiptsPage() {
     const downloadReceipt = async (receiptId: number, receiptNumber: string) => {
         setDownloadingId(receiptId);
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const res = await fetch(`/api/portal/receipts/${receiptId}/pdf/`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const res = await fetchWithAuth(`/api/portal/receipts/${receiptId}/pdf/`, {}, 'portal');
 
             if (res.ok) {
                 const blob = await res.blob();

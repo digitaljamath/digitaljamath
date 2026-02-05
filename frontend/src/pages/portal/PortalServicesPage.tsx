@@ -23,6 +23,7 @@ import {
 import { ArrowLeft, FileText, Plus, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { fetchWithAuth } from "@/lib/api";
 
 interface ServiceRequest {
     id: number;
@@ -65,13 +66,7 @@ export function PortalServicesPage() {
 
     const fetchRequests = async () => {
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const res = await fetch('/api/portal/service-requests/', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const res = await fetchWithAuth('/api/portal/service-requests/', {}, 'portal');
 
             if (res.ok) {
                 const data = await res.json();
@@ -91,15 +86,10 @@ export function PortalServicesPage() {
 
         setIsSubmitting(true);
         try {
-            const token = localStorage.getItem('portal_access_token');
-            const res = await fetch('/api/portal/service-requests/', {
+            const res = await fetchWithAuth('/api/portal/service-requests/', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify(formData)
-            });
+            }, 'portal');
 
             if (res.ok) {
                 setIsDialogOpen(false);

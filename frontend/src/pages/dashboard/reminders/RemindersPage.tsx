@@ -226,16 +226,18 @@ export const RemindersPage: React.FC = () => {
                                             )}
                                         </td>
                                         <td className="px-4 py-4 text-right space-x-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleActionClick(h.id, 'REMINDER')}
-                                                disabled={sendingId === h.id}
-                                                className="border-amber-200 text-amber-700 hover:bg-amber-50"
-                                            >
-                                                <Bell className="h-4 w-4 mr-1" />
-                                                Remind
-                                            </Button>
+                                            {!h.is_membership_active && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleActionClick(h.id, 'REMINDER')}
+                                                    disabled={sendingId === h.id}
+                                                    className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                                                >
+                                                    <Bell className="h-4 w-4 mr-1" />
+                                                    Remind
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="outline"
                                                 size="sm"
