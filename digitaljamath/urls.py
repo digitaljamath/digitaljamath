@@ -36,7 +36,8 @@ from apps.jamath.api import (
     ReminderViewSet,
     # Logs
     ActivityLogViewSet,
-    DashboardStatsView
+    DashboardStatsView,
+    ActivityLogStaffSourceView
 )
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
@@ -145,6 +146,7 @@ urlpatterns = [
     # Staff Lookup
     path('api/jamath/staff-lookup/', MemberStaffLookupView.as_view(), name='member-staff-lookup'),
     path('api/jamath/finance-summary/', DashboardStatsView.as_view(), name='finance-summary'),
+    path('api/jamath/activity-log-staff/', ActivityLogStaffSourceView.as_view(), name='activity-log-staff'),
     
     # REST API Router
     path('api/', include(router.urls)),

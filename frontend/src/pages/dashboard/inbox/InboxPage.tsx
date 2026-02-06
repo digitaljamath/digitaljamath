@@ -111,6 +111,21 @@ export function InboxPage() {
         }
     };
 
+    const getBorderColor = (type: string) => {
+        switch (type) {
+            case 'DEATH_CERT':
+                return 'border-red-300 hover:border-red-400';
+            case 'NIKAAH_NAMA':
+                return 'border-green-300 hover:border-green-400';
+            case 'NOC':
+                return 'border-blue-300 hover:border-blue-400';
+            case 'CHARACTER_CERT':
+                return 'border-purple-300 hover:border-purple-400';
+            default:
+                return 'border-gray-200 hover:border-gray-300';
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">
@@ -139,11 +154,15 @@ export function InboxPage() {
                         <p className="text-muted-foreground col-span-full text-center py-8">No requests found in this category.</p>
                     ) : (
                         requests.map((req) => (
-                            <Card key={req.id} className="cursor-pointer hover:border-blue-500 transition-colors" onClick={() => {
-                                setSelectedRequest(req);
-                                setAdminNotes(req.admin_notes || "");
-                                setIsDialogOpen(true);
-                            }}>
+                            <Card
+                                key={req.id}
+                                className={`cursor-pointer transition-all border ${getBorderColor(req.request_type)}`}
+                                onClick={() => {
+                                    setSelectedRequest(req);
+                                    setAdminNotes(req.admin_notes || "");
+                                    setIsDialogOpen(true);
+                                }}
+                            >
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start">
                                         <CardTitle className="text-base font-medium">{req.request_type_display}</CardTitle>

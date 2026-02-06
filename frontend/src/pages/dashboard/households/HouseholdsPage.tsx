@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
-import { Plus, Search, Users, ChevronRight, ChevronLeft, Filter, X, MapPin } from "lucide-react";
+import { Plus, Search, Users, ChevronRight, ChevronLeft, Filter, X, MapPin, MessageSquare, Send, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,7 +20,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/use-toast";
 
 type Member = {
     id: number;
@@ -65,6 +66,12 @@ export function HouseholdsPage() {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Message Dialog State
+    const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+    const [selectedHouseholdId, setSelectedHouseholdId] = useState<number | null>(null);
+    const [messageText, setMessageText] = useState("");
+    const [sendingId, setSendingId] = useState<number | null>(null);
 
     // Debounce Search
     useEffect(() => {
@@ -141,6 +148,49 @@ export function HouseholdsPage() {
         setStatusFilter("ALL");
         setHousingFilter("ALL");
         setMemberCountFilter("ALL");
+    };
+
+    const handleMessageClick = (householdId: number) => {
+        setSelectedHouseholdId(householdId);
+        setMessageText("");
+        setIsMessageDialogOpen(true);
+    };
+
+    const sendMessage = async () => {
+        if (!selectedHouseholdId) return;
+        setSendingId(selectedHouseholdId);
+        try {
+            const body = {
+                household_id: selectedHouseholdId,
+                type: 'MESSAGE',
+                message: messageText
+            };
+
+            const response = await fetchWithAuth('/api/jamath/reminders/send/', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || err.detail || "Failed to send");
+            }
+
+            toast({
+                title: "Success",
+                description: "Message sent successfully.",
+            });
+            setIsMessageDialogOpen(false);
+        } catch (error: any) {
+            console.error("Failed to send:", error);
+            toast({
+                title: "Error",
+                description: error.message || "Failed to send.",
+                variant: "destructive"
+            });
+        } finally {
+            setSendingId(null);
+        }
     };
 
     const activeFilterCount = [
@@ -350,6 +400,15 @@ export function HouseholdsPage() {
                                                     <ChevronRight className="h-4 w-4" />
                                                 </Button>
                                             </Link>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleMessageClick(household.id)}
+                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                title="Send Message"
+                                            >
+                                                <MessageSquare className="h-4 w-4" />
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -402,7 +461,51 @@ export function HouseholdsPage() {
                         </div>
                     </div>
                 </>
-            )}
-        </div>
+            )
+            }
+
+            {/* Custom Message Dialog */}
+            {
+                isMessageDialogOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <Card className="w-full max-w-md shadow-xl bg-white animate-in zoom-in-95 duration-200">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-lg">Send Custom Message</CardTitle>
+                                <Button variant="ghost" size="icon" onClick={() => setIsMessageDialogOpen(false)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-gray-500">
+                                    This message will appear in the member's portal announcement board.
+                                </p>
+                                <textarea
+                                    className="w-full min-h-[120px] p-3 rounded-md border text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    placeholder="Type your message here..."
+                                    value={messageText}
+                                    onChange={(e) => setMessageText(e.target.value)}
+                                />
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        onClick={sendMessage}
+                                        disabled={!messageText.trim() || sendingId !== null}
+                                    >
+                                        {sendingId ? (
+                                            <Clock className="h-4 w-4 animate-spin mr-2" />
+                                        ) : (
+                                            <Send className="h-4 w-4 mr-2" />
+                                        )}
+                                        Send Message
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )
+            }
+        </div >
     );
 }

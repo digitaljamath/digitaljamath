@@ -179,7 +179,7 @@ export function FinancePage() {
                 <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Total Available Balance</CardTitle>
-                        <CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>
+                        {<CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>}
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">₹{generalBalance.toLocaleString('en-IN')}</div>

@@ -982,7 +982,8 @@ class AnnouncementViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return queryset.order_by('-published_at')
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        instance = serializer.save(created_by=self.request.user)
+        self._log_activity('CREATE', instance, f"Created Announcement: {instance.title}", self.request.user)
 
 
 class ServiceRequestViewSet(viewsets.ModelViewSet):
@@ -2162,6 +2163,62 @@ Jazakallah Khair
 # ADMIN ACTIVITY LOGS
 # ============================================================================
 
+class ActivityLogStaffSourceView(APIView):
+    """
+    Returns a list of users who are relevant for Activity Log filtering:
+    1. Superusers (Admin)
+    2. Active Staff
+    3. Users who have at least one ActivityLog entry (Historical)
+    """
+    permission_classes = [IsAdminUser | HasStaffPermission]
+
+    def get(self, request):
+        # 1. Get all relevant user IDs
+        admin_ids = User.objects.filter(is_superuser=True).values_list('id', flat=True)
+        staff_ids = StaffMember.objects.values_list('user_id', flat=True)
+        log_user_ids = ActivityLog.objects.exclude(user__isnull=True).values_list('user_id', flat=True).distinct()
+        
+        # Combine distinct IDs
+        all_ids = set(admin_ids) | set(staff_ids) | set(log_user_ids)
+        
+        # Fetch Users
+        users = User.objects.filter(id__in=all_ids).select_related('staff_profile', 'staff_profile__role')
+        
+        results = []
+        for user in users:
+            # Exclude debug_admin explicitly
+            if user.username == 'debug_admin':
+                continue
+
+            # Determine type
+            role_type = "User"
+            if user.is_superuser:
+                role_type = "Admin"
+            elif hasattr(user, 'staff_profile'):
+                role_type = "Staff"
+                if user.staff_profile.role:
+                     role_type = f"Staff ({user.staff_profile.role.name})"
+            
+            # Filter out generic "User" type (neither Admin nor Staff)
+            if role_type == "User":
+                continue
+
+            # Format Name: Full Name > Username
+            name = user.get_full_name() or user.username
+            
+            results.append({
+                'id': user.id,
+                'name': name,
+                'username': user.username,
+                'type': role_type,
+                'is_active': user.is_active
+            })
+            
+        # Sort: Admin first, then by name
+        results.sort(key=lambda x: (0 if x['type'] == 'Admin' else 1, x['name']))
+        
+        return Response(results)
+
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     """Admin-only view of staff activity logs."""
     # Filter to show only Staff (either Django admin or App staff)
@@ -2169,6 +2226,48 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
         models.Q(user__is_superuser=True) | 
         models.Q(user__staff_profile__isnull=False)
     ).distinct().order_by('-timestamp', '-id')
+
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'settings' # Or users/jamath?
+    
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['details', 'user__username', 'model_name', 'action']
+    ordering_fields = ['timestamp', 'action']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # 1. Action Filter
+        action = self.request.query_params.get('action')
+        if action and action != 'ALL':
+            queryset = queryset.filter(action=action)
+
+        # 2. Module Filter
+        module = self.request.query_params.get('module')
+        if module and module != 'ALL':
+            queryset = queryset.filter(module=module)
+
+        # 3. Staff Filter (by ID)
+        staff_id = self.request.query_params.get('staff_id')
+        if staff_id and staff_id != 'ALL':
+            queryset = queryset.filter(user_id=staff_id)
+
+        # 4. Date Range Filter
+        start_date = self.request.query_params.get('start_date')
+        if start_date:
+            from django.utils.dateparse import parse_date
+            s_date = parse_date(start_date)
+            if s_date:
+                queryset = queryset.filter(timestamp__date__gte=s_date)
+        
+        end_date = self.request.query_params.get('end_date')
+        if end_date:
+            from django.utils.dateparse import parse_date
+            e_date = parse_date(end_date)
+            if e_date:
+                queryset = queryset.filter(timestamp__date__lte=e_date)
+
+        return queryset
 
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'settings' # Or users/jamath?
