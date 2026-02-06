@@ -111,7 +111,13 @@ export function ActivityLogPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="max-w-md truncate" title={log.details}>
-                                        {log.details}
+                                        <span className={
+                                            log.details.startsWith("Received Payment") ? "text-green-600 font-medium" :
+                                                log.details.startsWith("Made Payment") ? "text-red-600 font-medium" :
+                                                    ""
+                                        }>
+                                            {log.details}
+                                        </span>
                                     </TableCell>
                                 </TableRow>
                             ))

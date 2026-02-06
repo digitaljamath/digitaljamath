@@ -85,7 +85,7 @@ class MembershipService:
     
     @staticmethod
     @transaction.atomic
-    def process_payment(household: Household, amount: Decimal, notes: str = "", donor_pan: str = None) -> Receipt:
+    def process_payment(household: Household, amount: Decimal, notes: str = "", donor_pan: str = None, created_by = None) -> Receipt:
         """
         Process a membership payment.
         
@@ -143,11 +143,12 @@ class MembershipService:
             donation_portion=donation_portion,
             receipt_number=receipt_number,
             donor_pan=donor_pan,
-            notes=notes
+            notes=notes,
+            created_by=created_by
         )
         
         # LINK TO BAITUL MAAL (FINANCE)
-        MembershipService.create_journal_entry_for_receipt(receipt, household, membership_portion, donation_portion)
+        MembershipService.create_journal_entry_for_receipt(receipt, household, membership_portion, donation_portion, created_by)
         
         # TODO: Trigger notification (SMS/WhatsApp)
         # NotificationService.send_receipt(household.phone_number, receipt)
@@ -155,7 +156,7 @@ class MembershipService:
         return receipt
         
     @staticmethod
-    def create_journal_entry_for_receipt(receipt, household, fee_amt, donation_amt):
+    def create_journal_entry_for_receipt(receipt, household, fee_amt, donation_amt, created_by=None):
         """Create a Double-Entry Accounting Record for the receipt."""
         from .models import Ledger, JournalEntry, JournalItem
         
@@ -201,7 +202,8 @@ class MembershipService:
                 donor=head_member,
                 donor_pan=receipt.donor_pan or '',
                 payment_mode=JournalEntry.PaymentMode.UPI, # Assuming UPI/Online
-                is_finalized=True # Auto-finalize system entries? Valid logic.
+                is_finalized=True, # Auto-finalize system entries? Valid logic.
+                created_by=created_by
             )
             
             # 3. Create Line Items
@@ -233,7 +235,22 @@ class MembershipService:
              
             # 4. Validate and Save (Triggers constraints)
             je.clean() 
+            je.clean() 
             je.save()
+
+            from .models import ActivityLog
+            if created_by:
+                # Use total receipt amount
+                amount_str = f"₹{receipt.amount:g}"
+                action_desc = f"Received Payment of {amount_str} ({je.narration})"
+                ActivityLog.objects.create(
+                    user=created_by,
+                    action='CREATE',
+                    module='finance',
+                    model_name='Journal Entry',
+                    object_id=str(je.id),
+                    details=action_desc
+                )
             
         except Exception as e:
             # Log failure but do not rollback receipt? 

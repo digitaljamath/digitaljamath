@@ -138,21 +138,27 @@ class MemberStaffLookupView(APIView):
         
         results = []
         
-        # 1. Search Family Heads (Primary source)
+        # 1. Search Members (Any adult member, not just heads)
         members = Member.objects.filter(
-            is_head_of_family=True,  # Only family heads
-            is_alive=True  # Only living members
+            is_alive=True
         ).filter(
             models.Q(full_name__icontains=query) | 
             models.Q(household__phone_number__icontains=query)
         ).select_related('household')[:10]
         
         for m in members:
+            # Context info
+            ctx = "Member"
+            if m.is_head_of_family:
+                ctx = "Family Head"
+            elif m.relationship_to_head:
+                ctx = m.relationship_to_head
+            
             results.append({
                 'type': 'member',
                 'id': m.id,
                 'name': m.full_name,
-                'detail': f"Family Head - Household #{m.household.membership_id}",
+                'detail': f"{ctx} - Household #{m.household.membership_id}",
                 'has_login': False
             })
             
@@ -160,7 +166,7 @@ class MemberStaffLookupView(APIView):
         users = User.objects.filter(
             models.Q(username__icontains=query) | 
             models.Q(email__icontains=query)
-        ).exclude(staff_roles__isnull=False)[:5]
+        ).exclude(staff_profile__isnull=False)[:5]
         
         for u in users:
              results.append({
@@ -907,8 +913,17 @@ class HouseholdViewSet(AuditLogMixin, viewsets.ModelViewSet):
         MembershipService.process_payment(
             household=household, 
             amount=config.minimum_fee, 
-            notes="Manual activation by staff"
+            notes="Manual activation by staff",
+            created_by=request.user
         )
+        
+        self._log_activity(
+            'UPDATE', 
+            household, 
+            f"Manual activation (Received ₹{config.minimum_fee})", 
+            request.user
+        )
+        
         return Response({'status': 'activated'})
 
 
@@ -917,13 +932,16 @@ class MembershipConfigViewSet(viewsets.ModelViewSet):
     queryset = MembershipConfig.objects.all()
     serializer_class = MembershipConfigSerializer
     
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'jamath'
+    
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        else:
-            permission_classes = [IsAdminUser]
-        return [permission() for permission in permission_classes]
-    required_module = 'jamath'
+            # Allow authenticated users to read config (needed for UI features)
+            # BUT staff permission should also apply for modifications
+            if self.request.user and self.request.user.is_staff:
+                 return [permissions.IsAuthenticated()]
+        return super().get_permissions()
 
 
 class MemberViewSet(AuditLogMixin, viewsets.ModelViewSet):
@@ -1444,6 +1462,19 @@ class JournalEntryViewSet(AuditLogMixin, viewsets.ModelViewSet):
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'finance'
 
+    def perform_create(self, serializer):
+        entry = serializer.save(created_by=self.request.user)
+        
+        action_desc = "Created Journal Entry"
+        amount_str = f"₹{entry.total_amount:g}"  # Remove trailing zeros if integer
+        
+        if entry.voucher_type == 'RECEIPT':
+             action_desc = f"Received Payment of {amount_str} ({entry.narration})"
+        elif entry.voucher_type == 'PAYMENT':
+             action_desc = f"Made Payment of {amount_str} ({entry.narration})"
+             
+        self._log_activity('CREATE', entry, action_desc, self.request.user)
+
     def get_queryset(self):
         queryset = JournalEntry.objects.all()
         voucher_type = self.request.query_params.get('type')
@@ -1788,7 +1819,7 @@ class TallyExportView(APIView):
         headers = [
             "Date", "Voucher_Type", "Voucher_Number", "Ledger_Code", "Ledger_Name",
             "Fund_Category", "Debit", "Credit", "Narration", "Payment_Mode",
-            "Donor_Name", "Donor_PAN", "Supplier_Name", "Invoice_No"
+            "Donor_Name", "Donor_PAN", "Supplier_Name", "Invoice_No", "Created_By"
         ]
         
         for col, header in enumerate(headers, 1):
@@ -1829,7 +1860,8 @@ class TallyExportView(APIView):
                     donor_name,
                     donor_pan,
                     supplier_name,
-                    entry.vendor_invoice_no or ""
+                    entry.vendor_invoice_no or "",
+                    entry.created_by.username if entry.created_by else ""
                 ]
                 
                 for col, value in enumerate(row_data, 1):

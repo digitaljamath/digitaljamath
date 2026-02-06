@@ -28,6 +28,7 @@ type DayBookEntry = {
     donor_name?: string;
     supplier_name?: string;
     is_zakat?: boolean;
+    created_by_name?: string;
 };
 
 type TrialBalanceItem = {
@@ -224,6 +225,7 @@ export function ReportsPage() {
                                                 <TableHead>Type</TableHead>
                                                 <TableHead>Narration</TableHead>
                                                 <TableHead>Party</TableHead>
+                                                <TableHead>Created By</TableHead>
                                                 <TableHead className="text-right">Amount (₹)</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -247,6 +249,13 @@ export function ReportsPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>{entry.donor_name || entry.supplier_name || '-'}</TableCell>
+                                                    <TableCell className="text-sm text-gray-500">
+                                                        {entry.created_by_name ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                                                {entry.created_by_name}
+                                                            </span>
+                                                        ) : '-'}
+                                                    </TableCell>
                                                     <TableCell className={`text-right font-medium ${entry.voucher_type === 'RECEIPT' ? 'text-green-600' : entry.voucher_type === 'PAYMENT' ? 'text-red-600' : ''}`}>
                                                         {entry.voucher_type === 'RECEIPT' ? '+' : entry.voucher_type === 'PAYMENT' ? '-' : ''}
                                                         {parseFloat(entry.total_amount || '0').toLocaleString('en-IN')}
