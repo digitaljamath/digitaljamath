@@ -1,19 +1,13 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect } from 'react';
+import { fetchWithAuth } from '@/lib/api';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Plus, ArrowLeft, Loader2, Wallet, Building2, TrendingUp, TrendingDown, Scale, ChevronRight, X, Trash2 } from "lucide-react";
+import { Link } from 'react-router-dom';
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { ArrowLeft, Plus, ChevronRight, Loader2, Wallet, Building2, TrendingUp, TrendingDown, Scale, X } from "lucide-react";
-import { fetchWithAuth } from "@/lib/api";
-import { Link } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Ledger = {
     id: number;
@@ -23,6 +17,8 @@ type Ledger = {
     fund_type: string | null;
     balance: string;
     children: Ledger[];
+    parent?: number | null;
+    is_system: boolean;
 };
 
 const accountTypeConfig: Record<string, { icon: any; color: string; label: string }> = {
@@ -34,11 +30,8 @@ const accountTypeConfig: Record<string, { icon: any; color: string; label: strin
 };
 
 const fundTypeOptions = [
-    { value: '__NONE__', label: 'General (No Restriction)' },
-    { value: 'RESTRICTED_ZAKAT', label: '🟢 Zakat (Restricted)' },
-    { value: 'RESTRICTED_SADAQAH', label: '🟡 Sadaqah (Restricted)' },
-    { value: 'RESTRICTED_CONSTRUCTION', label: '🔵 Construction (Restricted)' },
-    { value: 'UNRESTRICTED_GENERAL', label: 'General (Unrestricted)' },
+    { value: 'GENERAL', label: 'General (Unrestricted)' },
+    { value: 'ZAKAT', label: '🟢 Zakat (Restricted)' },
 ];
 
 export function ChartOfAccountsPage() {
@@ -52,7 +45,7 @@ export function ChartOfAccountsPage() {
     const [newCode, setNewCode] = useState("");
     const [newName, setNewName] = useState("");
     const [newAccountType, setNewAccountType] = useState("INCOME");
-    const [newFundType, setNewFundType] = useState("__NONE__");
+    const [newFundType, setNewFundType] = useState("GENERAL"); // Compulsory Default
     const [newParentId, setNewParentId] = useState("__NONE__");
     const [isAdding, setIsAdding] = useState(false);
     const [addError, setAddError] = useState("");
@@ -68,7 +61,13 @@ export function ChartOfAccountsPage() {
                 const data = await hierarchicalRes.json();
                 setAccounts(data);
                 const ids = new Set<number>();
-                data.forEach((a: Ledger) => ids.add(a.id));
+                const collectIds = (nodes: Ledger[]) => {
+                    nodes.forEach(n => {
+                        if (n.children && n.children.length > 0) ids.add(n.id);
+                        if (n.children) collectIds(n.children);
+                    });
+                };
+                collectIds(data);
                 setExpandedGroups(ids);
             }
 
@@ -96,6 +95,65 @@ export function ChartOfAccountsPage() {
         setExpandedGroups(newSet);
     };
 
+    // Auto-generate code when type changes
+    useEffect(() => {
+        if (showAddForm && flatAccounts.length > 0) {
+            autoGenerateCode(newAccountType);
+        }
+    }, [newAccountType, showAddForm, flatAccounts]);
+
+    // Auto-Parent Selection based on Fund Type (Smart Linking)
+    useEffect(() => {
+        if (!showAddForm) return;
+
+        // Reset Parent if Asset (since field is hidden)
+        if (newAccountType === 'ASSET') {
+            setNewParentId("__NONE__");
+            return;
+        }
+
+        if (['INCOME', 'EXPENSE'].includes(newAccountType)) {
+            // Find Assets
+            const zakatAsset = flatAccounts.find(a => a.code === 'A-02' || a.name.toLowerCase().includes('zakat'));
+            const primaryAsset = flatAccounts.find(a => a.code === 'A-01' || a.name.toLowerCase().includes('primary'));
+
+            if (newFundType === 'ZAKAT') {
+                if (zakatAsset) setNewParentId(zakatAsset.id.toString());
+            } else {
+                // General, Sadaqah, etc. -> Primary Bank
+                if (primaryAsset) setNewParentId(primaryAsset.id.toString());
+            }
+        }
+    }, [newFundType, newAccountType, showAddForm, flatAccounts]);
+
+
+    const autoGenerateCode = (type: string) => {
+        const prefixMap: Record<string, string> = {
+            'ASSET': 'A',
+            'LIABILITY': 'L',
+            'INCOME': 'I',
+            'EXPENSE': 'E',
+            'EQUITY': 'Q'
+        };
+        const prefix = prefixMap[type] || 'X';
+
+        const relevantCodes = flatAccounts
+            .map(a => a.code)
+            .filter(c => c.startsWith(prefix + '-'));
+
+        let maxNum = 0;
+        relevantCodes.forEach(c => {
+            const parts = c.split('-');
+            if (parts.length === 2) {
+                const num = parseInt(parts[1]);
+                if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+        });
+
+        const nextNum = (maxNum + 1).toString().padStart(2, '0');
+        setNewCode(`${prefix}-${nextNum}`);
+    };
+
     const handleAddAccount = async () => {
         if (!newCode.trim() || !newName.trim()) {
             setAddError("Code and Name are required");
@@ -110,14 +168,13 @@ export function ChartOfAccountsPage() {
                 code: newCode,
                 name: newName,
                 account_type: newAccountType,
+                fund_type: newFundType, // Compulsory send
             };
-
-            if (newFundType !== "__NONE__") {
-                payload.fund_type = newFundType;
-            }
 
             if (newParentId !== "__NONE__") {
                 payload.parent = parseInt(newParentId);
+            } else {
+                payload.parent = null;
             }
 
             const res = await fetchWithAuth('/api/ledger/accounts/', {
@@ -126,14 +183,12 @@ export function ChartOfAccountsPage() {
             });
 
             if (res.ok) {
-                // Reset form and refresh
-                setNewCode("");
                 setNewName("");
                 setNewAccountType("INCOME");
-                setNewFundType("__NONE__");
+                setNewFundType("GENERAL");
                 setNewParentId("__NONE__");
                 setShowAddForm(false);
-                fetchAccounts(); // Refresh the list
+                fetchAccounts();
             } else {
                 const data = await res.json();
                 setAddError(typeof data === 'string' ? data : JSON.stringify(data));
@@ -145,11 +200,41 @@ export function ChartOfAccountsPage() {
         }
     };
 
+    const handleDeleteAccount = async (e: React.MouseEvent, id: number, name: string) => {
+        e.stopPropagation();
+        if (!confirm(`Are you sure you want to delete account "${name}"?`)) return;
+
+        setIsAdding(true);
+        try {
+            const res = await fetchWithAuth(`/api/ledger/accounts/${id}/`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                fetchAccounts();
+            } else {
+                const data = await res.json();
+                // Simple Alert for now, or could use toast
+                alert(typeof data === 'string' ? data : (data.detail || "Failed to delete account. It may have transactions."));
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error deleting account");
+        } finally {
+            setIsAdding(false);
+        }
+    };
+
     const renderAccount = (account: Ledger, level: number = 0) => {
-        const hasChildren = account.children && account.children.length > 0;
+        const visibleChildren = account.children?.filter(c => c.account_type === account.account_type) || [];
+        const hasChildren = visibleChildren.length > 0;
+
         const isExpanded = expandedGroups.has(account.id);
         const config = accountTypeConfig[account.account_type] || accountTypeConfig['ASSET'];
         const Icon = config.icon;
+
+        // Delete condition: Balance is 0 AND not a system account
+        const isZeroBalance = parseFloat(account.balance) === 0;
+        const canDelete = isZeroBalance && !account.is_system;
 
         return (
             <div key={account.id}>
@@ -168,20 +253,42 @@ export function ChartOfAccountsPage() {
                         <div>
                             <span className="font-mono text-sm text-gray-500 mr-2">{account.code}</span>
                             <span className="font-medium">{account.name}</span>
+                            {/* Show Linked Parent (Mother Asset) */}
+                            {account.parent && (
+                                (() => {
+                                    const parent = flatAccounts.find(p => p.id === account.parent);
+                                    return parent ? (
+                                        <Badge variant="secondary" className="ml-2 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200" title={`Linked Asset: ${parent.name}`}>
+                                            🏦 {parent.code}
+                                        </Badge>
+                                    ) : null;
+                                })()
+                            )}
                             {account.fund_type && (
                                 <Badge variant="outline" className="ml-2 text-xs">{account.fund_type}</Badge>
                             )}
                         </div>
                     </div>
-                    <div className="text-right">
+                    <div className="flex items-center gap-2">
                         <span className={`font-medium ${parseFloat(account.balance) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                             ₹{parseFloat(account.balance || '0').toLocaleString('en-IN')}
                         </span>
+                        {canDelete && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={(e) => handleDeleteAccount(e, account.id, account.name)}
+                                title="Delete Account"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
                     </div>
                 </div>
                 {hasChildren && isExpanded && (
                     <div className="ml-2">
-                        {account.children.map(child => renderAccount(child, level + 1))}
+                        {visibleChildren.map(child => renderAccount(child, level + 1))}
                     </div>
                 )}
             </div>
@@ -196,13 +303,34 @@ export function ChartOfAccountsPage() {
         );
     }
 
-    // Group by account type
+    const findNodeRecursive = (nodes: Ledger[], id: number): Ledger | undefined => {
+        for (const node of nodes) {
+            if (node.id === id) return node;
+            if (node.children) {
+                const found = findNodeRecursive(node.children, id);
+                if (found) return found;
+            }
+        }
+        return undefined;
+    };
+
+    const getSectorRoots = (type: string) => {
+        const rootIds = flatAccounts.filter(a => {
+            if (a.account_type !== type) return false;
+            if (!a.parent) return true;
+            const parent = flatAccounts.find(p => p.id === a.parent);
+            return parent && parent.account_type !== type;
+        }).map(a => a.id);
+
+        return rootIds.map(id => findNodeRecursive(accounts, id)).filter((n): n is Ledger => !!n);
+    };
+
     const groupedAccounts = {
-        ASSET: accounts.filter(a => a.account_type === 'ASSET'),
-        LIABILITY: accounts.filter(a => a.account_type === 'LIABILITY'),
-        INCOME: accounts.filter(a => a.account_type === 'INCOME'),
-        EXPENSE: accounts.filter(a => a.account_type === 'EXPENSE'),
-        EQUITY: accounts.filter(a => a.account_type === 'EQUITY'),
+        ASSET: getSectorRoots('ASSET'),
+        LIABILITY: getSectorRoots('LIABILITY'),
+        INCOME: getSectorRoots('INCOME'),
+        EXPENSE: getSectorRoots('EXPENSE'),
+        EQUITY: getSectorRoots('EQUITY'),
     };
 
     return (
@@ -236,12 +364,10 @@ export function ChartOfAccountsPage() {
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
-                                <Label>Account Code *</Label>
-                                <Input
-                                    value={newCode}
-                                    onChange={(e) => setNewCode(e.target.value)}
-                                    placeholder="e.g., 3010"
-                                />
+                                <Label>Account Code</Label>
+                                <div className="p-2 bg-gray-100 rounded border text-gray-500 font-mono">
+                                    {newCode || "Auto-generated"}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>Account Name *</Label>
@@ -265,7 +391,7 @@ export function ChartOfAccountsPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Fund Type (Restriction)</Label>
+                                <Label>Fund Type (Restriction) *</Label>
                                 <Select value={newFundType} onValueChange={setNewFundType}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
@@ -278,21 +404,44 @@ export function ChartOfAccountsPage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Parent Account (optional)</Label>
-                                <Select value={newParentId} onValueChange={setNewParentId}>
-                                    <SelectTrigger><SelectValue placeholder="Select parent..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="__NONE__">-- No Parent (Top Level) --</SelectItem>
-                                        {flatAccounts.filter(a => !a.code.includes('.')).map(a => (
-                                            <SelectItem key={a.id} value={a.id.toString()}>
-                                                {a.code} - {a.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex items-end">
+                            {newAccountType !== 'ASSET' && (
+                                <div className="space-y-2">
+                                    <Label>
+                                        {['INCOME', 'EXPENSE'].includes(newAccountType)
+                                            ? "Parent Asset Account (Auto-Selected)"
+                                            : "Parent Account (optional)"}
+                                    </Label>
+                                    <Select value={newParentId} onValueChange={setNewParentId}>
+                                        <SelectTrigger><SelectValue placeholder="Select parent..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__NONE__">-- No Parent (Top Level) --</SelectItem>
+                                            {flatAccounts
+                                                .filter(a => {
+                                                    // Rule: Income & Expense must be linked to an Asset (Bank/Cash)
+                                                    if (['INCOME', 'EXPENSE'].includes(newAccountType)) {
+                                                        // Filter for Assets
+                                                        return a.account_type === 'ASSET' && !a.code.includes('.');
+                                                    }
+                                                    // Rule: Others (Liability, Equity) should parent to their own type
+                                                    return a.account_type === newAccountType;
+                                                })
+                                                .map(a => (
+                                                    <SelectItem key={a.id} value={a.id.toString()}>
+                                                        {a.code} - {a.name}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {['INCOME', 'EXPENSE'].includes(newAccountType) && (
+                                        <p className="text-xs text-gray-500">
+                                            {newFundType === 'ZAKAT'
+                                                ? "Auto-linked to Zakat Asset."
+                                                : "Auto-linked to Primary Bank."}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                            <div className={`flex items-end ${newAccountType === 'ASSET' ? 'col-span-2' : ''}`}>
                                 <Button
                                     onClick={handleAddAccount}
                                     disabled={!newCode.trim() || !newName.trim() || isAdding}
@@ -307,15 +456,6 @@ export function ChartOfAccountsPage() {
                         {addError && (
                             <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{addError}</p>
                         )}
-
-                        <div className="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg">
-                            💡 <strong>Tip:</strong> For a new fund like "Kabrastan Cleanup":
-                            <ul className="list-disc list-inside ml-4 mt-1">
-                                <li>Create an <strong>Income</strong> account (e.g., 3010 - Kabrastan Cleanup Donation)</li>
-                                <li>Create a matching <strong>Expense</strong> account (e.g., 4011 - Kabrastan Cleanup Expense)</li>
-                                <li>Optionally mark them as <strong>Restricted</strong> to prevent mixing with general funds</li>
-                            </ul>
-                        </div>
                     </CardContent>
                 </Card>
             )}

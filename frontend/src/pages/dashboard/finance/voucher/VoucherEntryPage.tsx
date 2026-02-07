@@ -198,6 +198,11 @@ function VoucherFormContent() {
         setItems(newItems);
     };
 
+    // Check for Accountant Mode
+    // We treat "JOURNAL" type effectively as always advanced, but for RECEIPT/PAYMENT we check the setting.
+    const isAdvancedMode = localStorage.getItem("financeMode") === "ADVANCED";
+    const useJournalUI = voucherType === 'JOURNAL' || isAdvancedMode;
+
     const handleSubmit = async () => {
         setIsSubmitting(true);
         setError("");
@@ -205,8 +210,8 @@ function VoucherFormContent() {
         try {
             let generatedItems: any[] = [];
 
-            // For RECEIPT and PAYMENT: Auto-generate journal items from simplified form
-            if (voucherType === 'RECEIPT' || voucherType === 'PAYMENT') {
+            // For RECEIPT and PAYMENT in SIMPLE mode: Auto-generate journal items
+            if ((voucherType === 'RECEIPT' || voucherType === 'PAYMENT') && !isAdvancedMode) {
                 const amount = parseFloat(simpleAmount);
                 if (!amount || amount <= 0) {
                     setError("Please enter a valid amount");
@@ -291,18 +296,28 @@ function VoucherFormContent() {
                     ];
                 }
             } else {
-                // For JOURNAL: Use the selected items from ledger table
+                // For JOURNAL or ADVANCED mode: Use the selected items from ledger table
                 if (!isBalanced) {
                     setError("Debits must equal Credits");
                     setIsSubmitting(false);
                     return;
                 }
+
+                // If Advanced mode Receipt/Payment, ensure strict rules?
+                // For now, we trust the accountant to balance it. we check balance above.
+
                 generatedItems = items.filter(i => i.ledger > 0).map(i => ({
                     ledger: i.ledger,
                     debit_amount: i.debit_amount.toString(),
                     credit_amount: i.credit_amount.toString(),
-                    particulars: i.particulars
+                    particulars: i.particulars || narration // Fallback to main narration if line part. is empty
                 }));
+
+                if (generatedItems.length < 2) {
+                    setError("At least two ledger entries are required.");
+                    setIsSubmitting(false);
+                    return;
+                }
             }
 
             const payload: any = {
@@ -581,8 +596,8 @@ function VoucherFormContent() {
                 </TabsContent>
             </Tabs>
 
-            {/* Simple Entry Form for Receipt/Payment */}
-            {(voucherType === 'RECEIPT' || voucherType === 'PAYMENT') && (
+            {/* Simple Entry Form for Receipt/Payment - ONLY IN SIMPLE MODE */}
+            {!useJournalUI && (voucherType === 'RECEIPT' || voucherType === 'PAYMENT') && (
                 <Card>
                     <CardHeader>
                         <CardTitle>
@@ -679,8 +694,8 @@ function VoucherFormContent() {
                 </Card>
             )}
 
-            {/* Journal Items (only for JOURNAL type) */}
-            {voucherType === 'JOURNAL' && (
+            {/* Journal Items (only for JOURNAL type or ADVANCED mode) */}
+            {useJournalUI && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
@@ -714,7 +729,22 @@ function VoucherFormContent() {
                                             <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
                                             <SelectContent>
                                                 {ledgers
-                                                    .filter(l => !fundCategory || fundCategory === '__ALL__' || l.fund_type === fundCategory)
+                                                    .filter(l => {
+                                                        // Accountant View: Logic to prevent mixing Funds
+                                                        // 1. If no category selected (or ALL), show everything.
+                                                        if (!fundCategory || fundCategory === '__ALL__') return true;
+
+                                                        // 2. Always show Balance Sheet accounts (Assets/Liabilities/Equity) 
+                                                        // so we can balance the entry (e.g. Debit Bank, Credit Zakat).
+                                                        const isBalanceSheet = ['ASSET', 'LIABILITY', 'EQUITY'].includes(l.account_type);
+                                                        if (isBalanceSheet) return true;
+
+                                                        // 3. For Income (DIRECT_INCOME/INDIRECT_INCOME) and Expense (DIRECT_EXPENSE/INDIRECT_EXPENSE):
+                                                        // STRICTLY match the fund_type. 
+                                                        // This hides "General Donations" when "Zakat" is selected.
+                                                        // This forces the user to pick "Donation - Zakat".
+                                                        return l.fund_type === fundCategory;
+                                                    })
                                                     .map(l => (
                                                         <SelectItem key={l.id} value={l.id.toString()}>
                                                             {l.code} - {l.name}
@@ -726,7 +756,7 @@ function VoucherFormContent() {
                                     </div>
 
                                     {/* Debit/Credit Group for Mobile */}
-                                    <div className="grid grid-cols-2 gap-3 md:contents">
+                                    <div className="grid grid-cols-2 gap-3 md:contents" >
                                         <div className="md:col-span-2">
                                             <Label className="md:hidden text-xs text-gray-500 mb-1 block">Debit</Label>
                                             <Input
@@ -803,17 +833,20 @@ function VoucherFormContent() {
                             )}
                         </div>
                     </CardContent>
-                </Card>
-            )}
+                </Card >
+            )
+            }
 
 
             {/* Error */}
-            {error && (
-                <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                    <AlertCircle className="h-5 w-5" />
-                    <span>{error}</span>
-                </div>
-            )}
+            {
+                error && (
+                    <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                        <AlertCircle className="h-5 w-5" />
+                        <span>{error}</span>
+                    </div>
+                )
+            }
 
             {/* Submit */}
             <div className="flex justify-end gap-2">
@@ -824,8 +857,7 @@ function VoucherFormContent() {
                     onClick={handleSubmit}
                     disabled={
                         isSubmitting ||
-                        (voucherType === 'JOURNAL' && !isBalanced) ||
-                        ((voucherType === 'RECEIPT' || voucherType === 'PAYMENT') && (!simpleAmount || parseFloat(simpleAmount) <= 0))
+                        (useJournalUI ? !isBalanced : (!simpleAmount || parseFloat(simpleAmount) <= 0))
                     }
                 >
                     {isSubmitting ? (
@@ -835,7 +867,7 @@ function VoucherFormContent() {
                     )}
                 </Button>
             </div>
-        </div>
+        </div >
     );
 }
 

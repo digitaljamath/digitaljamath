@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import models
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from decimal import Decimal
 import random
 from django.contrib.auth import get_user_model
@@ -1426,6 +1427,15 @@ class LedgerViewSet(viewsets.ModelViewSet):
         
         # Hierarchical (top-level only, children via serializer)
         return queryset.filter(parent=None).order_by('code')
+
+    def get_object(self):
+        """Override to allow finding any active ledger for detail operations (not just top-level)."""
+        queryset = Ledger.objects.filter(is_active=True)
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
+        obj = get_object_or_404(queryset, **filter_kwargs)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

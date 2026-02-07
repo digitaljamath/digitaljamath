@@ -10,12 +10,22 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { Settings, Save, Loader2, DollarSign, Hash, CheckCircle, ArrowLeft, Send, Users, AlertCircle } from "lucide-react";
+import { Settings, Save, Loader2, DollarSign, Hash, CheckCircle, ArrowLeft, Send, Users, AlertCircle, Wallet } from "lucide-react";
 import { useConfig } from "@/context/ConfigContext";
 import { fetchWithAuth } from "@/lib/api";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+
+// ... (keep existing TelegramStatsPanel code if any, but we are just targeting the import and the button location.
+// Actually, I can't easily skip lines in replacement content for imports if I'm targeting a large block.
+// I'll do two separate replacements.)
+
+/* I will split this into two tool calls or use multi_replace if I can.
+   Wait, replace_file_content rules say: "Use this tool ONLY when you are making a SINGLE CONTIGUOUS block of edits".
+   I need to make two non-adjacent edits (imports and the button).
+   So I should use `multi_replace_file_content`.
+*/
 
 // Telegram Stats & Actions Panel
 function TelegramStatsPanel() {
@@ -368,6 +378,46 @@ export function SettingsPage() {
                             placeholder="e.g., JM-"
                         />
                         <p className="text-xs text-gray-500">Auto-generated IDs: JM-001, JM-002...</p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Interface Preferences */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Wallet className="h-5 w-5" /> Interface Preferences
+                    </CardTitle>
+                    <CardDescription>
+                        Customize your personal dashboard experience
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <Label>Finance Mode</Label>
+                            <p className="text-xs text-gray-500">
+                                Choose "Advanced" to see Ledger & Journal controls.
+                            </p>
+                        </div>
+                        <Select
+                            value={localStorage.getItem("financeMode") || "SIMPLE"}
+                            onValueChange={(val) => {
+                                localStorage.setItem("financeMode", val);
+                                // Force re-render not needed as we just set it, but we might want a toast
+                                window.dispatchEvent(new Event("storage")); // Notify listeners if any
+                                setSaveSuccess(true); // Reuse save indication
+                                setTimeout(() => setSaveSuccess(false), 2000);
+                            }}
+                        >
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="SIMPLE">Simple (Recommended)</SelectItem>
+                                <SelectItem value="ADVANCED">Accountant (Advanced)</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>

@@ -85,17 +85,23 @@ export function FinancePage() {
         .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
 
     // 2. Calculate Restricted Zakat Balance
-    // Formula: (Zakat Income Balances) - (Zakat Expense Balances)
-    // Note: API returns positive balance for natural side (Income=Credit, Expense=Debit)
-    const zakatIncome = accounts
-        .filter(a => a.fund_type === 'ZAKAT' && a.account_type === 'INCOME')
-        .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
-
-    const zakatExpense = accounts
-        .filter(a => a.fund_type === 'ZAKAT' && a.account_type === 'EXPENSE')
-        .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
-
-    const zakatBalance = zakatIncome - zakatExpense;
+    // Formula: Sum of all Zakat-tagged accounts (Net Surplus)
+    // We include Equity/Liability (Credits) and Income (Credits) as Positive
+    // We include Expense (Debits) and Assets (Debits) as Negative
+    const zakatBalance = accounts
+        .filter(a => a.fund_type === 'ZAKAT')
+        .reduce((net, a) => {
+            const bal = parseFloat(a.balance || '0');
+            // Credit-normal accounts (Sources of Fund)
+            if (['INCOME', 'EQUITY', 'LIABILITY'].includes(a.account_type)) {
+                return net + bal;
+            }
+            // Debit-normal accounts (Uses of Fund)
+            if (['EXPENSE', 'ASSET'].includes(a.account_type)) {
+                return net - bal;
+            }
+            return net;
+        }, 0);
 
     // 3. Calculate Unrestricted (General) Available Balance
     // General Available = Total Cash - Restricted Funds
@@ -156,11 +162,13 @@ export function FinancePage() {
                     <p className="text-gray-500 mt-1">The Mizan Ledger - Double-Entry Accounting</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" asChild>
-                        <Link to="/dashboard/finance/accounts">
-                            <Building2 className="mr-2 h-4 w-4" /> Chart of Accounts
-                        </Link>
-                    </Button>
+                    {(localStorage.getItem("financeMode") === "ADVANCED") && (
+                        <Button variant="outline" asChild>
+                            <Link to="/dashboard/finance/accounts">
+                                <Building2 className="mr-2 h-4 w-4" /> Chart of Accounts
+                            </Link>
+                        </Button>
+                    )}
                     <Button asChild>
                         <Link to="/dashboard/finance/voucher">
                             <Plus className="mr-2 h-4 w-4" /> New Entry
@@ -243,15 +251,22 @@ export function FinancePage() {
                     </Card>
                 </Link>
 
-                <Link to="/dashboard/finance/voucher?type=JOURNAL">
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-300">
-                        <CardContent className="pt-6 text-center">
-                            <FileText className="h-8 w-8 mx-auto text-blue-500 mb-2" />
-                            <p className="font-medium">Journal Entry</p>
-                            <p className="text-xs text-gray-500">Adjustments</p>
-                        </CardContent>
-                    </Card>
-                </Link>
+                {/* Advanced Actions - Only for Accountant Mode */}
+                {(localStorage.getItem("financeMode") === "ADVANCED") && (
+                    <>
+                        <Link to="/dashboard/finance/voucher?type=JOURNAL">
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-300">
+                                <CardContent className="pt-6 text-center">
+                                    <FileText className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                                    <p className="font-medium">Journal Entry</p>
+                                    <p className="text-xs text-gray-500">Adjustments</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+
+                        {/* Note: View All and Reports are useful for everyone, but if Chart of Accounts is advanced... */}
+                    </>
+                )}
 
                 <Link to="/dashboard/finance/reports">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-purple-300">
