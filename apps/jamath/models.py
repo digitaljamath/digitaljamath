@@ -374,9 +374,17 @@ class Ledger(models.Model):
         credit = items['total_credit'] or Decimal('0.00')
         
         # Assets & Expenses have debit balances; Liabilities, Income, Equity have credit balances
+        # Assets & Expenses have debit balances; Liabilities, Income, Equity have credit balances
         if self.account_type in [self.AccountType.ASSET, self.AccountType.EXPENSE]:
-            return debit - credit
-        return credit - debit
+            own_balance = debit - credit
+        else:
+            own_balance = credit - debit
+            
+        # Recursive calculation for children
+        # Note: This assumes children have compatible account types (which they should)
+        children_balance = sum(child.balance for child in self.children.filter(is_active=True))
+        
+        return own_balance + children_balance
 
 
 class Supplier(models.Model):
@@ -489,7 +497,32 @@ class JournalEntry(models.Model):
                                 "Zakat funds can only be used for Zakat-eligible expenses."
                             )
         
-        # Rule 3: Insufficient Funds Validation
+        # Rule 3: STRICT Mode Validation (Prevent User Errors)
+        # 3a. Payment Voucher: Should NOT result in Net Asset Increase (Debit)
+        if self.voucher_type == self.VoucherType.PAYMENT:
+            asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+            asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+            
+            # If Net Asset Movement is Positive (Debit > Credit), money is coming IN. That's a Receipt.
+            if asset_debits > asset_credits:
+                 raise ValidationError(
+                    "Logic Error: You are recording a 'Payment', but the entries show money coming IN (Net Asset Debit). "
+                    "Did you mean to create a 'Receipt'?"
+                )
+
+        # 3b. Receipt Voucher: Should NOT result in Net Asset Decrease (Credit)
+        if self.voucher_type == self.VoucherType.RECEIPT:
+             asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+             asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+             
+             # If Net Asset Movement is Negative (Credit > Debit), money is going OUT. That's a Payment.
+             if asset_credits > asset_debits:
+                 raise ValidationError(
+                    "Logic Error: You are recording a 'Receipt', but the entries show money going OUT (Net Asset Credit). "
+                    "Did you mean to create a 'Payment'?"
+                )
+
+        # Rule 4: Insufficient Funds Validation
         self.check_sufficient_funds(items)
 
     def check_sufficient_funds(self, items):
