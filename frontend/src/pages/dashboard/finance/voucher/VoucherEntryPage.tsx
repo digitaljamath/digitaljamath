@@ -249,7 +249,9 @@ function VoucherFormContent() {
                 } else {
                     // General transactions
                     incomeLedger = ledgers.find(l => l.code === '3001'); // Donation - General
-                    expenseLedger = ledgers.find(l => l.code === '4001'); // General Expense (Electricity as default)
+                    // CHANGE: Use Miscellaneous (4010) as default instead of Electricity (4001)
+                    // This ensures non-accountants dump expenses here for later re-classification.
+                    expenseLedger = ledgers.find(l => l.code === '4010') || ledgers.find(l => l.code === '4001');
                 }
 
                 if (voucherType === 'RECEIPT') {

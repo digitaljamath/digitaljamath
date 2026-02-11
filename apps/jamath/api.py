@@ -1598,7 +1598,7 @@ class JournalEntryViewSet(AuditLogMixin, viewsets.ModelViewSet):
                         ledger=item.ledger,
                         debit_amount=item.credit_amount,  # Swap
                         credit_amount=item.debit_amount,  # Swap
-                        description=f"Reversal: {item.description or ''}"
+                        particulars=f"Reversal: {item.particulars or ''}"
                     )
                 
                 # Mark original as finalized
@@ -1666,7 +1666,11 @@ class LedgerReportsView(APIView):
                 # ALL
                 sum_filter = Q()
 
-            entries = entries.order_by('created_at')
+            sort_order = request.query_params.get('sort', 'newest')
+            if sort_order == 'oldest':
+                entries = entries.order_by('created_at')
+            else:
+                entries = entries.order_by('-created_at')
             return Response({
                 'date': date_label,
                 'entries': JournalEntrySerializer(entries, many=True).data,
@@ -1683,32 +1687,50 @@ class LedgerReportsView(APIView):
                 today = timezone.now().date()
                 start_of_month = today.replace(day=1)
                 
-                # Income: Sum of CREDITS to INCOME accounts (excluding Zakat & Journal Entries)
-                income_this_month = JournalItem.objects.filter(
+                # Income: Sum of CREDITS to INCOME accounts (month only)
+                # Note: We include Journal Entries now to catch adjustments
+                # Income: Net Credit (Credit - Debit) to INCOME accounts
+                income_stats = JournalItem.objects.filter(
                     journal_entry__date__gte=start_of_month,
                     journal_entry__date__lte=today,
                     ledger__account_type='INCOME'
                 ).exclude(
                     ledger__fund_type='ZAKAT'
-                ).exclude(
-                    journal_entry__voucher_type='JOURNAL'
-                ).aggregate(total=Sum('credit_amount'))['total'] or Decimal('0.00')
+                ).aggregate(
+                    credits=Sum('credit_amount'),
+                    debits=Sum('debit_amount')
+                )
+                income_this_month = (income_stats['credits'] or Decimal('0')) - (income_stats['debits'] or Decimal('0'))
 
-                # Expense: Sum of DEBITS for PAYMENT vouchers (excluding Zakat)
-                expense_this_month = JournalItem.objects.filter(
+                # Expense: Net Debit (Debit - Credit) to EXPENSE accounts
+                expense_stats = JournalItem.objects.filter(
                     journal_entry__date__gte=start_of_month,
                     journal_entry__date__lte=today,
-                    journal_entry__voucher_type='PAYMENT'
+                    ledger__account_type='EXPENSE'
                 ).exclude(
                     ledger__fund_type='ZAKAT'
-                ).aggregate(total=Sum('debit_amount'))['total'] or Decimal('0.00')
+                ).aggregate(
+                    debits=Sum('debit_amount'),
+                    credits=Sum('credit_amount')
+                )
+                expense_this_month = (expense_stats['debits'] or Decimal('0')) - (expense_stats['credits'] or Decimal('0'))
 
-                # Total Available Balance (Cash + Bank, excluding Zakat & Journal Entries)
+                # Handling Negative Balances (e.g. Reversals exceeding actual transactions)
+                # If Expense is negative (Net Credit), treat it as "Other Income" visually
+                if expense_this_month < 0:
+                     income_this_month += abs(expense_this_month)
+                     expense_this_month = Decimal('0')
+                
+                # If Income is negative (Net Debit), treat it as "Refund Expense" visually
+                if income_this_month < 0:
+                     expense_this_month += abs(income_this_month)
+                     income_this_month = Decimal('0')
+
+                # Total Available Balance (Cash + Bank, excluding Zakat)
+                # 1. Calculate Gross Liquid Assets (All Cash + Bank)
                 liquid_assets = JournalItem.objects.filter(
                     ledger__account_type='ASSET',
                     ledger__code__startswith='100'  # Cash & Bank codes
-                ).exclude(
-                    journal_entry__voucher_type='JOURNAL'
                 ).aggregate(
                     debit=Sum('debit_amount'),
                     credit=Sum('credit_amount')
@@ -1716,21 +1738,30 @@ class LedgerReportsView(APIView):
                 
                 gross_cash = (liquid_assets['debit'] or Decimal('0')) - (liquid_assets['credit'] or Decimal('0'))
 
-                # Calculate Restricted Zakat Balance
+                # 2. Calculate Restricted Zakat Balance (Income + Equity - Expense)
+                # We MUST include EQUITY to capture Opening Balances/Corpus
                 zakat_stats = JournalItem.objects.filter(
                     ledger__fund_type='ZAKAT'
-                ).exclude(
-                    journal_entry__voucher_type='JOURNAL'
                 ).aggregate(
                     income=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
+                    equity=Sum('credit_amount', filter=Q(ledger__account_type='EQUITY')),
                     expense=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE'))
                 )
                 
                 z_income = zakat_stats['income'] or Decimal('0')
+                z_equity = zakat_stats['equity'] or Decimal('0')
                 z_expense = zakat_stats['expense'] or Decimal('0')
-                zakat_balance = z_income - z_expense
                 
-                general_available = gross_cash - zakat_balance
+                zakat_balance = (z_income + z_equity) - z_expense
+                
+                # General Balance calculation
+                # If Zakat Fund is negative (Deficit), it means we have "borrowed" from General Cash to pay Zakat expenses.
+                # In that case, the physical cash (gross_cash) has already been reduced by the expense.
+                # We should NOT subtract the deficit again (which would increase General Balance mathematically).
+                # We should only reserve positive Zakat balances.
+                zakat_reserve = max(Decimal('0'), zakat_balance)
+                
+                general_available = gross_cash - zakat_reserve
 
                 return Response({
                     'income_this_month': str(income_this_month),
@@ -1776,6 +1807,8 @@ class LedgerReportsView(APIView):
                 'total_credit': total_credit,
                 'is_balanced': total_debit == total_credit
             })
+
+
 
         return Response({'error': 'Invalid report type'}, status=400)
 

@@ -79,34 +79,9 @@ export function FinancePage() {
         fetchData();
     }, []);
 
-    // 1. Calculate Gross Cash Position (Physical Money in Hand/Bank)
-    const grossCashPosition = accounts
-        .filter(a => ['1001', '1002'].includes(a.code)) // Cash & Bank Ledgers
-        .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
-
-    // 2. Calculate Restricted Zakat Balance
-    // Formula: Sum of all Zakat-tagged accounts (Net Surplus)
-    // We include Equity/Liability (Credits) and Income (Credits) as Positive
-    // We include Expense (Debits) and Assets (Debits) as Negative
-    const zakatBalance = accounts
-        .filter(a => a.fund_type === 'ZAKAT')
-        .reduce((net, a) => {
-            const bal = parseFloat(a.balance || '0');
-            // Credit-normal accounts (Sources of Fund)
-            if (['INCOME', 'EQUITY', 'LIABILITY'].includes(a.account_type)) {
-                return net + bal;
-            }
-            // Debit-normal accounts (Uses of Fund)
-            if (['EXPENSE', 'ASSET'].includes(a.account_type)) {
-                return net - bal;
-            }
-            return net;
-        }, 0);
-
-    // 3. Calculate Unrestricted (General) Available Balance
-    // General Available = Total Cash - Restricted Funds
-    // This assumes all Restricted funds are held in Cash/Bank.
-    const generalBalance = grossCashPosition - zakatBalance;
+    // Use backend-calculated stats for accurate Fund Accounting
+    const generalBalance = parseFloat(stats.general_balance);
+    const zakatBalance = parseFloat(stats.zakat_balance);
 
     const getVoucherIcon = (type: string) => {
         switch (type) {
