@@ -1668,9 +1668,9 @@ class LedgerReportsView(APIView):
 
             sort_order = request.query_params.get('sort', 'newest')
             if sort_order == 'oldest':
-                entries = entries.order_by('created_at')
+                entries = entries.order_by('date', 'created_at')
             else:
-                entries = entries.order_by('-created_at')
+                entries = entries.order_by('-date', '-created_at')
             return Response({
                 'date': date_label,
                 'entries': JournalEntrySerializer(entries, many=True).data,
@@ -2346,25 +2346,49 @@ class DashboardStatsView(APIView):
                 subscriptions__end_date__gte=now.date()
             ).count()
             
-            # Finance Aggregates
-            item_qs = JournalItem.objects.all()
-            
-            income_this_month = item_qs.filter(
-                journal_entry__voucher_type='RECEIPT',
+            # Finance Aggregates (Robust P&L Logic)
+            # Income: Net Credit (Credit - Debit) to INCOME accounts
+            income_stats = JournalItem.objects.filter(
                 journal_entry__date__gte=month_start.date(),
-                debit_amount__gt=0
-            ).aggregate(total=models.Sum('debit_amount'))['total'] or Decimal(0)
-            
-            expense_this_month = item_qs.filter(
-                journal_entry__voucher_type='PAYMENT',
-                journal_entry__date__gte=month_start.date(),
-                debit_amount__gt=0
-            ).aggregate(total=models.Sum('debit_amount'))['total'] or Decimal(0)
+                journal_entry__date__lte=now.date(),
+                ledger__account_type='INCOME'
+            ).exclude(
+                ledger__fund_type='ZAKAT'
+            ).aggregate(
+                credits=models.Sum('credit_amount'),
+                debits=models.Sum('debit_amount')
+            )
+            income_this_month = (income_stats['credits'] or Decimal('0')) - (income_stats['debits'] or Decimal('0'))
 
-            total_income = item_qs.filter(
-                journal_entry__voucher_type='RECEIPT',
-                debit_amount__gt=0
-            ).aggregate(total=models.Sum('debit_amount'))['total'] or Decimal(0)
+            # Expense: Net Debit (Debit - Credit) to EXPENSE accounts
+            expense_stats = JournalItem.objects.filter(
+                journal_entry__date__gte=month_start.date(),
+                journal_entry__date__lte=now.date(),
+                ledger__account_type='EXPENSE'
+            ).exclude(
+                ledger__fund_type='ZAKAT'
+            ).aggregate(
+                debits=models.Sum('debit_amount'),
+                credits=models.Sum('credit_amount')
+            )
+            expense_this_month = (expense_stats['debits'] or Decimal('0')) - (expense_stats['credits'] or Decimal('0'))
+
+            # Handle Reversals/Negative Balances
+            if expense_this_month < 0:
+                 income_this_month += abs(expense_this_month)
+                 expense_this_month = Decimal('0')
+            
+            if income_this_month < 0:
+                 expense_this_month += abs(income_this_month)
+                 income_this_month = Decimal('0')
+
+            # Total Lifetime Income (For stats) - Keep simple or update? 
+            # Let's keep it simple (Total Receipts) for now as "Total Income" usually implies Revenue+Capital in simple terms
+            # Or use pure Income
+            total_income_qs = JournalItem.objects.filter(ledger__account_type='INCOME').aggregate(
+                c=models.Sum('credit_amount'), d=models.Sum('debit_amount')
+            )
+            total_income = (total_income_qs['c'] or 0) - (total_income_qs['d'] or 0)
 
             return Response({
                 'households': total_households,

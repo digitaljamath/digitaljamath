@@ -149,24 +149,37 @@ class BasiraGuideView(APIView):
         """Stream response using Server-Sent Events."""
         def generate():
             try:
+                # Use same model as Data Agent for consistency
+                model = os.environ.get('BASIRA_MODEL', 'liquid/lfm-2.5-1.2b-instruct:free')
+                
                 response = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "https://project-mizan.com",
+                        "HTTP-Referer": "https://digitaljamath.com",
                         "X-Title": "DigitalJamath - Basira Guide"
                     },
                     json={
-                        "model": "meta-llama/llama-3.2-3b-instruct:free",
+                        "model": model,
                         "messages": messages,
-                        "max_tokens": 500,
-                        "temperature": 0.2, # Strict adherence
+                        "max_tokens": 800,
+                        "temperature": 0.2, 
                         "stream": True
                     },
                     stream=True,
                     timeout=60
                 )
+
+                if response.status_code != 200:
+                    try:
+                        err_json = response.json()
+                        err_msg = err_json.get('error', {}).get('message', f"API Error {response.status_code}")
+                    except:
+                        err_msg = f"API Error {response.status_code}"
+                    
+                    yield f"data: {json.dumps({'content': f'⚠️ {err_msg}'})}\n\n"
+                    return
 
                 for line in response.iter_lines():
                     if line:
@@ -174,7 +187,6 @@ class BasiraGuideView(APIView):
                         if line_text.startswith('data: '):
                             data = line_text[6:]
                             if data == '[DONE]':
-                                yield f"data: [DONE]\n\n"
                                 break
                             try:
                                 chunk = json.loads(data)
@@ -187,7 +199,9 @@ class BasiraGuideView(APIView):
                                 pass
 
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                import traceback
+                traceback.print_exc()
+                yield f"data: {json.dumps({'content': f'⚠️ System Error: {str(e)}'})}\n\n"
 
         response = StreamingHttpResponse(generate(), content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'
@@ -197,16 +211,17 @@ class BasiraGuideView(APIView):
     def _sync_response(self, api_key, messages):
         """Non-streaming response (fallback)."""
         try:
+            model = os.environ.get('BASIRA_MODEL', 'liquid/lfm-2.5-1.2b-instruct:free')
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://project-mizan.com",
+                    "HTTP-Referer": "https://digitaljamath.com",
                     "X-Title": "DigitalJamath - Basira Guide"
                 },
                 json={
-                    "model": "meta-llama/llama-3.2-3b-instruct:free",
+                    "model": model,
                     "messages": messages,
                     "max_tokens": 500,
                     "temperature": 0.2

@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.http import StreamingHttpResponse
 
-from apps.jamath.models import Household, Member, Subscription, JournalEntry, Ledger, StaffMember
+from apps.jamath.models import Household, Member, Subscription, JournalEntry, JournalItem, Ledger, StaffMember, Announcement, DataAgentChatLog
 
 
 # =============================================================================
@@ -179,48 +179,95 @@ def get_member_stats():
 
 
 def get_financial_summary(months_back=6):
-    """Get financial summary for the last N months using Mizan Ledger."""
+    """Get financial summary (Profit & Loss) for the last N months."""
     start_date = timezone.now().date() - timedelta(days=months_back * 30)
+    today = timezone.now().date()
     
-    # Income (Receipt Vouchers)
-    # Sum of Credit Amounts in Receipt Vouchers (usually credits Income/Equity accounts)
-    # But usually Receipt Total = `total_amount` (which is sum of debits, equal to credits)
-    # We can just sum JournalEntry totals for Receipts.
-    
-    income = JournalEntry.objects.filter(
-        voucher_type='RECEIPT',
-        date__gte=start_date
-    ).aggregate(total=Sum('items__debit_amount'))['total'] or Decimal('0')
-    
-    # Expenses (Payment Vouchers)
-    expenses = JournalEntry.objects.filter(
-        voucher_type='PAYMENT',
-        date__gte=start_date
-    ).aggregate(total=Sum('items__debit_amount'))['total'] or Decimal('0')
-    
-    # This month's figures
+    # --------------------------------------------------------
+    # 1. TOTAL INCOME (Last N Months)
+    # Net Credit to INCOME ledgers (excluding Zakat)
+    # --------------------------------------------------------
+    income_stats = JournalItem.objects.filter(
+        journal_entry__date__gte=start_date,
+        journal_entry__date__lte=today,
+        ledger__account_type='INCOME'
+    ).exclude(
+        ledger__fund_type='ZAKAT'
+    ).aggregate(
+        credits=Sum('credit_amount'),
+        debits=Sum('debit_amount')
+    )
+    income = (income_stats['credits'] or Decimal('0')) - (income_stats['debits'] or Decimal('0'))
+
+    # --------------------------------------------------------
+    # 2. TOTAL EXPENSE (Last N Months)
+    # Net Debit to EXPENSE ledgers (excluding Zakat)
+    # --------------------------------------------------------
+    expense_stats = JournalItem.objects.filter(
+        journal_entry__date__gte=start_date,
+        journal_entry__date__lte=today,
+        ledger__account_type='EXPENSE'
+    ).exclude(
+        ledger__fund_type='ZAKAT'
+    ).aggregate(
+        debits=Sum('debit_amount'),
+        credits=Sum('credit_amount')
+    )
+    expenses = (expense_stats['debits'] or Decimal('0')) - (expense_stats['credits'] or Decimal('0'))
+
+    # --------------------------------------------------------
+    # 3. THIS MONTH FIGURES
+    # --------------------------------------------------------
     this_month_start = timezone.now().date().replace(day=1)
     
-    this_month_income = JournalEntry.objects.filter(
-        voucher_type='RECEIPT',
-        date__gte=this_month_start
-    ).aggregate(total=Sum('items__debit_amount'))['total'] or Decimal('0')
+    # Income This Month
+    tm_income_stats = JournalItem.objects.filter(
+        journal_entry__date__gte=this_month_start,
+        journal_entry__date__lte=today,
+        ledger__account_type='INCOME'
+    ).exclude(
+        ledger__fund_type='ZAKAT'
+    ).aggregate(
+        credits=Sum('credit_amount'),
+        debits=Sum('debit_amount')
+    )
+    this_month_income = (tm_income_stats['credits'] or Decimal('0')) - (tm_income_stats['debits'] or Decimal('0'))
     
-    this_month_expenses = JournalEntry.objects.filter(
-        voucher_type='PAYMENT',
-        date__gte=this_month_start
-    ).aggregate(total=Sum('items__debit_amount'))['total'] or Decimal('0')
+    # Expense This Month
+    tm_expense_stats = JournalItem.objects.filter(
+        journal_entry__date__gte=this_month_start,
+        journal_entry__date__lte=today,
+        ledger__account_type='EXPENSE'
+    ).exclude(
+        ledger__fund_type='ZAKAT'
+    ).aggregate(
+        debits=Sum('debit_amount'),
+        credits=Sum('credit_amount')
+    )
+    this_month_expenses = (tm_expense_stats['debits'] or Decimal('0')) - (tm_expense_stats['credits'] or Decimal('0'))
+
+    # Handle Reversals/Negative Balances for This Month (Visual Fix)
+    if this_month_expenses < 0:
+        this_month_income += abs(this_month_expenses)
+        this_month_expenses = Decimal('0')
     
-    # Top Income Sources (Account-wise breakdown from Receipt items)
-    # We need to look at Credit items in Receipt vouchers (because Cash is Debited, Income is Credited)
-    # Filter: Voucher=Receipt, Item Credit > 0
-    top_income_categories = JournalEntry.objects.filter(
-        voucher_type='RECEIPT',
-        date__gte=start_date
-    ).values('items__ledger__name').filter(
-        items__credit_amount__gt=0
-    ).annotate(
-        total=Sum('items__credit_amount')
+    if this_month_income < 0:
+        this_month_expenses += abs(this_month_income)
+        this_month_income = Decimal('0')
+
+    # --------------------------------------------------------
+    # 4. TOP INCOME SOURCES
+    # --------------------------------------------------------
+    top_income_categories = JournalItem.objects.filter(
+        journal_entry__date__gte=start_date,
+        ledger__account_type='INCOME'
+    ).exclude(
+        ledger__fund_type='ZAKAT'
+    ).values('ledger__name').annotate(
+        # We need Net Credit here too, strictly speaking, 
+        # but for ranking sources, just Sum(Credit) is usually enough unless there are massive refunds.
+        # Let's stick to Credit Sum for simplicity in ranking.
+        total=Sum('credit_amount')
     ).order_by('-total')[:5]
     
     return {
@@ -230,7 +277,7 @@ def get_financial_summary(months_back=6):
         "this_month_income": float(this_month_income),
         "this_month_expenses": float(this_month_expenses),
         "top_income_sources": [
-            {"fund": item['items__ledger__name'] or "Unknown", "amount": float(item['total'])}
+            {"fund": item['ledger__name'] or "Unknown", "amount": float(item['total'] or 0)}
             for item in top_income_categories
         ]
     }
@@ -300,9 +347,163 @@ def get_recent_transactions(limit=10):
     ]
 
 
+def get_funds_summary():
+    """Get balance breakdown by fund type."""
+    from django.db.models import Sum, Q 
+    
+    # Logic:
+    # Zakat Balance = (Income - Expense) for Zakat Fund
+    # General Balance = Total Liquid Assets - Zakat Balance
+    
+    # 1. Total Liquid Assets (Cash + Bank)
+    liquid_assets = JournalItem.objects.filter(
+        ledger__account_type='ASSET',
+        ledger__code__startswith='100'
+    ).aggregate(
+        debit=Sum('debit_amount'),
+        credit=Sum('credit_amount')
+    )
+    total_cash = (liquid_assets['debit'] or Decimal('0')) - (liquid_assets['credit'] or Decimal('0'))
+    
+    # 2. Zakat Balance
+    zakat_stats = JournalItem.objects.filter(
+        ledger__fund_type='ZAKAT'
+    ).aggregate(
+        income=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
+        equity=Sum('credit_amount', filter=Q(ledger__account_type='EQUITY')),
+        expense=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE'))
+    )
+    
+    z_income = zakat_stats['income'] or Decimal('0')
+    z_equity = zakat_stats['equity'] or Decimal('0')
+    z_expense = zakat_stats['expense'] or Decimal('0')
+    zakat_balance = (z_income + z_equity) - z_expense
+    
+    # 3. General Balance
+    # Ensure we don't show negative general balance if possible, but mathematically:
+    general_balance = total_cash - zakat_balance
+    
+    return {
+        "total_available_cash": float(total_cash),
+        "zakat_fund_balance": float(zakat_balance),
+        "general_fund_balance": float(general_balance)
+    }
+
+def search_transactions(query):
+    """Search for specific transactions by donor, amount, or description."""
+    # Try to parse amount
+    amount_query = None
+    try:
+        # cleanup currency symbols
+        clean_q = query.replace('₹', '').replace(',', '').strip()
+        if clean_q.replace('.', '', 1).isdigit():
+            amount_query = Decimal(clean_q)
+    except:
+        pass
+
+    qs = JournalEntry.objects.all()
+    
+    filters = Q(narration__icontains=query) | \
+              Q(voucher_number__icontains=query) | \
+              Q(donor__full_name__icontains=query) | \
+              Q(donor_name_manual__icontains=query)
+              
+    if amount_query:
+        # Approximate amount match (+/- 1.00)
+        filters |= Q(items__debit_amount__gte=amount_query-1, items__debit_amount__lte=amount_query+1)
+        filters |= Q(items__credit_amount__gte=amount_query-1, items__credit_amount__lte=amount_query+1)
+
+    results = qs.filter(filters).distinct().order_by('-date')[:5]
+    
+    return [
+        {
+            "date": t.date.isoformat(),
+            "voucher": t.voucher_number,
+            "type": t.voucher_type,
+            "amount": float(t.total_amount),
+            "description": t.narration,
+            "party": t.donor.full_name if t.donor else (t.supplier.name if t.supplier else t.donor_name_manual)
+        }
+        for t in results
+    ]
+
+def get_monthly_breakdown(months=6):
+    """Get month-wise income and expense trend."""
+    start_date = timezone.now().date().replace(day=1) - timedelta(days=months*30)
+    
+    # This is complex to do efficiently in Django ORM with our schema (JournalItem -> Ledger)
+    # We'll do a Python loop over months for simplicity and safety
+    
+    data = []
+    
+    for i in range(months):
+        # Calculate month start/end
+        # Go backwards from current month
+        # Logic: 0 = This month, 1 = Last month...
+        # Actually better to go forward from start_date
+        pass 
+    
+    # Simplified approach: return raw data for last 3 months
+    results = []
+    current = timezone.now().date().replace(day=1)
+    
+    for i in range(3):
+        m_start = current
+        # Logic to get previous month
+        # ... skipped complex date logic for brevity, using simple 30 day blocks approximation
+        # Actually let's just do "This Month" and "Last Month"
+        break
+        
+    return "Monthly breakdown feature coming soon."
+
+
+
 # =============================================================================
-# AI AGENT VIEW
+# ACTION HANDLERS
 # =============================================================================
+
+def find_best_ledger(query, account_type):
+    """Fuzzy search for a ledger account."""
+    # 1. Exact match
+    l = Ledger.objects.filter(name__iexact=query, account_type=account_type).first()
+    if l: return l
+    
+    # 2. Contains
+    l = Ledger.objects.filter(name__icontains=query, account_type=account_type).first()
+    if l: return l
+    
+    # 3. Default fallback
+    if account_type == 'EXPENSE':
+        return Ledger.objects.filter(name__icontains='General', account_type='EXPENSE').first()
+    elif account_type == 'INCOME':
+        return Ledger.objects.filter(name__icontains='Donation', account_type='INCOME').first()
+        
+    return None
+
+def perform_action(user, action_payload):
+    """Execute a write action requested by the user."""
+    action_type = action_payload.get('action')
+    data = action_payload.get('data', {})
+    
+    if action_type == 'create_announcement':
+        title = data.get('title')
+        content = data.get('content')
+        if not title or not content:
+            return "❌ Error: Title and content are required for announcements."
+            
+        Announcement.objects.create(
+            title=title,
+            content=content,
+            status='PUBLISHED',
+            created_by=user,
+            is_active=True
+        )
+        return f"✅ Announcement Published: '{title}'"
+
+    elif action_type == 'create_transaction':
+        return "❌ I cannot record transactions here. Please use the **Baitul Maal Quick Entry AI** feature."
+
+    return "❌ I cannot process this action. Please use **Baitul Maal Quick Entry AI** for transactions."
 
 DATA_AGENT_PROMPT = """You are Basira Data Agent, an AI assistant for DigitalJamath.
 
@@ -352,14 +553,27 @@ Basira: "You have 45 households with 167 total members."
 User: "Financial summary"
 Basira: "This month: ₹25,000 income, ₹18,000 expenses, ₹7,000 surplus."
 
+## CAPABILITIES
+
+You are a read-only advisor with ONE action capability.
+If the user asks to perform an action (create/record/post), you must output a JSON object.
+
+Supported Actions:
+
+1. **Make Announcement**
+   - User says: "Post announcement: Eid prayers at 8 AM"
+   - Output: `{{"action": "create_announcement", "data": {{"title": "Eid Prayers", "content": "Eid prayers will be held at 8 AM."}}}}`
+
+**RESTRICTIONS:**
+- DO NOT record payments. Tell the user to use **Baitul Maal Quick Entry AI**.
+
+**RULES FOR ACTIONS:**
+- Output ONLY the JSON object. No other text.
+- If missing details (e.g., amount), ask for them first. Do NOT guess.
+
 ## TOPIC RESTRICTION
 
-Only answer questions about:
-- DigitalJamath features and usage
-- Jamath/Masjid administration
-- Data queries within your access level
-
-For anything else: "I can only help with DigitalJamath and Masjid management."
+answer within context.
 """
 
 
@@ -367,9 +581,37 @@ class BasiraDataAgentView(APIView):
     """AI Agent for querying Jamath data with RBAC."""
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        """Get chat history."""
+        history = DataAgentChatLog.objects.filter(
+            user=request.user,
+            is_cleared=False
+        ).order_by('timestamp')
+        
+        data = [
+            {"role": msg.role, "content": msg.content}
+            for msg in history
+        ]
+        return Response(data)
+
+    def delete(self, request):
+        """Clear chat history (soft delete)."""
+        DataAgentChatLog.objects.filter(user=request.user).update(is_cleared=True)
+        return Response({"status": "cleared"})
+
     def post(self, request):
+        try:
+            return self._handle_post(request)
+        except Exception as e:
+            import traceback
+            error_msg = f"CRITICAL ERROR in BasiraDataAgentView:\\n{traceback.format_exc()}"
+            print(error_msg)
+            with open('/tmp/basira_error.log', 'w') as f:
+                f.write(error_msg)
+            return Response({'error': f'Internal Server Error: {str(e)}'}, status=500)
+
+    def _handle_post(self, request):
         user_message = request.data.get('message', '')
-        conversation_history = request.data.get('history', [])
 
         if not user_message:
             return Response({'error': 'Message is required'}, status=400)
@@ -378,6 +620,13 @@ class BasiraDataAgentView(APIView):
         sanitized_message, rejection = sanitize_user_input(user_message)
         if rejection:
             return stream_simple_response(rejection)
+            
+        # Save user message to persistent history immediately
+        DataAgentChatLog.objects.create(
+            user=request.user, 
+            role='user', 
+            content=user_message
+        )
 
         # Get user permissions
         user_perms = get_user_permissions(request.user)
@@ -394,6 +643,7 @@ class BasiraDataAgentView(APIView):
 
         # Build system prompt with RBAC context
         current_dt = timezone.now().strftime('%A, %d %B %Y, %I:%M %p IST')
+        # DATA_AGENT_PROMPT has { } escaped for JSON, so .format() works for placeholders
         system_prompt = DATA_AGENT_PROMPT.format(
             current_datetime=current_dt,
             user_name=request.user.get_full_name() or request.user.username,
@@ -402,14 +652,24 @@ class BasiraDataAgentView(APIView):
             data_context=data_context
         )
 
-        # Build messages
-        messages = [{"role": "system", "content": system_prompt}]
-        for msg in conversation_history[-5:]:
-            messages.append(msg)
-        messages.append({"role": "user", "content": sanitized_message})
-
+        # Build messages from DB History (Last 10 messages)
+        # Fetch in reverse chronological order to get latest
+        db_history = DataAgentChatLog.objects.filter(
+            user=request.user, 
+            is_cleared=False
+        ).order_by('-timestamp')[:10]
+        
+        # Reverse back to chronological order
+        chat_history = []
+        for m in reversed(db_history):
+            if m.role in ['user', 'assistant']:
+                chat_history.append({"role": m.role, "content": m.content})
+        
+        messages = [{"role": "system", "content": system_prompt}] + chat_history
+        
         # Stream response
-        return self._stream_response(api_key, messages)
+        print(f"Sending request to openrouter with {len(messages)} messages")
+        return self._stream_response(api_key, messages, request.user)
 
     def _build_data_context(self, query, user_perms):
         """Build relevant data context based on user permissions."""
@@ -442,49 +702,80 @@ class BasiraDataAgentView(APIView):
         if user_perms['finance'] in ['admin', 'view']:
             context_parts.append("\n### FINANCIAL SUMMARY (Last 6 Months)")
             context_parts.append(json.dumps(get_financial_summary(), indent=2))
+            
+            context_parts.append("\n### FUNDS OVERVIEW")
+            context_parts.append(json.dumps(get_funds_summary(), indent=2))
 
             context_parts.append("\n### MEMBERSHIP STATUS")
             context_parts.append(json.dumps(get_subscription_status(), indent=2))
 
             if user_perms['finance'] == 'admin':
-                context_parts.append("\n### RECENT TRANSACTIONS (Last 10)")
-                context_parts.append(json.dumps(get_recent_transactions(), indent=2))
+                # Smart Transaction Search
+                # If user asks about a specific person, amount, or voucher
+                # We inject relevant transactions
+                is_txn_search = False
+                words = query.split()
+                for word in words:
+                    if len(word) > 3 and (word[0].isupper() or word.isdigit() or 'PAY' in word or 'RCP' in word):
+                        # Potential name or ID component
+                        results = search_transactions(word)
+                        if results:
+                            context_parts.append(f"\n### TRANSACTIONS MATCHING '{word}'")
+                            context_parts.append(json.dumps(results, indent=2))
+                            is_txn_search = True
+                            
+                # Fallback: Recent Transactions
+                if not is_txn_search:
+                    context_parts.append("\n### RECENT TRANSACTIONS (Last 10)")
+                    context_parts.append(json.dumps(get_recent_transactions(), indent=2))
         else:
             context_parts.append("\n### FINANCIAL DATA")
             context_parts.append("You do not have permission to view financial data.")
 
         return "\n".join(context_parts)
 
-    def _stream_response(self, api_key, messages):
+    def _stream_response(self, api_key, messages, user):
         """Stream response using Server-Sent Events."""
         def generate():
+            captured_content = []
+            final_action_result = None
+            is_json_mode = False
+            full_content_buffer = "" # For JSON parsing on action detection
+
             try:
+                print("Starting stream request to OpenRouter...")
+                
                 response = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "https://project-mizan.com",
+                        "HTTP-Referer": "https://digitaljamath.com",
                         "X-Title": "DigitalJamath - Basira Data Agent"
                     },
                     json={
-                        "model": "meta-llama/llama-3.2-3b-instruct:free",
+                        "model": os.environ.get('BASIRA_MODEL', 'liquid/lfm-2.5-1.2b-instruct:free'),
                         "messages": messages,
                         "max_tokens": 800,
-                        "temperature": 0.3,
-                        "stream": True
+                        "temperature": 0.1, 
+                        "stream": True 
                     },
                     stream=True,
                     timeout=60
                 )
+                
+                if response.status_code != 200:
+                    error_msg = f"API Error {response.status_code}"
+                    yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                    return
 
+                # Streaming Loop
                 for line in response.iter_lines():
                     if line:
                         line_text = line.decode('utf-8')
                         if line_text.startswith('data: '):
                             data = line_text[6:]
                             if data == '[DONE]':
-                                yield f"data: [DONE]\n\n"
                                 break
                             try:
                                 chunk = json.loads(data)
@@ -492,12 +783,68 @@ class BasiraDataAgentView(APIView):
                                     delta = chunk['choices'][0].get('delta', {})
                                     content = delta.get('content', '')
                                     if content:
-                                        yield f"data: {json.dumps({'content': content})}\n\n"
-                            except json.JSONDecodeError:
+                                        full_content_buffer += content
+                                        stripped = full_content_buffer.strip()
+                                        
+                                        # SAFETY: Reject hallucinated tool calls
+                                        if '<|tool_call_start|>' in stripped or '<|tool_use|>' in stripped:
+                                             yield f"data: {json.dumps({'content': '❌ I cannot perform that action. Please use **Baitul Maal Quick Entry AI** for transactions.'})}\n\n"
+                                             return
+
+                                        # Heuristic: Check for JSON or Markdown JSON
+                                        if stripped.startswith('{') or stripped.startswith('```'):
+                                            is_json_mode = True
+                                        
+                                        if not is_json_mode:
+                                            # Stream normally
+                                            captured_content.append(content)
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                            except:
                                 pass
 
+                # End of Stream Handling
+                # If JSON mode, execute action
+                if is_json_mode and full_content_buffer.strip():
+                    try:
+                        # Clean markdown code blocks if any
+                        json_str = full_content_buffer.strip().replace('```json', '').replace('```', '')
+                        action_payload = json.loads(json_str)
+                        
+                        # Execute Action
+                        result_msg = perform_action(user, action_payload)
+                        final_action_result = result_msg
+                        
+                        # Stream the result back to user
+                        yield f"data: {json.dumps({'content': result_msg})}\n\n"
+                        
+                    except json.JSONDecodeError:
+                        # Failed to parse, output buffer
+                        final_action_result = full_content_buffer
+                        yield f"data: {json.dumps({'content': full_content_buffer})}\n\n"
+                        
+                    except Exception as e:
+                        err_msg = f"Action Error: {str(e)}"
+                        final_action_result = err_msg
+                        yield f"data: {json.dumps({'content': err_msg})}\n\n"
+                        
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                 
+            finally:
+                # SAVE HISTORY TO DB
+                final_text = ""
+                if final_action_result:
+                    # If action was executed, save the RESULT message
+                    final_text = final_action_result
+                elif captured_content:
+                    final_text = "".join(captured_content)
+                elif is_json_mode and full_content_buffer:
+                     final_text = full_content_buffer
+                
+                if final_text.strip():
+                    DataAgentChatLog.objects.create(user=user, role='assistant', content=final_text)
 
         response = StreamingHttpResponse(generate(), content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'

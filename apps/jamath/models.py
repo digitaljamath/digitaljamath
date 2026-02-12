@@ -734,3 +734,24 @@ class TelegramLink(models.Model):
 
     def __str__(self):
         return f"{self.phone_number} → {self.chat_id}"
+
+# ============================================================================
+# DATA AGENT CHAT HISTORY
+# ============================================================================
+
+class DataAgentChatLog(models.Model):
+    """Persistent chat history for Basira Data Agent."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='agent_chats')
+    role = models.CharField(max_length=20)  # 'user' or 'assistant'
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_cleared = models.BooleanField(default=False)  # Soft delete for 'Clear Chat'
+
+    class Meta:
+        ordering = ['timestamp']
+        indexes = [
+            models.Index(fields=['user', 'is_cleared', 'timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.role} - {self.timestamp}"
