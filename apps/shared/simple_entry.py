@@ -49,6 +49,8 @@ Output: {{"voucher_type": "PAYMENT", "amount": 800, "account_name": "Repairs & M
 Input: "zakat 5000 ahmed"
 Output: {{"voucher_type": "RECEIPT", "amount": 5000, "account_name": "Donation - Zakat", "donor_or_vendor": "Ahmed", "narration": "Zakat received from Ahmed", "confidence": "high"}}
 
+
+
 ## RULES
 1. ONLY output the JSON object, nothing else
 2. If amount is unclear, set confidence to "low" and amount to 0
