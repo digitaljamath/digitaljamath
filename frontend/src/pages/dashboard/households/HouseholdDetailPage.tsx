@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Edit2, Loader2, MapPin, Phone, Plus, Trash2, User, Users, Send, CheckCircle } from "lucide-react";
+import { ArrowLeft, Edit2, Loader2, MapPin, Phone, Plus, Trash2, User, Users, Send, CheckCircle, ShieldCheck, ShieldAlert } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -151,6 +151,31 @@ export function HouseholdDetailPage() {
         }
     };
 
+    const handleVerifyToggle = async () => {
+        if (!household) return;
+
+        try {
+            const newStatus = !household.is_verified;
+            const res = await fetchWithAuth(`/api/jamath/households/${id}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_verified: newStatus })
+            });
+
+            if (!res.ok) throw new Error("Failed to update verification status");
+
+            const updated = await res.json();
+            setHousehold(prev => prev ? { ...prev, is_verified: updated.is_verified } : null);
+
+            toast({
+                title: newStatus ? "Household Verified" : "Verification Removed",
+                description: newStatus ? "This household is now marked as verified." : "This household is no longer verified."
+            });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not update status" });
+        }
+    };
+
     const openNewMemberDialog = () => {
         setEditingMember(null);
         setMemberForm({
@@ -254,6 +279,21 @@ export function HouseholdDetailPage() {
                         <Link to={`/dashboard/households/${id}/edit`}>
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                         </Link>
+                    </Button>
+                    <Button
+                        variant={household.is_verified ? "outline" : "default"}
+                        className={household.is_verified ? "text-amber-600 border-amber-200 hover:bg-amber-50" : "bg-blue-600 hover:bg-blue-700"}
+                        onClick={handleVerifyToggle}
+                    >
+                        {household.is_verified ? (
+                            <>
+                                <ShieldAlert className="h-4 w-4 mr-2" /> Unverify
+                            </>
+                        ) : (
+                            <>
+                                <ShieldCheck className="h-4 w-4 mr-2" /> Verify Household
+                            </>
+                        )}
                     </Button>
                     <Button
                         variant="destructive"

@@ -7,9 +7,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import models
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from decimal import Decimal
 import random
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
+from django.core.cache import cache
 
 User = get_user_model()
 
@@ -49,7 +51,11 @@ class HasStaffPermission(permissions.BasePermission):
         if not required_module:
             return True
             
-        user_permissions = staff_member.role.permissions
+        user_permissions = staff_member.role.permissions if staff_member.role else {}
+        # Merge with individual overrides
+        if staff_member.permissions:
+            user_permissions = {**user_permissions, **staff_member.permissions}
+            
         access_level = user_permissions.get(required_module)
         
         if not access_level or access_level == 'none':
@@ -188,12 +194,13 @@ class MemberStaffLookupView(APIView):
 class MemberSerializer(serializers.ModelSerializer):
     age = serializers.SerializerMethodField()
     
+    membership_id = serializers.CharField(source='household.membership_id', read_only=True)
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
 
     class Meta:
         model = Member
         fields = ['id', 'full_name', 'is_head_of_family', 'relationship_to_head',
-                  'gender', 'dob', 'age', 'marital_status', 'profession', 
+                  'gender', 'dob', 'age', 'membership_id', 'marital_status', 'profession', 
                   'education', 'skills', 'is_employed', 'monthly_income', 
                   'requirements', 'is_alive', 'is_approved', 'household', 'created_by_name']
     
@@ -560,6 +567,84 @@ class VerifyOTPView(APIView):
         })
 
 
+class PortalLoginView(APIView):
+    """
+    Login using Phone Number OR Member ID + Password.
+    Default password for all users is '123456'.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        identifier = request.data.get('identifier')
+        password = request.data.get('password')
+
+        if not identifier or not password:
+            return Response({'error': 'Identifier and password are required'}, status=400)
+
+        # Normalize identifier
+        identifier = identifier.strip()
+        
+        # 1. Find Household
+        household = None
+        
+        # Try as Phone Number
+        clean_identifier = identifier.replace(' ', '').replace('-', '')
+        if clean_identifier.isdigit() or (clean_identifier.startswith('+') and clean_identifier[1:].isdigit()):
+             # Check for exact, +91, or without +91
+             possible_numbers = [clean_identifier]
+             if not clean_identifier.startswith('+'):
+                 possible_numbers.append(f"+91{clean_identifier}")
+             elif clean_identifier.startswith('+91'):
+                 possible_numbers.append(clean_identifier[3:])
+             
+             household = Household.objects.filter(phone_number__in=possible_numbers).first()
+        
+        # Try as Membership ID
+        if not household:
+            household = Household.objects.filter(membership_id__iexact=identifier).first()
+            
+        if not household:
+            return Response({'error': 'Invalid details or user not found'}, status=400)
+            
+        # 2. Get User for this Household
+        username = f"member_{household.id}"
+        User = get_user_model()
+        
+        # Check if user exists, if not create. If exists but no password, set default.
+        try:
+            user = User.objects.get(username=username)
+            if not user.has_usable_password():
+                user.set_password('123456')
+                user.save()
+        except User.DoesNotExist:
+            head = household.members.filter(is_head_of_family=True).first()
+            user = User.objects.create_user(
+                username=username, 
+                password='123456',
+                first_name=head.full_name if head else 'Member'
+            )
+            
+        # 3. Authenticate
+        user = authenticate(username=username, password=password)
+        
+        if not user:
+             return Response({'error': 'Invalid password'}, status=400)
+             
+        # 4. Generate Tokens
+        refresh = RefreshToken.for_user(user)
+        
+        head = household.members.filter(is_head_of_family=True).first()
+        
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'household_id': household.id,
+            'membership_id': household.membership_id,
+            'head_name': head.full_name if head else 'Unknown'
+        })
+
+
+
 # ============================================================================
 # MEMBER PORTAL APIs
 # ============================================================================
@@ -731,7 +816,7 @@ class MemberPortalMemberView(APIView):
 # RBAC APIs
 # ============================================================================
 
-class StaffRoleViewSet(viewsets.ModelViewSet):
+class StaffRoleViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = StaffRole.objects.all()
     serializer_class = StaffRoleSerializer
     permission_classes = [IsAdminUser] # For now only admins can manage roles
@@ -755,8 +840,11 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Not a staff member'}, status=403)
             
         data = StaffMemberSerializer(staff_member).data
-        # Include permissions directly for easier frontend consumption
-        data['permissions'] = staff_member.role.permissions if staff_member.role else {}
+        # Include merged permissions directly for easier frontend consumption
+        role_perms = staff_member.role.permissions if staff_member.role else {}
+        member_override = staff_member.permissions or {}
+        
+        data['permissions'] = {**role_perms, **member_override}
         return Response(data)
     
     def create(self, request, *args, **kwargs):
@@ -825,6 +913,19 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         if generated_credentials:
             response_data['generated_credentials'] = generated_credentials
         
+        if generated_credentials:
+            response_data['generated_credentials'] = generated_credentials
+        
+        # Log Activity
+        ActivityLog.objects.create(
+            user=request.user,
+            action='CREATE',
+            module='users',
+            model_name='StaffMember',
+            object_id=str(staff_member.id),
+            details=f"Assigned {staff_member.user.username} as {staff_member.role.name} ({designation})"
+        )
+
         return Response(response_data, status=201)
     
     def destroy(self, request, *args, **kwargs):
@@ -840,6 +941,16 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         # Then delete the User account (prevents login)
         if user and not user.is_superuser:
             user.delete()
+        
+        # Log Activity
+        ActivityLog.objects.create(
+            user=request.user,
+            action='DELETE',
+            module='users',
+            model_name='StaffMember',
+            object_id=str(staff_member.id),
+            details=f"Removed staff access for {staff_member.user.username}"
+        )
         
         return Response(status=204)
 
@@ -867,9 +978,25 @@ class AdminPendingMembersView(APIView):
         
         if action == 'approve':
             ProfileService.approve_member(member, approved_by=request.user)
+            ActivityLog.objects.create(
+                user=request.user,
+                action='UPDATE',
+                module='users',
+                model_name='Member',
+                object_id=str(member.id),
+                details=f"Approved member: {member.full_name}"
+            )
             return Response({'message': 'Member approved'})
         elif action == 'reject':
             member.delete()
+            ActivityLog.objects.create(
+                user=request.user,
+                action='DELETE',
+                module='users',
+                model_name='Member',
+                object_id=str(member_id),
+                details=f"Rejected member application: {member.full_name}"
+            )
             return Response({'message': 'Member rejected and removed'})
         
         return Response({'error': 'Invalid action'}, status=400)
@@ -897,7 +1024,9 @@ class AdminMembershipConfigView(APIView):
 # ============================================================================
 
 class HouseholdViewSet(AuditLogMixin, viewsets.ModelViewSet):
-    queryset = Household.objects.prefetch_related('members').distinct()
+    queryset = Household.objects.prefetch_related(
+        models.Prefetch('members', queryset=Member.objects.order_by('-is_head_of_family', 'dob'))
+    ).distinct()
     serializer_class = HouseholdSerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'jamath'
@@ -951,6 +1080,13 @@ class MemberViewSet(AuditLogMixin, viewsets.ModelViewSet):
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'jamath'
 
+    def get_queryset(self):
+        queryset = Member.objects.all()
+        is_head = self.request.query_params.get('is_head_of_family')
+        if is_head == 'true':
+            queryset = queryset.filter(is_head_of_family=True)
+        return queryset
+
 
 class SurveyViewSet(viewsets.ModelViewSet):
     queryset = Survey.objects.all()
@@ -987,7 +1123,7 @@ class AnnouncementViewSet(AuditLogMixin, viewsets.ModelViewSet):
         self._log_activity('CREATE', instance, f"Created Announcement: {instance.title}", self.request.user)
 
 
-class ServiceRequestViewSet(viewsets.ModelViewSet):
+class ServiceRequestViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = ServiceRequest.objects.all()
     serializer_class = ServiceRequestSerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
@@ -1011,6 +1147,15 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
             service_request.admin_notes = admin_notes
             service_request.handled_by = request.user
             service_request.save()
+            
+            # Manual Log for status change
+            self._log_activity(
+                'UPDATE', 
+                service_request, 
+                f"Updated status to {new_status}: {admin_notes}", 
+                request.user
+            )
+            
             return Response(ServiceRequestSerializer(service_request).data)
         
         return Response({'error': 'Invalid status'}, status=400)
@@ -1233,11 +1378,25 @@ class UserProfileView(APIView):
     
     def put(self, request):
         user = request.user
+        
+        # 1. Update Username if provided
+        new_username = request.data.get('username')
+        if new_username and new_username != user.username:
+            # Check uniqueness
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            if User.objects.filter(username=new_username).exclude(id=user.id).exists():
+                return Response({'error': 'Username already taken'}, status=400)
+            user.username = new_username
+
+        # 2. Update other fields
         user.first_name = request.data.get('first_name', user.first_name)
         user.last_name = request.data.get('last_name', user.last_name)
         user.save()
+        
         return Response({
             'message': 'Profile updated successfully',
+            'username': user.username,
             'first_name': user.first_name,
             'last_name': user.last_name,
         })
@@ -1405,7 +1564,7 @@ class TelegramIndividualReminderView(APIView):
 # MIZAN LEDGER VIEWSETS
 # ============================================================================
 
-class LedgerViewSet(viewsets.ModelViewSet):
+class LedgerViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """Chart of Accounts management."""
     queryset = Ledger.objects.filter(parent=None, is_active=True)  # Only top-level by default
     serializer_class = LedgerSerializer
@@ -1445,10 +1604,14 @@ class LedgerViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Cannot delete account with transactions.'}, status=400)
         instance.is_active = False
         instance.save()
+        
+        # Manual Log since we are soft deleting
+        self._log_activity('DELETE', instance, f"Deleted Ledger (Soft): {instance.name}", request.user)
+
         return Response(status=204)
 
 
-class SupplierViewSet(viewsets.ModelViewSet):
+class SupplierViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """Vendor/Supplier management."""
     queryset = Supplier.objects.filter(is_active=True)
     serializer_class = SupplierSerializer
@@ -1463,6 +1626,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Cannot delete supplier with payments.'}, status=400)
         instance.is_active = False
         instance.save()
+        
+        # Manual Log since we are soft deleting
+        self._log_activity('DELETE', instance, f"Deleted Supplier (Soft): {instance.name}", request.user)
+
         return Response(status=204)
 
 
@@ -1616,7 +1783,8 @@ class JournalEntryViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 class LedgerReportsView(APIView):
     """Ledger reports: Day Book, Trial Balance."""
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser | HasStaffPermission]
+    required_module = 'finance'
 
     def get(self, request, report_type):
         from django.db.models import Sum, Q
@@ -2031,11 +2199,17 @@ class ReceiptPDFView(APIView):
         # Generate receipt number if not exists
         receipt_number = f"RCP-{entry.date.strftime('%Y%m%d')}-{entry.id:04d}"
         
+        # Determine donor name
+        if entry.donor:
+            donor_name = entry.donor.full_name
+        else:
+            donor_name = entry.donor_name_manual or entry.narration or "Member"
+
         # Generate PDF
         pdf_bytes = generate_receipt_pdf(
             receipt_number=receipt_number,
             payment_date=entry.date,
-            donor_name=entry.donor_name or entry.narration or "Member",
+            donor_name=donor_name,
             donor_address="",
             donor_pan=entry.donor_pan or "",
             amount=amount,
@@ -2110,34 +2284,52 @@ class PortalReceiptPDFView(APIView):
         if entry.voucher_type != 'RECEIPT':
             return Response({'error': 'Invalid receipt'}, status=400)
         
-        # Get organization config
-        config = MembershipConfig.objects.filter(is_active=True).first()
-        household = entry.household
-        head = household.members.filter(is_head_of_family=True).first() if household else None
-        
-        amount = sum(item.credit_amount for item in entry.items.all())
-        receipt_number = f"RCP-{entry.date.strftime('%Y%m%d')}-{entry.id:04d}"
-        
-        pdf_bytes = generate_receipt_pdf(
-            receipt_number=receipt_number,
-            payment_date=entry.date,
-            donor_name=head.full_name if head else entry.donor_name or "Member",
-            donor_address=household.address if household else "",
-            donor_pan=entry.donor_pan or "",
-            amount=amount,
-            membership_portion=amount,
-            donation_portion=0,
-            payment_mode=entry.payment_mode or "Online",
-            org_name=config.organization_name if config else "Digital Jamath",
-            org_address=config.organization_address if config else "",
-            org_pan=config.organization_pan if config else "",
-            reg_80g=config.registration_number_80g if config else "",
-            masjid_name=config.masjid_name if config else "",
-        )
-        
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="Receipt_{receipt_number}.pdf"'
-        return response
+        try:
+            # Get organization config
+            config = MembershipConfig.objects.filter(is_active=True).first()
+            
+            # JOINT FIX: Access household via donor, and handle donor name correctly
+            household = entry.donor.household if entry.donor else None
+            head = household.members.filter(is_head_of_family=True).first() if household else None
+            
+            amount = sum(item.credit_amount for item in entry.items.all())
+            receipt_number = f"RCP-{entry.date.strftime('%Y%m%d')}-{entry.id:04d}"
+            
+            # Determine donor name
+            if head:
+                donor_name = head.full_name
+            elif entry.donor:
+                donor_name = entry.donor.full_name
+            else:
+                 donor_name = entry.donor_name_manual or "Member"
+
+            pdf_bytes = generate_receipt_pdf(
+                receipt_number=receipt_number,
+                payment_date=entry.date,
+                donor_name=donor_name,
+                donor_address=household.address if household else "",
+                donor_pan=entry.donor_pan or "",
+                amount=amount,
+                membership_portion=amount,
+                donation_portion=0,
+                payment_mode=entry.payment_mode or "Online",
+                org_name=config.organization_name if config else "Digital Jamath",
+                org_address=config.organization_address if config else "",
+                org_pan=config.organization_pan if config else "",
+                reg_80g=config.registration_number_80g if config else "",
+                masjid_name=config.masjid_name if config else "",
+            )
+            
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="Receipt_{receipt_number}.pdf"'
+            return response
+            
+        except ImportError as e:
+            return Response({'error': f"Server Configuration Error: Missing PDF Library. {str(e)}"}, status=500)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return Response({'error': f"Generation Failed: {str(e)}"}, status=500)
 class ReminderViewSet(viewsets.ViewSet):
     """ViewSet to manage reminders and custom messages via portal announcements."""
     permission_classes = [IsAuthenticated]

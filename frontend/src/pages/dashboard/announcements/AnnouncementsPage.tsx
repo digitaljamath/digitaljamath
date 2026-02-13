@@ -87,7 +87,11 @@ export function AnnouncementsPage() {
                     data = data.filter(a => a.status === 'PUBLISHED' && new Date(a.published_at) > now);
                 } else if (statusFilter === 'PUBLISHED') {
                     const now = new Date();
-                    data = data.filter(a => a.status === 'PUBLISHED' && new Date(a.published_at) <= now);
+                    data = data.filter(a =>
+                        a.status === 'PUBLISHED' &&
+                        new Date(a.published_at) <= now &&
+                        (!a.expires_at || new Date(a.expires_at) > now)
+                    );
                 }
 
                 setAnnouncements(data);
@@ -119,11 +123,11 @@ export function AnnouncementsPage() {
                 title: formData.title,
                 content: formData.content,
                 status: status,
-                expires_at: formData.expires_at || null
+                expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : null
             };
 
             if (formData.published_at) {
-                payload.published_at = formData.published_at;
+                payload.published_at = new Date(formData.published_at).toISOString();
             }
 
             const res = await fetchWithAuth('/api/jamath/announcements/', {
@@ -165,7 +169,7 @@ export function AnnouncementsPage() {
         <div className="space-y-6">
             {/* Toast Message */}
             {message && (
-                <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg ${message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                     }`}>
                     {message.text}
                 </div>
@@ -183,7 +187,7 @@ export function AnnouncementsPage() {
                             Create Announcement
                         </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle>New Announcement</DialogTitle>
                             <DialogDescription>
@@ -192,7 +196,7 @@ export function AnnouncementsPage() {
                         </DialogHeader>
                         <div className="space-y-4 py-2">
                             <div className="space-y-2">
-                                <Label htmlFor="title">Title</Label>
+                                <Label htmlFor="title">Title <span className="text-red-500">*</span></Label>
                                 <Input
                                     id="title"
                                     placeholder="e.g., General Body Meeting"
@@ -201,7 +205,7 @@ export function AnnouncementsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="content">Content</Label>
+                                <Label htmlFor="content">Content <span className="text-red-500">*</span></Label>
                                 <Textarea
                                     id="content"
                                     placeholder="Enter detailed information..."
@@ -236,7 +240,12 @@ export function AnnouncementsPage() {
                         <DialogFooter className="flex-col sm:flex-row gap-2">
                             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
                             <Button variant="secondary" onClick={() => handleCreate('DRAFT')}>Save as Draft</Button>
-                            <Button onClick={() => handleCreate('PUBLISHED')}>Publish</Button>
+                            <Button
+                                onClick={() => handleCreate('PUBLISHED')}
+                                disabled={!formData.title || !formData.content}
+                            >
+                                {formData.published_at ? 'Schedule' : 'Publish'}
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -282,7 +291,7 @@ export function AnnouncementsPage() {
                                     </div>
                                     <CardDescription className="flex items-center text-xs flex-wrap gap-1">
                                         <Calendar className="h-3 w-3 mr-1" />
-                                        {format(new Date(item.published_at), "MMM d, yyyy")}
+                                        {format(new Date(item.published_at), "MMM d, yyyy h:mm a")}
                                         {item.created_by_name && (
                                             <span className="ml-2 pl-2 border-l border-gray-300">
                                                 By {item.created_by_name}
@@ -297,7 +306,7 @@ export function AnnouncementsPage() {
                                 </CardContent>
                                 <CardFooter className="pt-2 pb-4 text-xs border-t bg-muted/20 flex justify-between items-center">
                                     {item.expires_at ? (
-                                        <span className="text-muted-foreground">Expires: {format(new Date(item.expires_at), "MMM d, yyyy h:mm a")}</span>
+                                        <span className="text-muted-foreground">Diffuses on: {format(new Date(item.expires_at), "MMM d, yyyy h:mm a")}</span>
                                     ) : <span />}
                                     {item.status === 'PUBLISHED' && (
                                         <Button

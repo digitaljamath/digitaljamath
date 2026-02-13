@@ -8,7 +8,7 @@ from apps.jamath.api import (
     HouseholdViewSet, MemberViewSet, SurveyViewSet, SurveyResponseViewSet,
     AnnouncementViewSet, ServiceRequestViewSet,
     # OTP Auth
-    RequestOTPView, VerifyOTPView,
+    RequestOTPView, VerifyOTPView, PortalLoginView,
     # Member Portal
     MemberPortalProfileView, MemberPortalReceiptsView, 
     MemberPortalAnnouncementsView, MemberPortalServiceRequestView,
@@ -102,6 +102,7 @@ urlpatterns = [
     # Member Portal OTP Auth
     path('api/portal/request-otp/', RequestOTPView.as_view(), name='request-otp'),
     path('api/portal/verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
+    path('api/portal/login/', PortalLoginView.as_view(), name='portal-login'),
     
     # Member Portal APIs
     path('api/portal/profile/', MemberPortalProfileView.as_view(), name='portal-profile'),

@@ -55,6 +55,7 @@ export function ProfilePage() {
             const res = await fetchWithAuth(`/api/user/profile/`, {
                 method: "PUT",
                 body: JSON.stringify({
+                    username: profile.username,
                     first_name: profile.first_name,
                     last_name: profile.last_name
                 })
@@ -179,7 +180,10 @@ export function ProfilePage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Username</Label>
-                            <Input value={profile.username} disabled className="bg-gray-100" />
+                            <Input
+                                value={profile.username}
+                                onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Member Since</Label>
