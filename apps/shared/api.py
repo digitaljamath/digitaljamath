@@ -65,11 +65,17 @@ class TenantRegistrationView(generics.CreateAPIView):
 
         
         # 3. Check Availability
-        domain_part = data.get('domain')
+        # Force lowercase for domain and schema to avoid case-sensitivity issues
+        domain_part = data.get('domain', '').lower()
         schema_name = data.get('schema_name')
+        
         if not schema_name:
-             schema_name = domain_part.replace('-', '_').lower()
-             data['schema_name'] = schema_name
+             schema_name = domain_part.replace('-', '_')
+        else:
+             schema_name = schema_name.lower()
+             
+        data['schema_name'] = schema_name
+        data['domain'] = domain_part # Update data dict just in case
 
         if Client.objects.filter(schema_name=schema_name).exists():
              return Response({"error": "This Masjid workspace name is already taken."}, status=status.HTTP_400_BAD_REQUEST)
@@ -77,7 +83,7 @@ class TenantRegistrationView(generics.CreateAPIView):
         # 4. Prepare Task Data
         task_data = {
             'name': data['name'],
-            'schema_name': data['schema_name'],
+            'schema_name': schema_name,
             'owner_email': data['email'],
             'domain_part': domain_part,
             'email': data['email'],
@@ -138,8 +144,13 @@ class RequestRegistrationOTPView(APIView):
             
         # Check if email is already an owner? (Optional, maybe allow multiple workspaces)
         
-        # Generate OTP
+        # Generate OTP (Random 6-digit)
         otp = str(random.randint(100000, 999999))
+        
+        # Debug: Print OTP to console in DEBUG mode for easier testing if SMTP fails
+        if settings.DEBUG:
+            print(f"DEBUG OTP for {email}: {otp}")
+            
         _reg_otp_store[email] = {
             'otp': otp,
             'expires': timezone.now() + timezone.timedelta(minutes=10)
@@ -166,6 +177,8 @@ class RequestRegistrationOTPView(APIView):
                 recipient_list=[email]
             )
         except Exception as e:
+            # Log error but don't crash if console backend
+            print(f"OTP Send Error: {e}")
             return Response({'error': 'Failed to send OTP. Please try again.'}, status=500)
             
         return Response({'message': 'OTP sent successfully'})
@@ -186,23 +199,19 @@ class VerifyRegistrationOTPView(APIView):
             return Response({'error': 'OTP expired or not found'}, status=400)
             
         if stored['otp'] != otp:
-             # Magic OTP for dev ONLY (disabled in production)
-             if not (settings.DEBUG and otp == '112233'):
-                 return Response({'error': 'Invalid OTP'}, status=400)
+             return Response({'error': 'Invalid OTP'}, status=400)
                  
         if stored['expires'] < timezone.now():
-             if not (settings.DEBUG and otp == '112233'):
-                 del _reg_otp_store[email]
-                 return Response({'error': 'OTP expired'}, status=400)
+             del _reg_otp_store[email]
+             return Response({'error': 'OTP expired'}, status=400)
         
         # Success: Generate Signed Token
         from django.core.signing import Signer
         signer = Signer()
         verification_token = signer.sign(email)
         
-        # Clear OTP (don't clear if using magic OTP in debug)
-        if not (settings.DEBUG and otp == '112233'):
-            del _reg_otp_store[email]
+        # Clear OTP
+        del _reg_otp_store[email]
             
         return Response({
             'message': 'Email verified.',

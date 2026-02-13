@@ -37,7 +37,8 @@ from apps.jamath.api import (
     # Logs
     ActivityLogViewSet,
     DashboardStatsView,
-    ActivityLogStaffSourceView
+    ActivityLogStaffSourceView,
+    SeedLedgerView
 )
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
@@ -130,6 +131,7 @@ urlpatterns = [
 
     # Mizan Ledger Reports
     path('api/ledger/reports/<str:report_type>/', LedgerReportsView.as_view(), name='ledger-reports'),
+    path('api/ledger/seed/', SeedLedgerView.as_view(), name='seed-ledger'),
     path('api/ledger/export/', TallyExportView.as_view(), name='ledger-export'),
     path('api/ledger/receipt/<int:entry_id>/pdf/', ReceiptPDFView.as_view(), name='admin-receipt-pdf'),
     
