@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchWithAuth } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 import {
-    User, Receipt, Bell, FileText, LogOut,
+    User, Receipt, Bell, FileText, LogOut, Lock,
     CheckCircle, AlertCircle, Users, Home, Loader2, CreditCard
 } from "lucide-react";
 import {
@@ -51,6 +52,7 @@ type Household = {
 
 export function PortalDashboardPage() {
     const navigate = useNavigate();
+    const { toast } = useToast();
     const [household, setHousehold] = useState<Household | null>(null);
     const [membership, setMembership] = useState<MembershipStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -103,15 +105,26 @@ export function PortalDashboardPage() {
             }, 'portal');
             const verifyData = await verifyRes.json();
             if (verifyData.status === 'success') {
-                alert("Payment Successful! Receipt Generated: " + verifyData.receipt);
+                toast({
+                    title: "Payment Successful!",
+                    description: "Receipt Generated: " + verifyData.receipt,
+                });
                 // fetchProfile call handled by useEffect or manually called?
                 // profile fetch happens in useEffect anyway if component mounts, but here just alert.
                 window.location.reload(); // Simple reload to refresh data
             } else {
-                alert("Payment verification failed: " + verifyData.error);
+                toast({
+                    variant: "destructive",
+                    title: "Payment Failed",
+                    description: verifyData.error,
+                });
             }
         } catch (err) {
-            alert("Payment verification error");
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Payment verification error",
+            });
         } finally {
             setIsPaymentLoading(false);
         }
@@ -176,19 +189,25 @@ export function PortalDashboardPage() {
 
         // Validate 80G PAN
         if (need80G && !donorPan) {
-            alert("Please enter PAN Number for 80G receipt.");
+            toast({
+                variant: "destructive",
+                title: "Validation Error",
+                description: "Please enter PAN Number for 80G receipt.",
+            });
             setIsPaymentLoading(false);
             return;
         }
-
-
 
         // Calculate total
         const due = membership ? Math.max(0, parseFloat(membership.minimum_required) - parseFloat(membership.amount_paid)) : 0;
         const total = due + extraCharity;
 
         if (total <= 0) {
-            alert("Amount must be greater than 0");
+            toast({
+                variant: "destructive",
+                title: "Validation Error",
+                description: "Amount must be greater than 0",
+            });
             setIsPaymentLoading(false);
             return;
         }
@@ -209,7 +228,15 @@ export function PortalDashboardPage() {
             // CHECK PROVIDER
             if (orderData.provider === 'CASHFREE') {
                 const res = await loadCashfree();
-                if (!res) { alert("Cashfree SDK failed to load"); setIsPaymentLoading(false); return; }
+                if (!res) {
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Cashfree SDK failed to load",
+                    });
+                    setIsPaymentLoading(false);
+                    return;
+                }
 
                 const cashfree = new (window as any).Cashfree({ mode: orderData.env === 'SANDBOX' ? "sandbox" : "production" });
                 cashfree.checkout({
@@ -222,7 +249,15 @@ export function PortalDashboardPage() {
             } else {
                 // RAZORPAY (Default)
                 const res = await loadRazorpay();
-                if (!res) { alert("Razorpay SDK failed"); setIsPaymentLoading(false); return; }
+                if (!res) {
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Razorpay SDK failed",
+                    });
+                    setIsPaymentLoading(false);
+                    return;
+                }
 
                 const options = {
                     key: orderData.key_id,
@@ -248,14 +283,25 @@ export function PortalDashboardPage() {
 
                             const verifyData = await verifyRes.json();
                             if (verifyData.status === 'success') {
-                                alert("Payment Successful! Receipt Generated: " + verifyData.receipt);
+                                toast({
+                                    title: "Payment Successful!",
+                                    description: "Receipt Generated: " + verifyData.receipt,
+                                });
                                 setIsPaymentOpen(false);
                                 fetchProfile(); // Reload profile
                             } else {
-                                alert("Payment verification failed: " + verifyData.error);
+                                toast({
+                                    variant: "destructive",
+                                    title: "Payment Failed",
+                                    description: verifyData.error,
+                                });
                             }
                         } catch (err) {
-                            alert("Payment verification error");
+                            toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: "Payment verification error",
+                            });
                         }
                     },
                     prefill: {
@@ -274,7 +320,11 @@ export function PortalDashboardPage() {
 
         } catch (err) {
             console.error(err);
-            alert("Payment initiation failed. Please check gateway configuration.");
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Payment initiation failed. Please check gateway configuration.",
+            });
         } finally {
             // Note: If Cashfree redirects, this finally might run before unload? 
             if ((window as any).Cashfree) {
@@ -282,6 +332,81 @@ export function PortalDashboardPage() {
             } else {
                 setIsPaymentLoading(false);
             }
+        }
+    };
+
+    // Change Password Logic
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [isChangePasswordLoading, setIsChangePasswordLoading] = useState(false);
+
+    const handleChangePassword = async () => {
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "All fields are required",
+            });
+            return;
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "New passwords do not match",
+            });
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Password must be at least 8 characters long",
+            });
+            return;
+        }
+
+        setIsChangePasswordLoading(true);
+        try {
+            const res = await fetchWithAuth(`/api/user/change-password/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                    confirm_password: confirmNewPassword
+                })
+            }, 'portal');
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toast({
+                    title: "Success",
+                    description: "Password changed successfully",
+                });
+                setIsChangePasswordOpen(false);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmNewPassword("");
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: data.error || "Failed to change password",
+                });
+            }
+        } catch (err) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "An error occurred while changing password",
+            });
+        } finally {
+            setIsChangePasswordLoading(false);
         }
     };
 
@@ -316,14 +441,26 @@ export function PortalDashboardPage() {
                         <img src="/logo.png" alt="Logo" className="h-6 w-6" />
                         <h1 className="font-bold text-lg tracking-tight text-gray-900">Digital Jamath</h1>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleLogout}
-                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all"
-                    >
-                        <LogOut className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsChangePasswordOpen(true)}
+                            className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:scale-95 transition-all"
+                            title="Change Password"
+                        >
+                            <Lock className="h-5 w-5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleLogout}
+                            className="text-gray-500 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all"
+                            title="Logout"
+                        >
+                            <LogOut className="h-5 w-5" />
+                        </Button>
+                    </div>
                 </div>
             </header>
 
@@ -600,6 +737,57 @@ export function PortalDashboardPage() {
                     <span>•</span>
                     <a href="#" className="hover:text-blue-600 transition-colors">Support</a>
                 </div>
+
+                {/* Hidden Dialog Triggered by Header Button */}
+                <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Change Password</DialogTitle>
+                            <DialogDescription>
+                                Enter your current password and a new password.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Current Password</label>
+                                <input
+                                    type="password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-md"
+                                    placeholder="••••••"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">New Password</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-md"
+                                    placeholder="••••••"
+                                />
+                                <p className="text-xs text-gray-500">Min. 8 characters</p>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    value={confirmNewPassword}
+                                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-md"
+                                    placeholder="••••••"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={handleChangePassword} disabled={isChangePasswordLoading || !currentPassword || !newPassword || !confirmNewPassword}>
+                                {isChangePasswordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Change Password"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 <p className="text-[9px] text-gray-300 mt-8 font-black uppercase tracking-[0.3em] border border-gray-200/50 rounded-full py-1 px-4 inline-block">
                     v2.0.0 Alpha
                 </p>

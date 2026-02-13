@@ -35,6 +35,7 @@ type Supplier = {
 type Member = {
     id: number;
     full_name: string;
+    membership_id?: string;
 };
 
 type JournalItem = {
@@ -141,7 +142,7 @@ function VoucherFormContent() {
                 const [ledgersRes, suppliersRes, membersRes] = await Promise.all([
                     fetchWithAuth('/api/ledger/accounts/?flat=1'),
                     fetchWithAuth('/api/ledger/suppliers/'),
-                    fetchWithAuth('/api/jamath/members/')
+                    fetchWithAuth('/api/jamath/members/?is_head_of_family=true')
                 ]);
 
                 if (ledgersRes.ok) {
@@ -200,7 +201,7 @@ function VoucherFormContent() {
 
     // Check for Accountant Mode
     // We treat "JOURNAL" type effectively as always advanced, but for RECEIPT/PAYMENT we check the setting.
-    const isAdvancedMode = localStorage.getItem("financeMode") === "ADVANCED";
+    const isAdvancedMode = false; // localStorage.getItem("financeMode") === "ADVANCED";
     const useJournalUI = voucherType === 'JOURNAL' || isAdvancedMode;
 
     const handleSubmit = async () => {
@@ -407,16 +408,18 @@ function VoucherFormContent() {
 
             {/* Voucher Type Tabs */}
             <Tabs value={voucherType} onValueChange={setVoucherType}>
-                <TabsList className="grid grid-cols-3 w-full max-w-md">
+                <TabsList className={`grid w-full max-w-md ${isAdvancedMode ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <TabsTrigger value="RECEIPT" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
                         Receipt
                     </TabsTrigger>
                     <TabsTrigger value="PAYMENT" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
                         Payment
                     </TabsTrigger>
-                    <TabsTrigger value="JOURNAL" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">
-                        Journal
-                    </TabsTrigger>
+                    {isAdvancedMode && (
+                        <TabsTrigger value="JOURNAL" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                            Journal
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 {/* Common Fields */}
@@ -466,7 +469,9 @@ function VoucherFormContent() {
                                     <SelectContent>
                                         <SelectItem value="__NONE__">-- Guest Donor --</SelectItem>
                                         {members.map(m => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>{m.full_name}</SelectItem>
+                                            <SelectItem key={m.id} value={m.id.toString()}>
+                                                {m.full_name} {m.membership_id ? `(${m.membership_id})` : ''}
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -497,19 +502,21 @@ function VoucherFormContent() {
                                     placeholder="e.g., For buying fans only"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Fund Category <span className="text-red-500">*</span></Label>
-                                <Select value={fundCategory} onValueChange={setFundCategory}>
-                                    <SelectTrigger><SelectValue placeholder="Select Fund Category" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="__ALL__">-- All Funds --</SelectItem>
-                                        {FUND_CATEGORIES.map(fc => (
-                                            <SelectItem key={fc.value} value={fc.value}>{fc.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-gray-500">Filters the account list below</p>
-                            </div>
+                            {useJournalUI && (
+                                <div className="space-y-2">
+                                    <Label>Fund Category <span className="text-red-500">*</span></Label>
+                                    <Select value={fundCategory} onValueChange={setFundCategory}>
+                                        <SelectTrigger><SelectValue placeholder="Select Fund Category" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__ALL__">-- All Funds --</SelectItem>
+                                            {FUND_CATEGORIES.map(fc => (
+                                                <SelectItem key={fc.value} value={fc.value}>{fc.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-gray-500">Filters the account list below</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -836,8 +843,7 @@ function VoucherFormContent() {
                         </div>
                     </CardContent>
                 </Card >
-            )
-            }
+            )}
 
 
             {/* Error */}
