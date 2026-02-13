@@ -206,18 +206,19 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Email Configuration - Brevo SMTP
+# Email Configuration - SMTP
 # Set these environment variables for production:
-# BREVO_SMTP_KEY - Your Brevo SMTP API key
-# EMAIL_HOST_USER - Your Brevo login (usually email)
-# DEFAULT_FROM_EMAIL - Your verified sender email
+# EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
 
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('BREVO_EMAIL_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('BREVO_SMTP_KEY', '')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+
+# Support both generic and legacy Brevo env vars
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', os.environ.get('BREVO_EMAIL_USER', ''))
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', os.environ.get('BREVO_SMTP_KEY', ''))
+
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@project-mizan.com')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 

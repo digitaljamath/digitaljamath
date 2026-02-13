@@ -2597,3 +2597,16 @@ class DashboardStatsView(APIView):
                 'income_this_month': 0, 'expense_this_month': 0, 'total_income': 0,
                 'debug_error': str(e)
             })
+
+from django.core.management import call_command
+
+class SeedLedgerView(APIView):
+    """Seed the default Chart of Accounts for the tenant."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        try:
+            call_command('seed_ledger')
+            return Response({'message': 'Chart of Accounts seeded successfully.'})
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)

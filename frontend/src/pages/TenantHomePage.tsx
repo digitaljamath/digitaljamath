@@ -124,7 +124,7 @@ export function TenantHomePage() {
                                 <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 h-11 text-base">
                                     <a href="/find-masjid">Find Your Masjid</a>
                                 </Button>
-                                <Button asChild variant="outline" className="w-full">
+                                <Button asChild variant="ghost" className="w-full">
                                     <a href={getRootDomainUrl()}>Go to Home Page</a>
                                 </Button>
                             </div>

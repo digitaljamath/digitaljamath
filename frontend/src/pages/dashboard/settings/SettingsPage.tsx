@@ -10,10 +10,11 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { Settings, Save, Loader2, DollarSign, Hash, CheckCircle, ArrowLeft, Send, Users, AlertCircle, Wallet } from "lucide-react";
+import { Settings, Save, Loader2, DollarSign, Hash, CheckCircle, ArrowLeft, Send, Users, AlertCircle, Wallet, Database } from "lucide-react";
 import { useConfig } from "@/context/ConfigContext";
 import { fetchWithAuth } from "@/lib/api";
 import { Link } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
@@ -47,6 +48,8 @@ function TelegramStatsPanel() {
             console.error("Failed to fetch Telegram stats", err);
         }
     };
+
+
 
     const sendReminders = async () => {
         setIsSending(true);
@@ -115,12 +118,14 @@ function TelegramStatsPanel() {
             <p className="text-xs text-gray-500 text-center">
                 Members must link their Telegram from the Member Portal login page to receive notifications.
             </p>
+
         </div>
     );
 }
 
 export function SettingsPage() {
     const { refreshConfig } = useConfig();
+    const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -194,6 +199,27 @@ export function SettingsPage() {
             console.error("Failed to fetch settings", err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const [isSeeding, setIsSeeding] = useState(false);
+
+    const handleSeedLedger = async () => {
+        if (!confirm("This will create default ledgers if they don't exist. Continue?")) return;
+
+        setIsSeeding(true);
+        try {
+            const res = await fetchWithAuth('/api/ledger/seed/', { method: 'POST' });
+            if (res.ok) {
+                toast({ title: "Success", description: "Chart of Accounts seeded successfully." });
+            } else {
+                toast({ title: "Error", description: "Failed to seed ledger.", variant: "destructive" });
+            }
+        } catch (err) {
+            console.error(err);
+            toast({ title: "Error", description: "Network error.", variant: "destructive" });
+        } finally {
+            setIsSeeding(false);
         }
     };
 
@@ -557,6 +583,29 @@ export function SettingsPage() {
 
                     {/* Stats + Manual Actions */}
                     <TelegramStatsPanel />
+                </CardContent>
+            </Card>
+            {/* Data Management */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Database className="h-5 w-5" /> Data Management
+                    </CardTitle>
+                    <CardDescription>
+                        Advanced tools for system administrators
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50 border-yellow-100">
+                        <div>
+                            <h4 className="font-medium text-yellow-900">Seed Chart of Accounts</h4>
+                            <p className="text-sm text-yellow-700">Manually initialize the default ledgers if they are missing.</p>
+                        </div>
+                        <Button variant="outline" onClick={handleSeedLedger} disabled={isSeeding}>
+                            {isSeeding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Database className="w-4 h-4 mr-2" />}
+                            Seed Ledger
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
         </div>
