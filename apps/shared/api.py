@@ -316,6 +316,146 @@ class VerifyEmailView(generics.GenericAPIView):
         except Client.DoesNotExist:
             return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
+# In-memory OTP store for Password Reset
+_reset_otp_store = {}
+
+class RequestPasswordResetOTPView(generics.GenericAPIView):
+    """
+    Step 1: Request OTP for Password Reset.
+    """
+    permission_classes = []
+    throttle_classes = [OTPRequestThrottle] 
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'error': 'Email is required'}, status=400)
+            
+        tenant = request.tenant
+        if tenant.schema_name == 'public':
+             return Response({"error": "Please use your workspace URL to reset password."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if user exists in this tenant
+        with schema_context(tenant.schema_name):
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                # Security: Don't reveal user existence
+                return Response({'message': 'If an account exists, an OTP has been sent.'})
+        
+        # Generate OTP
+        otp = str(random.randint(100000, 999999))
+        
+        # Debug: Print OTP to console
+        if settings.DEBUG:
+            print(f"RESET OTP for {email}: {otp}")
+            
+        _reset_otp_store[email] = {
+            'otp': otp,
+            'expires': timezone.now() + timezone.timedelta(minutes=10),
+            'schema_name': tenant.schema_name 
+        }
+        
+        # Send Email
+        try:
+            EmailService.send_email(
+                subject=f"Password Reset Code - {tenant.name}",
+                html_content=f"""
+                <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; text-align: center;">
+                    <h2 style="color: #333;">Reset Your Password</h2>
+                    <p style="color: #666;">Use the code below to reset your password for <strong>{tenant.name}</strong>.</p>
+                    
+                    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                        <h1 style="font-size: 32px; letter-spacing: 5px; color: #111; margin: 0; font-family: monospace;">{otp}</h1>
+                    </div>
+                    
+                    <p style="font-size: 12px; color: #999;">This code expires in 10 minutes.</p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                </div>
+                """,
+                recipient_list=[email]
+            )
+        except Exception as e:
+            print(f"OTP Send Error: {e}")
+            # If console backend, it won't fail usually.
+            
+        return Response({'message': 'If an account exists, an OTP has been sent.'})
+
+class VerifyPasswordResetOTPView(generics.GenericAPIView):
+    """
+    Step 2: Verify OTP and return a signed reset token.
+    """
+    permission_classes = []
+
+    def post(self, request):
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        
+        if not email or not otp:
+            return Response({'error': 'Email and OTP are required'}, status=400)
+            
+        stored = _reset_otp_store.get(email)
+        if not stored:
+            return Response({'error': 'OTP expired or not found'}, status=400)
+            
+        # Verify Context (Tenant)
+        tenant = request.tenant
+        if stored.get('schema_name') != tenant.schema_name:
+             return Response({'error': 'Invalid workspace context'}, status=400)
+
+        if stored['otp'] != otp:
+             return Response({'error': 'Invalid OTP'}, status=400)
+                 
+        if stored['expires'] < timezone.now():
+             del _reset_otp_store[email]
+             return Response({'error': 'OTP expired'}, status=400)
+        
+        # Success: Generate Signed RESET Token
+        # We need a different salt than registration to avoid confusion/misuse
+        signer = Signer(salt='password-reset') 
+        reset_token = signer.sign(email)
+        
+        # Clear OTP
+        del _reset_otp_store[email]
+            
+        return Response({
+            'message': 'OTP verified.',
+            'reset_token': reset_token
+        })
+
+class ConfirmPasswordResetOTPView(generics.GenericAPIView):
+    """
+    Step 3: Reset Password using signed token.
+    """
+    permission_classes = []
+
+    def post(self, request):
+        reset_token = request.data.get('reset_token')
+        new_password = request.data.get('new_password')
+        
+        if not reset_token or not new_password:
+             return Response({'error': 'Missing fields'}, status=400)
+        
+        tenant = request.tenant
+        if tenant.schema_name == 'public':
+             return Response({"error": "Invalid context"}, status=status.HTTP_400_BAD_REQUEST)
+             
+        signer = Signer(salt='password-reset')
+        try:
+            email = signer.unsign(reset_token)
+        except BadSignature:
+            return Response({'error': 'Invalid or expired token'}, status=400)
+            
+        with schema_context(tenant.schema_name):
+            try:
+                user = User.objects.get(email=email)
+                user.set_password(new_password)
+                user.save()
+                return Response({"message": "Password reset successful. Please login."}, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                 return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+# Legacy Link-based View (kept for backward compatibility or admin usage)
 class PasswordResetRequestView(generics.GenericAPIView):
     permission_classes = []
     
@@ -333,7 +473,6 @@ class PasswordResetRequestView(generics.GenericAPIView):
                     send_password_reset_email(user, tenant.domains.first().domain)
                 except Exception as e:
                     print(f"Failed to send password reset email: {e}")
-                    # Return 200 even if email fails, to avoid enumeration and panic
                     pass
                 return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
