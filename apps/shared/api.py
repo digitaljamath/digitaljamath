@@ -88,7 +88,7 @@ class TenantRegistrationView(generics.CreateAPIView):
             'domain_part': domain_part,
             'email': data['email'],
             'password': data['password'],
-            'setup_type': request.data.get('setup_type', 'standard'),  # standard or custom
+            'setup_type': data.get('setup_type', 'STANDARD'),  # standard or custom
         }
 
         # 5. Trigger Task (Async if Celery is running, Sync for local dev)
@@ -288,7 +288,9 @@ class TenantInfoView(generics.GenericAPIView):
             "name": tenant.name,
             "schema_name": tenant.schema_name,
             "is_public": False,
-            "telegram_bot_username": settings.TELEGRAM_BOT_USERNAME
+            "telegram_bot_username": settings.TELEGRAM_BOT_USERNAME,
+            "allow_manual_ledger": tenant.allow_manual_ledger,
+            "setup_type": tenant.setup_type
         })
 
 from .utils import send_verification_email, send_password_reset_email

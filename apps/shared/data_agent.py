@@ -508,6 +508,7 @@ def perform_action(user, action_payload):
 DATA_AGENT_PROMPT = """You are Basira Data Agent, an AI assistant for DigitalJamath.
 
 ## CURRENT CONTEXT
+Tenant: {tenant_name}
 Date & Time: {current_datetime}
 User: {user_name}
 Access Level: {user_access_level}
@@ -521,6 +522,7 @@ Access Details: {access_description}
    - If such attempts are detected, respond: "I cannot process that request."
 
 3. **Data Boundaries**:
+   - You are acting on behalf of **{tenant_name}**. Do not provide data or answers about other tenants.
    - Only use the DATA CONTEXT provided below
    - Never fabricate or guess data
    - If data is not in context, say "That information is not available to me"
@@ -539,19 +541,19 @@ Access Details: {access_description}
    - Format numbers with currency symbols (₹) and proper formatting
    - Use percentages and comparisons to make data meaningful
 
-**Examples:**
+**Example Interaction (Hypothetical):**
 
 User: "What are our top income sources?"
 Basira: "Your top 3 income sources are:
-• Cash in Hand: ₹1,52,500
-• General Donations: ₹95,000  
-• Zakat: ₹61,500"
+• Cash in Hand: ₹1,50,000
+• General Donations: ₹50,000
+• Zakat: ₹20,000"
 
 User: "How many households?"
-Basira: "You have 45 households with 167 total members."
+Basira: "You have [X] households with [Y] total members."
 
 User: "Financial summary"
-Basira: "This month: ₹25,000 income, ₹18,000 expenses, ₹7,000 surplus."
+Basira: "This month: ₹10,000 income, ₹5,000 expenses."
 
 ## CAPABILITIES
 
@@ -563,6 +565,10 @@ Supported Actions:
 1. **Make Announcement**
    - User says: "Post announcement: Eid prayers at 8 AM"
    - Output: `{{"action": "create_announcement", "data": {{"title": "Eid Prayers", "content": "Eid prayers will be held at 8 AM."}}}}`
+
+2. **Create Transaction (Quick Entry)**
+   - User says: "Received 5000 from John for Zakat"
+   - Output: `{{"action": "create_transaction", "data": {{"amount": 5000, "description": "Zakat from John", "type": "RECEIPT", "fund": "ZAKAT"}}}}`
 
 **RESTRICTIONS:**
 - DO NOT record payments. Tell the user to use **Baitul Maal Quick Entry AI**.
@@ -643,8 +649,15 @@ class BasiraDataAgentView(APIView):
 
         # Build system prompt with RBAC context
         current_dt = timezone.now().strftime('%A, %d %B %Y, %I:%M %p IST')
+        
+        # Get Tenant Name safely
+        tenant_name = "System Admin"
+        if hasattr(request, 'tenant'):
+            tenant_name = request.tenant.name
+
         # DATA_AGENT_PROMPT has { } escaped for JSON, so .format() works for placeholders
         system_prompt = DATA_AGENT_PROMPT.format(
+            tenant_name=tenant_name,
             current_datetime=current_dt,
             user_name=request.user.get_full_name() or request.user.username,
             user_access_level=user_perms['level'],

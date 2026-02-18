@@ -98,7 +98,7 @@ def create_tenant_task(tenant_data):
         domain_part = tenant_data.pop('domain_part')
         email = tenant_data.pop('email')
         password = tenant_data.pop('password')
-        setup_type = tenant_data.pop('setup_type', 'standard')
+        setup_type = tenant_data.get('setup_type', 'STANDARD')
         
         # Remove these from tenant_data - they're not model fields
         tenant_data.pop('owner_email', None)
@@ -130,7 +130,7 @@ def create_tenant_task(tenant_data):
         logger.info("Admin user created.")
 
         # 4. Standard Setup: Seed Chart of Accounts and Roles
-        if setup_type == 'standard':
+        if setup_type == 'STANDARD':
             logger.info("Running standard setup (ledger + roles)...")
             
             try:

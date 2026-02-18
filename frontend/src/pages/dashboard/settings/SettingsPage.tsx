@@ -161,6 +161,10 @@ export function SettingsPage() {
     const [telegramProfileUpdates, setTelegramProfileUpdates] = useState(true);
     const [telegramAnnouncements, setTelegramAnnouncements] = useState(false);
 
+    // Feature Flags
+    const [allowManualLedger, setAllowManualLedger] = useState(false);
+    const [setupType, setSetupType] = useState('STANDARD');
+
     useEffect(() => {
         fetchSettings();
     }, []);
@@ -194,6 +198,9 @@ export function SettingsPage() {
                 setTelegramAutoReminders(data.telegram_auto_reminders ?? false);
                 setTelegramProfileUpdates(data.telegram_notify_profile_updates ?? true);
                 setTelegramAnnouncements(data.telegram_notify_announcements ?? false);
+
+                setAllowManualLedger(data.allow_manual_ledger ?? false);
+                setSetupType(data.setup_type || 'STANDARD');
             }
         } catch (err) {
             console.error("Failed to fetch settings", err);
@@ -408,7 +415,7 @@ export function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Interface Preferences */}
+            {/* Interface Preferences - Always visible */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -585,29 +592,31 @@ export function SettingsPage() {
                     <TelegramStatsPanel />
                 </CardContent>
             </Card>
-            {/* Data Management */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Database className="h-5 w-5" /> Data Management
-                    </CardTitle>
-                    <CardDescription>
-                        Advanced tools for system administrators
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50 border-yellow-100">
-                        <div>
-                            <h4 className="font-medium text-yellow-900">Seed Chart of Accounts</h4>
-                            <p className="text-sm text-yellow-700">Manually initialize the default ledgers if they are missing.</p>
+            {/* Data Management - Only for Custom Setup */}
+            {setupType === 'CUSTOM' && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Database className="h-5 w-5" /> Data Management
+                        </CardTitle>
+                        <CardDescription>
+                            Advanced tools for system administrators
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50 border-yellow-100">
+                            <div>
+                                <h4 className="font-medium text-yellow-900">Seed Chart of Accounts</h4>
+                                <p className="text-sm text-yellow-700">Manually initialize the default ledgers if they are missing.</p>
+                            </div>
+                            <Button variant="outline" onClick={handleSeedLedger} disabled={isSeeding}>
+                                {isSeeding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Database className="w-4 h-4 mr-2" />}
+                                Seed Ledger
+                            </Button>
                         </div>
-                        <Button variant="outline" onClick={handleSeedLedger} disabled={isSeeding}>
-                            {isSeeding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Database className="w-4 h-4 mr-2" />}
-                            Seed Ledger
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
         </div>
 
     );

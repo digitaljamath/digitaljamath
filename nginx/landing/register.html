@@ -148,7 +148,8 @@
                     <div class="text-center mb-4">
                         <p class="text-gray-600">How would you like to set up your Masjid?</p>
                     </div>
-                    <div class="setup-grid">
+                    <div class="setup-grid"
+                        style="grid-template-columns: 1fr; max-width: 400px; margin: 0 auto 1.5rem auto;">
                         <div class="setup-option selected" id="setup-standard" onclick="selectSetupType('standard')">
                             <div class="setup-option-icon">📊</div>
                             <div class="setup-option-title">Standard</div>
@@ -163,7 +164,8 @@
                                 </ul>
                             </div>
                         </div>
-                        <div class="setup-option" id="setup-custom" onclick="selectSetupType('custom')">
+                        <div class="setup-option" id="setup-custom" onclick="selectSetupType('custom')"
+                            style="display: none !important;">
                             <div class="setup-option-icon">⚙️</div>
                             <div class="setup-option-title">Custom</div>
                             <div class="setup-option-desc">For experienced admins</div>
@@ -177,6 +179,16 @@
                                 </ul>
                             </div>
                         </div>
+                        <script>
+                            // Force remove the custom option to ensure it is hidden
+                            document.addEventListener('DOMContentLoaded', function () {
+                                var customOption = document.getElementById('setup-custom');
+                                if (customOption) {
+                                    customOption.style.display = 'none';
+                                    customOption.remove(); // Remove from DOM entirely
+                                }
+                            });
+                        </script>
                     </div>
                     <div
                         style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.8rem; color: #166534;">

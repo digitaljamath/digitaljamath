@@ -8,6 +8,15 @@ class Client(TenantMixin):
     email_verified = models.BooleanField(default=False)
     verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
     created_on = models.DateField(auto_now_add=True)
+    
+    # Feature Flags
+    allow_manual_ledger = models.BooleanField(default=False, help_text="Allow this tenant to use Manual Ledger (Advanced Finance Mode)")
+    
+    class SetupType(models.TextChoices):
+        STANDARD = 'STANDARD', 'Standard'
+        CUSTOM = 'CUSTOM', 'Custom'
+
+    setup_type = models.CharField(max_length=20, choices=SetupType.choices, default=SetupType.STANDARD)
 
     # Add more fields here if needed (e.g. city, contact info)
     

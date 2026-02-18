@@ -226,16 +226,15 @@ function VoucherFormContent() {
                     return;
                 }
 
-                // Always use the general Cash account (1001) for all transactions
-                // Try finding by code 1001, then fallback to name search
-                const cashLedger = ledgers.find(l => l.code === '1001') ||
-                    ledgers.find(l => l.name.toLowerCase().includes('cash in hand')) ||
-                    ledgers.find(l => l.name.toLowerCase().includes('cash'));
+                // Improved Cash Lookup: Prefer "Cash" specifically, only fallback to 1001 if it looks like keys
+                const cashLedger = ledgers.find(l => l.name.toLowerCase().includes('cash in hand')) ||
+                    ledgers.find(l => l.name.toLowerCase().includes('cash')) ||
+                    ledgers.find(l => l.code === '1001');
 
                 if (!cashLedger) {
                     const msg = ledgers.length === 0
                         ? "Chart of Accounts not loaded. Please refresh or check permissions."
-                        : "Cash ledger (1001) not found. Please ensure the Chart of Accounts is seeded.";
+                        : "Cash ledger not found. Please ensure a 'Cash in Hand' account exists.";
                     setError(msg);
                     setIsSubmitting(false);
                     return;
@@ -245,14 +244,23 @@ function VoucherFormContent() {
 
                 if (simpleCategory === 'ZAKAT') {
                     // Zakat transactions use Zakat-specific income/expense accounts
-                    incomeLedger = ledgers.find(l => l.code === '3002'); // Donation - Zakat
-                    expenseLedger = ledgers.find(l => l.code === '4006'); // Zakat Distribution
+                    incomeLedger = ledgers.find(l => l.code === '3002') ||
+                        ledgers.find(l => l.name.toLowerCase().includes('zakat') && l.account_type === 'INCOME');
+
+                    expenseLedger = ledgers.find(l => l.code === '4006') ||
+                        ledgers.find(l => l.name.toLowerCase().includes('zakat') && l.account_type === 'EXPENSE');
                 } else {
                     // General transactions
-                    incomeLedger = ledgers.find(l => l.code === '3001'); // Donation - General
-                    // CHANGE: Use Miscellaneous (4010) as default instead of Electricity (4001)
-                    // This ensures non-accountants dump expenses here for later re-classification.
-                    expenseLedger = ledgers.find(l => l.code === '4010') || ledgers.find(l => l.code === '4001');
+                    incomeLedger = ledgers.find(l => l.code === '3001') ||
+                        ledgers.find(l => l.code === '4002') ||  // Common alternative
+                        ledgers.find(l => l.name.toLowerCase().includes('general items') && l.account_type === 'INCOME') ||
+                        ledgers.find(l => l.name.toLowerCase().includes('general') && l.account_type === 'INCOME') ||
+                        ledgers.find(l => l.name.toLowerCase().includes('donation') && l.account_type === 'INCOME');
+
+                    // Expense: Try 4010 (Misc), then fallback to any General Expense
+                    expenseLedger = ledgers.find(l => l.code === '4010') ||
+                        ledgers.find(l => l.name.toLowerCase().includes('general') && l.account_type === 'EXPENSE') ||
+                        ledgers.find(l => l.name.toLowerCase().includes('miscellaneous') && l.account_type === 'EXPENSE');
                 }
 
                 if (voucherType === 'RECEIPT') {

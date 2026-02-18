@@ -10,9 +10,20 @@ class TenantRegistrationSerializer(serializers.ModelSerializer):
     # schema_name is optional, derived from domain if needed, but we include it.
     schema_name = serializers.CharField(required=False) 
 
+    setup_type = serializers.CharField(required=False)
+
     class Meta:
         model = Client
-        fields = ['name', 'schema_name', 'domain', 'email', 'password']
+        fields = ['name', 'schema_name', 'domain', 'email', 'password', 'allow_manual_ledger', 'setup_type']
+
+    def validate_setup_type(self, value):
+        if value:
+            value = value.upper()
+            if value not in Client.SetupType.values:
+                 # Fallback/Log or raise? Let's raise to be safe but helpful
+                 raise serializers.ValidationError(f"Invalid setup type. Choices: {Client.SetupType.values}")
+            return value
+        return Client.SetupType.STANDARD
 
     def create(self, validated_data):
         domain_part = validated_data.pop('domain')
