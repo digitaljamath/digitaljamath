@@ -155,7 +155,7 @@ npm run dev
 
 # Terminal 3 - Nginx proxy
 cd digitaljamath
-nginx -c $(pwd)/nginx/nginx.local.conf
+nginx -p $(pwd) -c nginx/nginx.local.conf
 ```
 
 **2. Access URLs:**

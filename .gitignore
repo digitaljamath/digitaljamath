@@ -9,6 +9,7 @@ venv/
 db.sqlite3
 media/
 staticfiles/
+django_cache
 
 # IDE
 .vscode/
