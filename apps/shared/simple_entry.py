@@ -17,47 +17,37 @@ from rest_framework.permissions import IsAdminUser
 from apps.jamath.models import Ledger
 
 
-SIMPLE_ENTRY_PROMPT = """You are a financial assistant that converts natural language transaction descriptions into structured accounting entries.
+SIMPLE_ENTRY_PROMPT = """You are a financial assistant for DigitalJamath.
+Convert natural language transaction descriptions into structured JSON for accounting.
 
 ## CURRENT CONTEXT
 Date: {current_date}
 User: {user_name}
 
-## AVAILABLE ACCOUNTS
+## AVAILABLE ACCOUNTS (Context Only)
 {available_accounts}
 
 ## TASK
-Parse the user's transaction description and output a JSON object with:
-- voucher_type: "RECEIPT" (income/donation) or "PAYMENT" (expense)
-- amount: numeric amount (extract from text)
-- account_name: best matching account from the list above
-- donor_or_vendor: person/entity name if mentioned
-- narration: professional narration for the transaction
-- confidence: "high" or "low" based on clarity of input
-
-## EXAMPLES
-
-Input: "Chanda by Rahman 500"
-Output: {{"voucher_type": "RECEIPT", "amount": 500, "account_name": "Donation - General", "donor_or_vendor": "Rahman", "narration": "Chanda received from Rahman", "confidence": "high"}}
-
-Input: "Friday collection 2500"
-Output: {{"voucher_type": "RECEIPT", "amount": 2500, "account_name": "Donation - General", "donor_or_vendor": "", "narration": "Friday Juma collection", "confidence": "high"}}
-
-Input: "Paid electrician 800 for fan repair"
-Output: {{"voucher_type": "PAYMENT", "amount": 800, "account_name": "Repairs & Maintenance", "donor_or_vendor": "Electrician", "narration": "Payment for fan repair work", "confidence": "high"}}
-
-Input: "zakat 5000 ahmed"
-Output: {{"voucher_type": "RECEIPT", "amount": 5000, "account_name": "Donation - Zakat", "donor_or_vendor": "Ahmed", "narration": "Zakat received from Ahmed", "confidence": "high"}}
-
-
+Output a JSON object with:
+- "voucher_type": "RECEIPT" (income/donation) or "PAYMENT" (expense)
+- "amount": numeric value (e.g., 500.00). If unclear, use 0.
+- "account_name": Extract the most relevant account name. If unsure, guess "General".
+- "donor_or_vendor": Name of person/entity involved. Empty string if none.
+- "narration": A professional summary string.
+- "confidence": "high" or "low".
 
 ## RULES
-1. ONLY output the JSON object, nothing else
-2. If amount is unclear, set confidence to "low" and amount to 0
-3. Match account_name to the closest match from available accounts
-4. Generate professional narration even from informal input
-"""
+1. **Zakat**: If input mentions "Zakat", set voucher_type based on context (usually RECEIPT if receiving, PAYMENT if distributing) and account_name to "Donation - Zakat" (for receipt) or "Zakat Distribution" (for payment).
+2. **Fallback**: If no specific account matches, use "Donation - General" (Receipt) or "Miscellaneous Expense" (Payment).
+3. **JSON Only**: Output ONLY valid JSON. No markdown formatting.
 
+## EXAMPLES
+Input: "received 500 from Ali for building fund"
+Output: {{"voucher_type": "RECEIPT", "amount": 500, "account_name": "Donation - Construction", "donor_or_vendor": "Ali", "narration": "Building fund donation received from Ali", "confidence": "high"}}
+
+Input: "paid electricity bill 1200"
+Output: {{"voucher_type": "PAYMENT", "amount": 1200, "account_name": "Electricity Charges", "donor_or_vendor": "GESCOM", "narration": "Electricity bill payment", "confidence": "high"}}
+"""
 
 class SimpleEntryView(APIView):
     """Parse natural language into structured accounting entry."""
@@ -71,7 +61,7 @@ class SimpleEntryView(APIView):
         
         # Get available accounts for context
         ledgers = Ledger.objects.all().values_list('name', flat=True)
-        available_accounts = "\n".join([f"- {name}" for name in ledgers[:30]])  # Limit for prompt size
+        available_accounts = "\n".join([f"- {name}" for name in ledgers[:50]])  # Increased limit
         
         # Get API key
         from apps.shared.models import SystemConfig
@@ -79,7 +69,6 @@ class SimpleEntryView(APIView):
         api_key = config.openrouter_api_key or os.environ.get('OPENROUTER_API_KEY')
         
         if not api_key:
-            # Fallback: simple rule-based parsing
             return self._fallback_parse(text)
         
         # Build prompt
@@ -97,18 +86,19 @@ class SimpleEntryView(APIView):
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://digitaljamath.com",
-                    "X-Title": "DigitalJamath - Simple Entry"
+                    "X-Title": "DigitalJamath - Quick Entry"
                 },
                 json={
-                    "model": "meta-llama/llama-3.2-3b-instruct:free",
+                    # Default: google/gemini-2.0-flash-001
+                    "model": os.environ.get('BASIRA_MODEL', 'google/gemini-2.0-flash-001'),
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": text}
                     ],
-                    "max_tokens": 300,
-                    "temperature": 0.1  # Low temperature for structured output
+                    "max_tokens": 500,
+                    "temperature": 0.1
                 },
-                timeout=15
+                timeout=20
             )
             
             if response.status_code == 200:

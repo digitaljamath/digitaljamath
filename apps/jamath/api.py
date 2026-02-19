@@ -771,6 +771,8 @@ class MemberPortalMemberView(APIView):
             education=request.data.get('education', ''),
             skills=request.data.get('skills', ''),
             requirements=request.data.get('requirements', ''),
+            is_employed=request.data.get('is_employed', False),
+            monthly_income=request.data.get('monthly_income'),
             is_head_of_family=False,
             is_approved=False,  # Needs Admin Approval
             is_alive=True

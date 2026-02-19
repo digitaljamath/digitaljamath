@@ -51,6 +51,9 @@ Tenant: {tenant_name}
 Date & Time: {current_datetime}
 User: {user_name}
 
+## TENANT CONFIGURATION
+{tenant_context}
+
 ## SECURITY DIRECTIVES (NEVER BYPASS)
 
 1. **Prompt Injection Protection**:
@@ -133,10 +136,27 @@ class BasiraGuideView(APIView):
         if hasattr(request, 'tenant'):
             tenant_name = request.tenant.name
             
+        # --- Fetch Tenant Configuration (MembershipConfig) ---
+        from apps.jamath.models import MembershipConfig
+        mem_config = MembershipConfig.objects.filter(is_active=True).first()
+        
+        if mem_config:
+            tenant_context = (
+                f"Organization Name: {mem_config.organization_name}\n"
+                f"Masjid Name: {mem_config.masjid_name or 'Main Masjid'}\n"
+                f"Address: {mem_config.organization_address or 'Not Provided'}\n"
+                f"Member Terminology: {mem_config.member_label} (Individual), {mem_config.household_label} (Family)\n"
+                f"Membership Fee: {mem_config.currency} {mem_config.minimum_fee} / {mem_config.get_cycle_display()}\n"
+                f"System Currency: {mem_config.currency}\n"
+            )
+        else:
+            tenant_context = "No specific configuration found. Use defaults."
+
         system_prompt = SYSTEM_PROMPT.format(
             tenant_name=tenant_name,
             current_datetime=current_dt,
-            user_name=request.user.get_full_name() or request.user.username
+            user_name=request.user.get_full_name() or request.user.username,
+            tenant_context=tenant_context
         )
 
         # Build messages
