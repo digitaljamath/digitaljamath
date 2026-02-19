@@ -1898,9 +1898,13 @@ class TallyExportView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-        from openpyxl.utils import get_column_letter
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            return Response({'error': 'Excel export library (openpyxl) is missing. Please contact support.'}, status=500)
+            
         from django.http import HttpResponse
         import io
 
