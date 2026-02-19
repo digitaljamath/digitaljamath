@@ -1236,8 +1236,9 @@ class PortalPaymentOrderView(APIView):
             customer_id = f"cust_{username}"
             order_id = f"order_{uuid.uuid4().hex[:10]}"
             
-            # Extract PAN from request to embed in Return URL (for persistence across redirect)
+            # Extract PAN and Zakat flag from request to embed in Return URL (for persistence across redirect)
             donor_pan = request.data.get('donor_pan', '')
+            is_zakat = request.data.get('is_zakat', False)
             
             payload = {
                 "order_amount": float(amount),
@@ -1248,7 +1249,7 @@ class PortalPaymentOrderView(APIView):
                     "customer_name": request.user.first_name or username
                 },
                 "order_meta": {
-                    "return_url": f"{request.scheme}://{request.get_host()}/portal/dashboard?order_id={order_id}&pan={donor_pan}"
+                    "return_url": f"{request.scheme}://{request.get_host()}/portal/dashboard?order_id={order_id}&pan={donor_pan}&is_zakat={str(is_zakat).lower()}"
                 }
             }
             
@@ -1297,6 +1298,9 @@ class PortalPaymentVerifyView(APIView):
         if not household:
             return Response({'error': 'Invalid member session'}, status=400)
 
+        narration = data.get('narration', '')
+        is_zakat = data.get('is_zakat', False)
+        
         # 1. RAZORPAY VERIFY
         if provider == MembershipConfig.GatewayProvider.RAZORPAY:
             try:
@@ -1310,11 +1314,18 @@ class PortalPaymentVerifyView(APIView):
                  
                  amount = Decimal(str(data.get('amount')))
                  donor_pan = data.get('donor_pan')
+                 
+                 # Combine Gateway ID and User Narration
+                 notes = f"Razorpay: {data.get('razorpay_payment_id')}"
+                 if narration:
+                     notes += f" | {narration}"
+
                  receipt = MembershipService.process_payment(
                      household, 
                      amount, 
-                     notes=f"Razorpay: {data.get('razorpay_payment_id')}",
-                     donor_pan=donor_pan
+                     notes=notes,
+                     donor_pan=donor_pan,
+                     is_zakat=is_zakat
                  )
                  return Response({'status': 'success', 'receipt': receipt.receipt_number})
             except Exception as e:
@@ -1340,11 +1351,18 @@ class PortalPaymentVerifyView(APIView):
                     if order_data.get('order_status') == 'PAID':
                         amount = Decimal(str(order_data.get('order_amount')))
                         donor_pan = data.get('donor_pan')
+                        
+                        # Combine Gateway ID and User Narration
+                        notes = f"Cashfree: {order_id}"
+                        if narration:
+                            notes += f" | {narration}"
+                            
                         receipt = MembershipService.process_payment(
                              household, 
                              amount, 
-                             notes=f"Cashfree: {order_id}",
-                             donor_pan=donor_pan
+                             notes=notes,
+                             donor_pan=donor_pan,
+                             is_zakat=is_zakat
                         )
                         return Response({'status': 'success', 'receipt': receipt.receipt_number})
                     else:

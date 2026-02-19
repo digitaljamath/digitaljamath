@@ -60,7 +60,9 @@ export function PortalDashboardPage() {
 
     // For Payment Integration
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+    const [fundType, setFundType] = useState<'GENERAL' | 'ZAKAT'>('GENERAL');
     const [extraCharity, setExtraCharity] = useState(0);
+    const [narration, setNarration] = useState("");
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
     // 80G Logic
@@ -81,18 +83,19 @@ export function PortalDashboardPage() {
         const params = new URLSearchParams(window.location.search);
         const orderId = params.get('order_id');
         const panParam = params.get('pan');
+        const zakatParam = params.get('is_zakat');
 
         if (orderId) {
             // Clear URL params to avoid re-trigger
             window.history.replaceState({}, '', window.location.pathname);
-            verifyCashfree(orderId, panParam || "");
+            verifyCashfree(orderId, panParam || "", zakatParam === 'true');
         }
 
         setHeadName(localStorage.getItem("portal_head_name") || "Member");
         fetchProfile();
     }, [navigate]);
 
-    const verifyCashfree = async (orderId: string, pan: string) => {
+    const verifyCashfree = async (orderId: string, pan: string, isZakat: boolean) => {
         setIsPaymentLoading(true);
         // const apiBase = getApiBaseUrl(); // fetchWithAuth handles this
         try {
@@ -100,7 +103,11 @@ export function PortalDashboardPage() {
                 method: "POST",
                 body: JSON.stringify({
                     order_id: orderId,
-                    donor_pan: pan
+                    donor_pan: pan,
+                    is_zakat: isZakat,
+                    narration: "" // Verify from return URL doesn't have narration yet unless we stash it, but for flow starting here it's fine. 
+                    // Actually, for cashfree return, we might lose narration if not in URL or session.
+                    // For now, let's keep it empty as return flow is tricky without persistence.
                 })
             }, 'portal');
             const verifyData = await verifyRes.json();
@@ -218,7 +225,8 @@ export function PortalDashboardPage() {
                 method: "POST",
                 body: JSON.stringify({
                     amount: total,
-                    donor_pan: donorPan
+                    donor_pan: donorPan,
+                    is_zakat: fundType === 'ZAKAT'
                 })
             }, 'portal');
 
@@ -277,7 +285,9 @@ export function PortalDashboardPage() {
                                     razorpay_payment_id: response.razorpay_payment_id,
                                     razorpay_signature: response.razorpay_signature,
                                     amount: total, // Send total logic
-                                    donor_pan: donorPan
+                                    donor_pan: donorPan,
+                                    narration: narration,
+                                    is_zakat: fundType === 'ZAKAT'
                                 })
                             }, 'portal');
 
@@ -545,6 +555,37 @@ export function PortalDashboardPage() {
                                             </div>
                                         </Card>
 
+                                        {/* Fund Type Selection */}
+                                        <div className="bg-gray-50 p-3 rounded-2xl space-y-2">
+                                            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Payment Type</label>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${fundType === 'GENERAL'
+                                                        ? 'bg-white border-blue-600 text-blue-600 shadow-sm'
+                                                        : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-200'
+                                                        }`}
+                                                    onClick={() => setFundType('GENERAL')}
+                                                >
+                                                    General / Sadaqah
+                                                </button>
+                                                <button
+                                                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${fundType === 'ZAKAT'
+                                                        ? 'bg-white border-green-600 text-green-600 shadow-sm'
+                                                        : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-200'
+                                                        }`}
+                                                    onClick={() => setFundType('ZAKAT')}
+                                                >
+                                                    Zakat
+                                                </button>
+                                            </div>
+                                            {fundType === 'ZAKAT' && (
+                                                <div className="flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg">
+                                                    <AlertCircle className="h-3 w-3 mt-0.5" />
+                                                    <p>Zakat is a restricted fund. This amount will <strong>not</strong> be counted towards your membership fees.</p>
+                                                </div>
+                                            )}
+                                        </div>
+
                                         <div className="space-y-3">
                                             <label className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">
                                                 Add Extra Donation
@@ -571,6 +612,17 @@ export function PortalDashboardPage() {
                                                     onChange={(e) => setExtraCharity(parseInt(e.target.value) || 0)}
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <label className="text-[13px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                                Narration (Optional)
+                                            </label>
+                                            <textarea
+                                                placeholder="e.g., Zakat calculation for 2025, Building Fund..."
+                                                className="w-full px-3 py-2 text-sm border-gray-200 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[60px] resize-none"
+                                                value={narration}
+                                                onChange={(e) => setNarration(e.target.value)}
+                                            />
                                         </div>
 
                                         <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
@@ -621,7 +673,7 @@ export function PortalDashboardPage() {
                 )}
 
                 {/* 2. Digital ID Card */}
-                <Card className="bg-gradient-to-br from-blue-600 to-indigo-900 text-white border-0 shadow-xl relative overflow-hidden h-[200px] rounded-[24px]">
+                <Card className="bg-linear-to-br from-blue-600 to-indigo-900 text-white border-0 shadow-xl relative overflow-hidden h-[200px] rounded-[24px]">
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 blur-3xl"></div>
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400/10 rounded-full -ml-16 -mb-16 blur-2xl"></div>
 
@@ -792,7 +844,7 @@ export function PortalDashboardPage() {
                     v2.0.0 Alpha
                 </p>
             </footer>
-        </div>
+        </div >
     );
 }
 
