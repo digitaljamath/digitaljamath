@@ -267,7 +267,7 @@ export function LoginPage() {
                     </div>
 
                     <div className="text-center text-sm text-gray-500 pt-4 border-t space-y-2">
-                        <p>Member? <a href="/portal/login" className="text-blue-600 hover:underline">Login via OTP</a></p>
+                        <p>Member? <a href="/portal/login" className="text-blue-600 hover:underline">Login</a></p>
                         {window.location.hostname.startsWith('demo.') && (
                             <p className="text-xs text-amber-600 font-medium bg-amber-50 py-2 rounded-md border border-amber-100 italic">
                                 Demo environment resets every 24 hours.

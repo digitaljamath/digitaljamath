@@ -184,7 +184,7 @@ export function TenantHomePage() {
                         </CardHeader>
                         <CardContent>
                             <Button asChild variant="outline" className="w-full border-green-600 text-green-600 hover:bg-green-50 h-11">
-                                <Link to="/portal/login">Login with OTP</Link>
+                                <Link to="/portal/login">Login</Link>
                             </Button>
                         </CardContent>
                     </Card>
