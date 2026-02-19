@@ -62,3 +62,8 @@ def send_bulk_payment_reminders(households, masjid_name, payment_base_url):
         pass
     
     return results
+
+def is_demo_tenant():
+    """Check if current tenant is demo/panambur/localhost."""
+    from django.db import connection
+    return connection.schema_name in ['public', 'demo', 'panambur', 'localhost']

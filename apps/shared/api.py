@@ -288,7 +288,7 @@ class TenantInfoView(generics.GenericAPIView):
             "name": tenant.name,
             "schema_name": tenant.schema_name,
             "is_public": False,
-            "telegram_bot_username": settings.TELEGRAM_BOT_USERNAME,
+
             "allow_manual_ledger": tenant.allow_manual_ledger,
             "setup_type": tenant.setup_type
         })

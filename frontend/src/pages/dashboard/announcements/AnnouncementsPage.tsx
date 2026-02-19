@@ -45,30 +45,9 @@ export function AnnouncementsPage() {
         expires_at: ""
     });
 
-    const [broadcastingId, setBroadcastingId] = useState<number | null>(null);
 
-    const handleBroadcast = async (announcement: Announcement) => {
-        setBroadcastingId(announcement.id);
-        try {
-            const res = await fetchWithAuth('/api/telegram/broadcast/', {
-                method: 'POST',
-                body: JSON.stringify({
-                    title: announcement.title,
-                    content: announcement.content
-                })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                showMessage('success', `Sent to ${data.sent} members via Telegram`);
-            } else {
-                showMessage('error', data.error || 'Failed to broadcast');
-            }
-        } catch (err) {
-            showMessage('error', 'Network error');
-        } finally {
-            setBroadcastingId(null);
-        }
-    };
+
+
 
     const fetchAnnouncements = async (statusFilter?: string) => {
         setLoading(true);
@@ -169,7 +148,7 @@ export function AnnouncementsPage() {
         <div className="space-y-6">
             {/* Toast Message */}
             {message && (
-                <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-lg shadow-lg ${message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                <div className={`fixed top-4 right-4 z-100 px-4 py-3 rounded-lg shadow-lg ${message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                     }`}>
                     {message.text}
                 </div>
@@ -308,22 +287,7 @@ export function AnnouncementsPage() {
                                     {item.expires_at ? (
                                         <span className="text-muted-foreground">Diffuses on: {format(new Date(item.expires_at), "MMM d, yyyy h:mm a")}</span>
                                     ) : <span />}
-                                    {item.status === 'PUBLISHED' && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                            onClick={() => handleBroadcast(item)}
-                                            disabled={broadcastingId === item.id}
-                                        >
-                                            {broadcastingId === item.id ? (
-                                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                            ) : (
-                                                <Send className="h-3 w-3 mr-1" />
-                                            )}
-                                            Telegram
-                                        </Button>
-                                    )}
+
                                 </CardFooter>
                             </Card>
                         ))

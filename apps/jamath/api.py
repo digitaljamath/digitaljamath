@@ -288,8 +288,7 @@ class MembershipConfigSerializer(serializers.ModelSerializer):
                   'household_label', 'member_label', 'masjid_name', 'is_active',
                   'payment_gateway_provider', 'razorpay_key_id', 'razorpay_key_secret',
                   'cashfree_app_id', 'cashfree_secret_key',
-                  'organization_name', 'organization_address', 'organization_pan', 'registration_number_80g',
-                  'telegram_enabled', 'telegram_auto_reminders', 'telegram_notify_profile_updates', 'telegram_notify_announcements']
+                  'organization_name', 'organization_address', 'organization_pan', 'registration_number_80g']
 
 
 # ============================================================================
@@ -420,7 +419,7 @@ class RequestOTPView(APIView):
     
     def post(self, request):
         from django.db import connection
-        from apps.shared.telegram import send_otp_via_telegram, is_demo_tenant
+        from apps.shared.utils import is_demo_tenant
         
         phone = request.data.get('phone_number')
         
@@ -469,13 +468,10 @@ class RequestOTPView(APIView):
             # Demo/Local: Don't actually send, just store
             pass
         else:
-            # Production: Send via Telegram
-            result = send_otp_via_telegram(phone, otp)
-            if not result.get('success'):
-                return Response({
-                    'error': result.get('error', 'Failed to send OTP'),
-                    'telegram_link_required': 'telegram_link_required' not in result.get('error', '').lower()
-                }, status=400)
+            # Production: No longer sending to Telegram
+             return Response({
+                'error': 'SMS Gateway not configured.'
+            }, status=400)
         
         return Response({
             'message': 'OTP sent successfully',
@@ -1473,109 +1469,7 @@ class ChangePasswordView(APIView):
         return Response({'message': 'Password changed successfully'})
 
 
-# ============================================================================
-# TELEGRAM NOTIFICATION APIs
-# ============================================================================
 
-class TelegramBroadcastAnnouncementView(APIView):
-    """Broadcast an announcement to all Telegram-linked members."""
-    permission_classes = [IsAdminUser]
-    
-    def post(self, request):
-        from apps.shared.telegram import broadcast_announcement
-        
-        title = request.data.get('title')
-        content = request.data.get('content')
-        
-        if not title or not content:
-            return Response({'error': 'Title and content are required'}, status=400)
-        
-        result = broadcast_announcement(title, content)
-        return Response({
-            'message': f"Announcement sent to {result['sent']} members",
-            'sent': result['sent'],
-            'failed': result['failed']
-        })
-
-
-class TelegramPaymentRemindersView(APIView):
-    """Send payment reminders to all pending households with linked Telegram."""
-    permission_classes = [IsAdminUser]
-    
-    def post(self, request):
-        from apps.shared.telegram import send_bulk_payment_reminders
-        
-        portal_url = request.data.get('portal_url')
-        result = send_bulk_payment_reminders(portal_url)
-        
-        return Response({
-            'message': f"Reminders sent to {result['sent']} households",
-            'sent': result['sent'],
-            'failed': result['failed'],
-            'skipped': result['skipped']
-        })
-
-
-class TelegramStatsView(APIView):
-    """Get Telegram linking stats for the tenant."""
-    permission_classes = [IsAdminUser]
-    
-    def get(self, request):
-        from apps.jamath.models import TelegramLink, Household
-        
-        total_households = Household.objects.count()
-        linked_count = TelegramLink.objects.filter(is_verified=True).count()
-        pending_renewals = Household.objects.filter(is_membership_active=False).count()
-        
-        return Response({
-            'total_households': total_households,
-            'telegram_linked': linked_count,
-            'pending_renewals': pending_renewals,
-            'link_percentage': round((linked_count / total_households * 100) if total_households else 0, 1)
-        })
-
-
-class TelegramIndividualReminderView(APIView):
-    """Send payment reminder to a specific household."""
-    permission_classes = [IsAdminUser]
-    
-    def post(self, request, household_id):
-        from apps.shared.telegram import send_individual_reminder
-        
-        try:
-            household = Household.objects.get(id=household_id)
-        except Household.DoesNotExist:
-            return Response({'error': 'Household not found'}, status=404)
-
-        # 1. Create Announcement (Persist reminder in Portal)
-        try:
-            head = household.members.filter(is_head_of_family=True).first()
-            head_name = head.full_name if head else "Member"
-            
-            Announcement.objects.create(
-                title="Membership Renewal Reminder",
-                content=f"Assalamu Alaikum {head_name},\n\nThis is a gentle reminder to renew your membership contribution.\n\nJazakallah Khair,\nDigitalJamath Team",
-                status='PUBLISHED',
-                target_household=household,
-                created_by=request.user if request.user.is_authenticated else None
-            )
-        except Exception as e:
-            # If announcement fails, looking at the error might be useful, but let's proceed to telegram
-            print(f"Error creating announcement: {e}")
-
-        # 2. Send Telegram (Notification)
-        portal_url = request.data.get('portal_url')
-        result = send_individual_reminder(household_id, portal_url)
-        
-        # We consider it a success if we created the announcement, OR if telegram worked.
-        # Since we just created the announcement above, we can return success.
-        # But let's check result for debugging context.
-        
-        message = 'Reminder sent successfully'
-        if not result['success']:
-             message += f" (Note: Telegram notification failed: {result.get('error')})"
-        
-        return Response({'message': message})
 
 
 # ============================================================================

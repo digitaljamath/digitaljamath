@@ -42,10 +42,7 @@ CACHES = {
 
 
 
-# Telegram Bot Configuration (for Member Portal OTP)
-# Get token from @BotFather
-TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', None)
-TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', 'DigitalJamathBot')
+
 
 # Razorpay Configuration
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', None)

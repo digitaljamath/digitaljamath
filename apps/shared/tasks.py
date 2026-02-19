@@ -129,17 +129,19 @@ def create_tenant_task(tenant_data):
             )
         logger.info("Admin user created.")
 
-        # 4. Standard Setup: Seed Chart of Accounts and Roles
+        # 4. Setup: Seed Chart of Accounts (Required for System)
+        try:
+            # Seed Chart of Accounts for ALL tenants
+            with schema_context(tenant.schema_name):
+                call_command('seed_ledger')
+            logger.info("Chart of Accounts seeded.")
+        except Exception as ledger_error:
+            logger.warning(f"Failed to seed ledger (non-fatal): {ledger_error}")
+
+        # 5. Standard Roles (Only for Standard Setup)
         if setup_type == 'STANDARD':
-            logger.info("Running standard setup (ledger + roles)...")
+            logger.info("Running standard setup (roles)...")
             
-            try:
-                # Seed Chart of Accounts
-                with schema_context(tenant.schema_name):
-                    call_command('seed_ledger')
-                logger.info("Chart of Accounts seeded.")
-            except Exception as ledger_error:
-                logger.warning(f"Failed to seed ledger (non-fatal): {ledger_error}")
             
             try:
                 # Seed Standard Roles

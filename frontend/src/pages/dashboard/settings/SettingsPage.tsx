@@ -28,100 +28,7 @@ import { Switch } from "@/components/ui/switch";
    So I should use `multi_replace_file_content`.
 */
 
-// Telegram Stats & Actions Panel
-function TelegramStatsPanel() {
-    const [stats, setStats] = useState<{ total_households: number; telegram_linked: number; pending_renewals: number; link_percentage: number } | null>(null);
-    const [isSending, setIsSending] = useState(false);
-    const [result, setResult] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchStats();
-    }, []);
-
-    const fetchStats = async () => {
-        try {
-            const res = await fetchWithAuth('/api/telegram/stats/');
-            if (res.ok) {
-                setStats(await res.json());
-            }
-        } catch (err) {
-            console.error("Failed to fetch Telegram stats", err);
-        }
-    };
-
-
-
-    const sendReminders = async () => {
-        setIsSending(true);
-        setResult(null);
-        try {
-            const res = await fetchWithAuth('/api/telegram/payment-reminders/', {
-                method: 'POST',
-                body: JSON.stringify({})
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setResult(`✅ Sent ${data.sent} reminders. (${data.skipped} skipped - no Telegram)`);
-            } else {
-                setResult(`❌ Error: ${data.error || 'Failed'}`);
-            }
-        } catch (err) {
-            setResult('❌ Network error');
-        } finally {
-            setIsSending(false);
-        }
-    };
-
-    if (!stats) {
-        return <div className="text-center py-4 text-gray-400"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>;
-    }
-
-    return (
-        <div className="space-y-4">
-            {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                    <Users className="h-5 w-5 mx-auto text-blue-600 mb-1" />
-                    <p className="text-2xl font-bold text-blue-700">{stats.telegram_linked}</p>
-                    <p className="text-xs text-blue-600">Linked on Telegram</p>
-                </div>
-                <div className="p-3 bg-amber-50 rounded-lg">
-                    <AlertCircle className="h-5 w-5 mx-auto text-amber-600 mb-1" />
-                    <p className="text-2xl font-bold text-amber-700">{stats.pending_renewals}</p>
-                    <p className="text-xs text-amber-600">Pending Renewals</p>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded-lg">
-                    <CheckCircle className="h-5 w-5 mx-auto text-emerald-600 mb-1" />
-                    <p className="text-2xl font-bold text-emerald-700">{stats.link_percentage}%</p>
-                    <p className="text-xs text-emerald-600">Coverage</p>
-                </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col md:flex-row gap-4 pt-4 border-t">
-                <Button
-                    onClick={sendReminders}
-                    disabled={isSending}
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                >
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                    Send Payment Reminders
-                </Button>
-            </div>
-
-            {result && (
-                <div className="p-3 bg-gray-50 rounded-lg text-sm text-center">
-                    {result}
-                </div>
-            )}
-
-            <p className="text-xs text-gray-500 text-center">
-                Members must link their Telegram from the Member Portal login page to receive notifications.
-            </p>
-
-        </div>
-    );
-}
 
 export function SettingsPage() {
     const { refreshConfig } = useConfig();
@@ -155,11 +62,7 @@ export function SettingsPage() {
     const [orgPan, setOrgPan] = useState("");
     const [reg80g, setReg80g] = useState("");
 
-    // Telegram Settings
-    const [telegramEnabled, setTelegramEnabled] = useState(true);
-    const [telegramAutoReminders, setTelegramAutoReminders] = useState(false);
-    const [telegramProfileUpdates, setTelegramProfileUpdates] = useState(true);
-    const [telegramAnnouncements, setTelegramAnnouncements] = useState(false);
+
 
     // Feature Flags
     const [allowManualLedger, setAllowManualLedger] = useState(false);
@@ -194,10 +97,7 @@ export function SettingsPage() {
                 setOrgPan(data.organization_pan || "");
                 setReg80g(data.registration_number_80g || "");
 
-                setTelegramEnabled(data.telegram_enabled ?? true);
-                setTelegramAutoReminders(data.telegram_auto_reminders ?? false);
-                setTelegramProfileUpdates(data.telegram_notify_profile_updates ?? true);
-                setTelegramAnnouncements(data.telegram_notify_announcements ?? false);
+
 
                 setAllowManualLedger(data.allow_manual_ledger ?? false);
                 setSetupType(data.setup_type || 'STANDARD');
@@ -257,10 +157,7 @@ export function SettingsPage() {
                     organization_pan: orgPan,
                     registration_number_80g: reg80g,
 
-                    telegram_enabled: telegramEnabled,
-                    telegram_auto_reminders: telegramAutoReminders,
-                    telegram_notify_profile_updates: telegramProfileUpdates,
-                    telegram_notify_announcements: telegramAnnouncements
+
                 })
             });
 
@@ -540,58 +437,7 @@ export function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Telegram Notifications */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Settings className="h-5 w-5" /> Telegram Notifications
-                    </CardTitle>
-                    <CardDescription>
-                        Send announcements and payment reminders via Telegram
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* Settings Toggles */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <Label>Enable Telegram Notifications</Label>
-                                <p className="text-xs text-gray-500">Master switch for all Telegram features</p>
-                            </div>
-                            <Switch checked={telegramEnabled} onCheckedChange={setTelegramEnabled} />
-                        </div>
 
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <Label>Notify on Profile Updates</Label>
-                                <p className="text-xs text-gray-500">Send notification when member profile is edited</p>
-                            </div>
-                            <Switch checked={telegramProfileUpdates} onCheckedChange={setTelegramProfileUpdates} disabled={!telegramEnabled} />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <Label>Auto-broadcast Announcements</Label>
-                                <p className="text-xs text-gray-500">Send to Telegram when announcement is published</p>
-                            </div>
-                            <Switch checked={telegramAnnouncements} onCheckedChange={setTelegramAnnouncements} disabled={!telegramEnabled} />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <Label>Auto Payment Reminders (Cron)</Label>
-                                <p className="text-xs text-gray-500">Automatically send reminders via scheduled job</p>
-                            </div>
-                            <Switch checked={telegramAutoReminders} onCheckedChange={setTelegramAutoReminders} disabled={!telegramEnabled} />
-                        </div>
-                    </div>
-
-                    <hr />
-
-                    {/* Stats + Manual Actions */}
-                    <TelegramStatsPanel />
-                </CardContent>
-            </Card>
             {/* Data Management - Only for Custom Setup */}
             {setupType === 'CUSTOM' && (
                 <Card>

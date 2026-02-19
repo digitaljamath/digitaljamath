@@ -27,7 +27,7 @@ from apps.jamath.api import (
     # RBAC
     StaffRoleViewSet, StaffMemberViewSet, MemberStaffLookupView,
     # Telegram
-    TelegramBroadcastAnnouncementView, TelegramPaymentRemindersView, TelegramStatsView, TelegramIndividualReminderView,
+
     # Receipts PDF
     ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView,
     # Reminders
@@ -140,11 +140,7 @@ urlpatterns = [
     path('api/ledger/export/', TallyExportView.as_view(), name='ledger-export'),
     path('api/ledger/receipt/<int:entry_id>/pdf/', ReceiptPDFView.as_view(), name='admin-receipt-pdf'),
     
-    # Telegram Notifications
-    path('api/telegram/broadcast/', TelegramBroadcastAnnouncementView.as_view(), name='telegram-broadcast'),
-    path('api/telegram/payment-reminders/', TelegramPaymentRemindersView.as_view(), name='telegram-reminders'),
-    path('api/telegram/stats/', TelegramStatsView.as_view(), name='telegram-stats'),
-    path('api/telegram/remind/<int:household_id>/', TelegramIndividualReminderView.as_view(), name='telegram-remind-individual'),
+
     
     # Basira AI Guide
     path('api/basira/', BasiraGuideView.as_view(), name='basira-guide'),
