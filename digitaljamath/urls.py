@@ -46,6 +46,7 @@ from apps.shared.api import    TenantRegistrationView, FindWorkspaceView, Verify
     RequestRegistrationOTPView, VerifyRegistrationOTPView, SetupTenantView, \
     PasswordResetRequestView, PasswordResetConfirmView, TenantInfoView, \
     RequestPasswordResetOTPView, VerifyPasswordResetOTPView, ConfirmPasswordResetOTPView
+from apps.shared.api_settings import SystemConfigView
 
 from apps.shared.ai_guide import BasiraGuideView
 from apps.shared.data_agent import BasiraDataAgentView
@@ -94,6 +95,7 @@ urlpatterns = [
     path('api/check-tenant/', CheckTenantView.as_view(), name='check-tenant'),
     path('api/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
     path('api/tenant-info/', TenantInfoView.as_view(), name='tenant-info'),
+    path('api/system-config/', SystemConfigView.as_view(), name='system-config'),
     
     # Admin Auth (username/password)
     path('api/auth/password-reset-otp/request/', RequestPasswordResetOTPView.as_view(), name='password-reset-otp-request'),

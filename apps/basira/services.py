@@ -59,8 +59,13 @@ async def audit_transaction(transaction_data: dict) -> AuditResult:
     }}
     """
 
+    # Fetch API Key from SystemConfig (DB) or Fallback to Env
+    from apps.shared.models import SystemConfig
+    config = SystemConfig.get_solo()
+    api_key = config.openrouter_api_key or OPENROUTER_API_KEY
+    
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://project-mizan.org", 
     }

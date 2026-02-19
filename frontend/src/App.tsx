@@ -18,6 +18,7 @@ import { SurveysPage } from './pages/dashboard/surveys/SurveysPage'
 import { SurveyBuilderPage } from './pages/dashboard/surveys/builder/SurveyBuilderPage'
 import { WelfarePage } from './pages/dashboard/welfare/WelfarePage'
 import { SettingsPage } from './pages/dashboard/settings/SettingsPage'
+import { SystemSettingsPage } from './pages/dashboard/settings/SystemSettingsPage'
 import { UsersPage } from './pages/dashboard/users/UsersPage'
 import { ActivityLogPage } from './pages/dashboard/users/ActivityLogPage'
 import { InboxPage } from './pages/dashboard/inbox/InboxPage'
@@ -92,6 +93,7 @@ function App() {
             <Route path="welfare" element={<WelfarePage />} />
 
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="users/activity" element={<ActivityLogPage />} />
             <Route path="inbox" element={<InboxPage />} />

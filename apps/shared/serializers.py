@@ -1,7 +1,16 @@
 from rest_framework import serializers
-from .models import Client, Domain
+from .models import Client, Domain, SystemConfig
 from django.db import transaction
 import os
+
+class SystemConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemConfig
+        fields = ['site_name', 'openrouter_api_key', 'brevo_api_key', 'brevo_email_sender', 'enable_registration', 'maintenance_mode']
+        extra_kwargs = {
+            'openrouter_api_key': {'write_only': True},
+            'brevo_api_key': {'write_only': True}
+        }
 
 class TenantRegistrationSerializer(serializers.ModelSerializer):
     domain = serializers.CharField()
