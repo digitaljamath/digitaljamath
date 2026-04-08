@@ -27,6 +27,8 @@ type DayBookEntry = {
     total_amount: string;
     donor_name?: string;
     supplier_name?: string;
+    is_zakat?: boolean;
+    created_by_name?: string;
 };
 
 type TrialBalanceItem = {
@@ -41,6 +43,9 @@ export function ReportsPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     // Day Book State
+    const [reportView, setReportView] = useState("GENERAL"); // Default to General to hide Zakat
+    const [sortOrder, setSortOrder] = useState("newest");
+    const [dayBookMode, setDayBookMode] = useState<"date" | "month">("date");
     const [dayBookDate, setDayBookDate] = useState(new Date().toISOString().split('T')[0]);
     const [dayBookEntries, setDayBookEntries] = useState<DayBookEntry[]>([]);
     const [dayBookSummary, setDayBookSummary] = useState({ total_receipts: 0, total_payments: 0 });
@@ -86,7 +91,22 @@ export function ReportsPage() {
     const fetchDayBook = async () => {
         setIsLoading(true);
         try {
-            const res = await fetchWithAuth(`/api/ledger/reports/day-book/?date=${dayBookDate}`);
+            let formattedDate = dayBookDate;
+            if (dayBookMode === 'month' && dayBookDate.length === 7) {
+                formattedDate = `${dayBookDate}-01`;
+            } else if (dayBookMode === 'date' && dayBookDate.length === 7) {
+                formattedDate = `${dayBookDate}-01`;
+            } else if (dayBookMode === 'month' && dayBookDate.length === 10) {
+                // Ignore the -DD part for backend if it still sends YYYY-MM-DD
+                formattedDate = `${dayBookDate.substring(0, 7)}-01`;
+            }
+
+            let url = `/api/ledger/reports/day-book/?date=${formattedDate}&sort=${sortOrder}&mode=${dayBookMode}`;
+            if (reportView !== 'ALL') {
+                url += `&fund_type=${reportView}`;
+            }
+
+            const res = await fetchWithAuth(url);
             if (res.ok) {
                 const data = await res.json();
                 setDayBookEntries(data.entries || []);
@@ -125,7 +145,7 @@ export function ReportsPage() {
         } else if (activeTab === 'trial-balance') {
             fetchTrialBalance();
         }
-    }, [activeTab]);
+    }, [activeTab, dayBookDate, reportView, sortOrder]);
 
     return (
         <div className="space-y-6">
@@ -157,16 +177,74 @@ export function ReportsPage() {
                                     <CardDescription>Daily record of all transactions</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Label>Date:</Label>
-                                    <Input
-                                        type="date"
-                                        value={dayBookDate}
-                                        onChange={(e) => setDayBookDate(e.target.value)}
-                                        className="w-40"
-                                    />
-                                    <Button onClick={fetchDayBook} disabled={isLoading}>
-                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
-                                    </Button>
+                                    <div className="flex bg-slate-100 rounded-lg p-1">
+                                        <button
+                                            onClick={() => setReportView('GENERAL')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${reportView === 'GENERAL' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                        >
+                                            General
+                                        </button>
+                                        <button
+                                            onClick={() => setReportView('ZAKAT')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${reportView === 'ZAKAT' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-900'}`}
+                                        >
+                                            Zakat Only
+                                        </button>
+                                        <button
+                                            onClick={() => setReportView('ALL')}
+                                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${reportView === 'ALL' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                        >
+                                            All
+                                        </button>
+                                    </div>
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+                                    <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex bg-slate-100 rounded-lg p-1">
+                                            <button
+                                                onClick={() => setDayBookMode('date')}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${dayBookMode === 'date' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                            >
+                                                Daily
+                                            </button>
+                                            <button
+                                                onClick={() => setDayBookMode('month')}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${dayBookMode === 'month' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                            >
+                                                Monthly
+                                            </button>
+                                        </div>
+                                        <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+                                        <div className="flex bg-slate-100 rounded-lg p-1">
+                                            <button
+                                                onClick={() => setSortOrder('newest')}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${sortOrder === 'newest' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                            >
+                                                Newest
+                                            </button>
+                                            <button
+                                                onClick={() => setSortOrder('oldest')}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${sortOrder === 'oldest' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                            >
+                                                Oldest
+                                            </button>
+                                        </div>
+                                        <div className="h-4 w-px bg-gray-300 mx-1"></div>
+                                        <Label>{dayBookMode === 'month' ? 'Month:' : 'Date:'}</Label>
+                                        <Input
+                                            type={dayBookMode === 'month' ? 'month' : 'date'}
+                                            value={dayBookMode === 'month' && dayBookDate.length === 10 ? dayBookDate.substring(0, 7) : dayBookDate}
+                                            onChange={(e) => setDayBookDate(e.target.value)}
+                                            className="w-36 h-9"
+                                        />
+                                        <Button onClick={fetchDayBook} disabled={isLoading} size="sm">
+                                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </CardHeader>
@@ -189,6 +267,7 @@ export function ReportsPage() {
                                                 <TableHead>Type</TableHead>
                                                 <TableHead>Narration</TableHead>
                                                 <TableHead>Party</TableHead>
+                                                <TableHead>Created By</TableHead>
                                                 <TableHead className="text-right">Amount (₹)</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -201,8 +280,24 @@ export function ReportsPage() {
                                                             {entry.voucher_type}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell>{entry.narration}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <span>{entry.narration}</span>
+                                                            {entry.is_zakat && (
+                                                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-200 text-blue-700 bg-blue-50">
+                                                                    Zakat
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell>{entry.donor_name || entry.supplier_name || '-'}</TableCell>
+                                                    <TableCell className="text-sm text-gray-500">
+                                                        {entry.created_by_name ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                                                {entry.created_by_name}
+                                                            </span>
+                                                        ) : '-'}
+                                                    </TableCell>
                                                     <TableCell className={`text-right font-medium ${entry.voucher_type === 'RECEIPT' ? 'text-green-600' : entry.voucher_type === 'PAYMENT' ? 'text-red-600' : ''}`}>
                                                         {entry.voucher_type === 'RECEIPT' ? '+' : entry.voucher_type === 'PAYMENT' ? '-' : ''}
                                                         {parseFloat(entry.total_amount || '0').toLocaleString('en-IN')}

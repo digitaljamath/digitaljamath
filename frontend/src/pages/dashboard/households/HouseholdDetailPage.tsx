@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Edit2, Loader2, MapPin, Phone, Plus, Trash2, User, Users, Send } from "lucide-react";
+import { ArrowLeft, Edit2, Loader2, MapPin, Phone, Plus, Trash2, User, Users, Send, CheckCircle, ShieldCheck, ShieldAlert } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -49,6 +50,9 @@ type Household = {
     members: Member[];
     member_count: number;
     head_name: string;
+    is_membership_active: boolean;
+    created_at?: string;
+    created_by_name?: string;
 };
 
 export function HouseholdDetailPage() {
@@ -108,7 +112,9 @@ export function HouseholdDetailPage() {
             const payload = {
                 ...memberForm,
                 household: household.id,
-                // Ensure correct types
+                // Ensure correct types for optional fields
+                dob: memberForm.dob || null,
+                monthly_income: memberForm.monthly_income ? memberForm.monthly_income : null,
                 is_alive: true,
                 is_approved: true
             };
@@ -128,7 +134,7 @@ export function HouseholdDetailPage() {
             setIsMemberDialogOpen(false);
             loadData(); // Reload to get updated list
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Error", description: "Failed to save member" });
+            toast({ variant: "destructive", title: "Error", description: error.message || "Failed to save member" });
         } finally {
             setIsMemberLoading(false);
         }
@@ -142,6 +148,31 @@ export function HouseholdDetailPage() {
             loadData();
         } catch {
             toast({ variant: "destructive", title: "Error", description: "Could not delete member" });
+        }
+    };
+
+    const handleVerifyToggle = async () => {
+        if (!household) return;
+
+        try {
+            const newStatus = !household.is_verified;
+            const res = await fetchWithAuth(`/api/jamath/households/${id}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_verified: newStatus })
+            });
+
+            if (!res.ok) throw new Error("Failed to update verification status");
+
+            const updated = await res.json();
+            setHousehold(prev => prev ? { ...prev, is_verified: updated.is_verified } : null);
+
+            toast({
+                title: newStatus ? "Household Verified" : "Verification Removed",
+                description: newStatus ? "This household is now marked as verified." : "This household is no longer verified."
+            });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Could not update status" });
         }
     };
 
@@ -199,28 +230,77 @@ export function HouseholdDetailPage() {
                             <h1 className="text-2xl font-bold tracking-tight">Household #{household.membership_id}</h1>
                             {household.is_verified && <Badge variant="secondary">Verified</Badge>}
                         </div>
-                        <p className="text-sm text-gray-500">{household.head_name} & Family</p>
+                        <p className="text-sm text-gray-500">
+                            {household.head_name} & Family
+                            {household.created_by_name && (
+                                <span className="ml-2 border-l pl-2">
+                                    Entry by <span className="font-medium text-gray-700">{household.created_by_name}</span>
+                                    {household.created_at && ` on ${format(new Date(household.created_at), "MMM d, yyyy")}`}
+                                </span>
+                            )}
+                        </p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={async () => {
-                            const res = await fetchWithAuth(`/api/telegram/remind/${id}/`, { method: 'POST', body: JSON.stringify({}) });
-                            if (res.ok) {
-                                toast({ title: 'Reminder sent via Telegram' });
-                            } else {
-                                const data = await res.json();
-                                toast({ title: 'Failed', description: data.error, variant: 'destructive' });
-                            }
-                        }}
-                    >
-                        <Send className="h-4 w-4 mr-2" /> Send Reminder
-                    </Button>
+                    {!household.is_membership_active && (
+                        <Button
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={async () => {
+                                if (!confirm("Activate membership for this household? This will record a manual payment.")) return;
+                                const res = await fetchWithAuth(`/api/jamath/households/${id}/activate_subscription/`, { method: 'POST' });
+                                if (res.ok) {
+                                    toast({ title: 'Membership Activated' });
+                                    window.location.reload();
+                                } else {
+                                    toast({ title: 'Failed', variant: 'destructive' });
+                                }
+                            }}
+                        >
+                            <CheckCircle className="h-4 w-4 mr-2" /> Activate Membership
+                        </Button>
+                    )}
+
                     <Button variant="outline" asChild>
                         <Link to={`/dashboard/households/${id}/edit`}>
                             <Edit2 className="h-4 w-4 mr-2" /> Edit Details
                         </Link>
+                    </Button>
+                    <Button
+                        variant={household.is_verified ? "outline" : "default"}
+                        className={household.is_verified ? "text-amber-600 border-amber-200 hover:bg-amber-50" : "bg-blue-600 hover:bg-blue-700"}
+                        onClick={handleVerifyToggle}
+                    >
+                        {household.is_verified ? (
+                            <>
+                                <ShieldAlert className="h-4 w-4 mr-2" /> Unverify
+                            </>
+                        ) : (
+                            <>
+                                <ShieldCheck className="h-4 w-4 mr-2" /> Verify Household
+                            </>
+                        )}
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={async () => {
+                            if (window.confirm("CRITICAL: Are you sure you want to delete this ENTIRE household? This action cannot be undone and will delete all members and data.")) {
+                                try {
+                                    const res = await fetchWithAuth(`/api/jamath/households/${id}/`, { method: 'DELETE' });
+                                    if (res.ok) {
+                                        toast({ title: 'Household Deleted', description: 'Redirecting...' });
+                                        // Wait a moment before redirect
+                                        setTimeout(() => window.location.href = "/dashboard/households", 1000);
+                                    } else {
+                                        const err = await res.text();
+                                        toast({ variant: 'destructive', title: 'Delete Failed', description: err || "Unknown error" });
+                                    }
+                                } catch (e) {
+                                    toast({ variant: 'destructive', title: 'Error', description: "Network error" });
+                                }
+                            }
+                        }}
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete Household
                     </Button>
                 </div>
             </div>
@@ -362,8 +442,59 @@ export function HouseholdDetailPage() {
                                 </Select>
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="dob">Date of Birth</Label>
-                                <Input type="date" id="dob" value={memberForm.dob} onChange={e => setMemberForm({ ...memberForm, dob: e.target.value })} />
+                                <Label>Date of Birth</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <select
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={memberForm.dob ? memberForm.dob.split('-')[2] : ''}
+                                        onChange={(e) => {
+                                            const day = e.target.value;
+                                            const current = memberForm.dob ? memberForm.dob.split('-') : ['', '', ''];
+                                            const month = current[1] || '01';
+                                            const year = current[0] || '2000';
+                                            if (day) setMemberForm({ ...memberForm, dob: `${year}-${month}-${day}` });
+                                        }}
+                                    >
+                                        <option value="">Day</option>
+                                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                            <option key={d} value={d.toString().padStart(2, '0')}>{d}</option>
+                                        ))}
+                                    </select>
+
+                                    <select
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={memberForm.dob ? memberForm.dob.split('-')[1] : ''}
+                                        onChange={(e) => {
+                                            const month = e.target.value;
+                                            const current = memberForm.dob ? memberForm.dob.split('-') : ['', '', ''];
+                                            const day = current[2] || '01';
+                                            const year = current[0] || '2000';
+                                            if (month) setMemberForm({ ...memberForm, dob: `${year}-${month}-${day}` });
+                                        }}
+                                    >
+                                        <option value="">Month</option>
+                                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                            <option key={m} value={(i + 1).toString().padStart(2, '0')}>{m}</option>
+                                        ))}
+                                    </select>
+
+                                    <select
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={memberForm.dob ? memberForm.dob.split('-')[0] : ''}
+                                        onChange={(e) => {
+                                            const year = e.target.value;
+                                            const current = memberForm.dob ? memberForm.dob.split('-') : ['', '', ''];
+                                            const day = current[2] || '01';
+                                            const month = current[1] || '01';
+                                            if (year) setMemberForm({ ...memberForm, dob: `${year}-${month}-${day}` });
+                                        }}
+                                    >
+                                        <option value="">Year</option>
+                                        {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                            <option key={y} value={y}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -502,6 +633,6 @@ export function HouseholdDetailPage() {
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }

@@ -85,7 +85,7 @@ class MembershipService:
     
     @staticmethod
     @transaction.atomic
-    def process_payment(household: Household, amount: Decimal, notes: str = "", donor_pan: str = None) -> Receipt:
+    def process_payment(household: Household, amount: Decimal, notes: str = "", donor_pan: str = None, created_by = None, is_zakat: bool = False) -> Receipt:
         """
         Process a membership payment.
         
@@ -115,23 +115,68 @@ class MembershipService:
             )
         
         # Calculate fee split
-        remaining_fee = subscription.minimum_required - subscription.amount_paid
-        
-        if remaining_fee <= 0:
-            # Already paid full fee, everything is donation
+        if is_zakat:
+            # Zakat cannot be used for membership fees
             membership_portion = Decimal('0.00')
             donation_portion = amount
-        elif amount >= remaining_fee:
-            # Covers remaining fee + extra as donation
-            membership_portion = remaining_fee
-            donation_portion = amount - remaining_fee
         else:
-            # Partial payment towards fee
-            membership_portion = amount
-            donation_portion = Decimal('0.00')
+            remaining_fee = subscription.minimum_required - subscription.amount_paid
+            
+            if remaining_fee <= 0:
+                # Already paid full fee, everything is donation
+                membership_portion = Decimal('0.00')
+                donation_portion = amount
+            elif amount >= remaining_fee:
+                # Covers remaining fee + extra as donation
+                membership_portion = remaining_fee
+                donation_portion = amount - remaining_fee
+            else:
+                # Partial payment towards fee
+                membership_portion = amount
+                donation_portion = Decimal('0.00')
         
-        # Update subscription total
-        subscription.amount_paid += amount
+        # Only update subscription paid amount if NOT Zakat (or if we decide Zakat shouldn't count towards dues)
+        # Zakat is restricted, so it strictly should NOT count towards "Membership Dues" which are usually for general upkeep.
+        if not is_zakat:
+            subscription.amount_paid += membership_portion # Only add the membership portion? Or total? 
+            # If standard flow: amount_paid tracks how much "fee" is paid.
+            # actually logic above: subscription.amount_paid += amount
+            # If I pay 2000 (1200 fee, 800 donation), amount_paid should be 1200 or 2000? 
+            # Looking at original code: `subscription.amount_paid += amount`
+            # This implies `amount_paid` tracks TOTAL money given? Or just fee?
+            # `remaining_fee = subscription.minimum_required - subscription.amount_paid`
+            # This implies `amount_paid` includes donations? That seems wrong if donation > fee.
+            # If I pay 10,000, 1200 fee, 8800 donation. `amount_paid` = 10,000. `remaining` = 1200 - 10000 = -8800.
+            # `Math.max(0, ...)` helps in frontend.
+            # But strictly `amount_paid` on subscription should probably track *credit towards fee*.
+            # However, `Subscription` model has `amount_paid` field.
+            # Let's stick to modifying `subscription.amount_paid` ONLY by `membership_portion` if `is_zakat` is False?
+            # Original code: `subscription.amount_paid += amount`
+            # If I change this behavior now, I might break existing assumptions.
+            # unique constraint: Zakat should definitely NOT increase `amount_paid` because that would mark membership as Active.
+            # So if is_zakat is True, we do NOT touch subscription.amount_paid.
+            pass
+        else:
+            subscription.amount_paid += membership_portion # We only add the portion that actually went to fee? 
+            # Wait, if original code was `+= amount`, then any donation counted towards fee?
+            # "remaining_fee = min_req - amount_paid".
+            # If I donate 500 (min 1200). Paid 500. Remaining 700.
+            # If I donate 2000 (min 1200). Paid 2000. Remaining -800.
+            # So yes, extra donation counts as "paid".
+            # But Zakat definitely shouldn't.
+            pass
+
+        # To be safe and consistent with previous logic:
+        if not is_zakat:
+             # If it's general, we add the whole amount (as per original logic `amount_paid += amount`)
+             # OR should we only add `membership_portion`?
+             # If I change it to `membership_portion`, I fix a potential bug where donation counts as fee... but maybe that was intended?
+             # Use `membership_portion` is safer for "Fee Tracking".
+             # But let's check original code again:
+             # `subscription.amount_paid += amount`
+             # I will stick to: If not Zakat, add `amount`. If Zakat, add 0.
+             subscription.amount_paid += amount
+
         subscription.update_status()
         
         # Generate receipt
@@ -143,11 +188,12 @@ class MembershipService:
             donation_portion=donation_portion,
             receipt_number=receipt_number,
             donor_pan=donor_pan,
-            notes=notes
+            notes=notes,
+            created_by=created_by
         )
         
         # LINK TO BAITUL MAAL (FINANCE)
-        MembershipService.create_journal_entry_for_receipt(receipt, household, membership_portion, donation_portion)
+        MembershipService.create_journal_entry_for_receipt(receipt, household, membership_portion, donation_portion, created_by, is_zakat=is_zakat)
         
         # TODO: Trigger notification (SMS/WhatsApp)
         # NotificationService.send_receipt(household.phone_number, receipt)
@@ -155,7 +201,7 @@ class MembershipService:
         return receipt
         
     @staticmethod
-    def create_journal_entry_for_receipt(receipt, household, fee_amt, donation_amt):
+    def create_journal_entry_for_receipt(receipt, household, fee_amt, donation_amt, created_by=None, is_zakat=False):
         """Create a Double-Entry Accounting Record for the receipt."""
         from .models import Ledger, JournalEntry, JournalItem
         
@@ -181,27 +227,40 @@ class MembershipService:
                      fund_type=Ledger.FundType.UNRESTRICTED_GENERAL
                  )
 
-            # Credit Account 2: Donations
-            donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, name__icontains="Donation").first()
-            if not donation_acct:
-                 donation_acct = Ledger.objects.create(
-                     name="General Donations", 
-                     code="4002", 
-                     account_type=Ledger.AccountType.INCOME, 
-                     fund_type=Ledger.FundType.UNRESTRICTED_GENERAL
-                 )
+            # Credit Account 2: Donations OR Zakat
+            if is_zakat:
+                donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, fund_type=Ledger.FundType.RESTRICTED_ZAKAT).first()
+                if not donation_acct:
+                     donation_acct = Ledger.objects.create(
+                         name="Zakat Fund (Income)", 
+                         code="4003", 
+                         account_type=Ledger.AccountType.INCOME, 
+                         fund_type=Ledger.FundType.RESTRICTED_ZAKAT
+                     )
+            else:
+                donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, name__icontains="Donation").first()
+                if not donation_acct:
+                     donation_acct = Ledger.objects.create(
+                         name="General Donations", 
+                         code="4002", 
+                         account_type=Ledger.AccountType.INCOME, 
+                         fund_type=Ledger.FundType.UNRESTRICTED_GENERAL
+                     )
             
             # 2. Create Voucher Header
             head_member = household.members.filter(is_head_of_family=True).first()
             
+            narration_prefix = "Online - Zakat" if is_zakat else "Online"
+            
             je = JournalEntry.objects.create(
                 voucher_type=JournalEntry.VoucherType.RECEIPT,
                 date=timezone.now().date(),
-                narration=f"Online - {receipt.receipt_number} ({receipt.notes or 'Payment'})",
+                narration=f"{narration_prefix} - {receipt.receipt_number} ({receipt.notes or 'Payment'})",
                 donor=head_member,
                 donor_pan=receipt.donor_pan or '',
                 payment_mode=JournalEntry.PaymentMode.UPI, # Assuming UPI/Online
-                is_finalized=True # Auto-finalize system entries? Valid logic.
+                is_finalized=True, # Auto-finalize system entries? Valid logic.
+                created_by=created_by
             )
             
             # 3. Create Line Items
@@ -233,7 +292,22 @@ class MembershipService:
              
             # 4. Validate and Save (Triggers constraints)
             je.clean() 
+            je.clean() 
             je.save()
+
+            from .models import ActivityLog
+            if created_by:
+                # Use total receipt amount
+                amount_str = f"₹{receipt.amount:g}"
+                action_desc = f"Received Payment of {amount_str} ({je.narration})"
+                ActivityLog.objects.create(
+                    user=created_by,
+                    action='CREATE',
+                    module='finance',
+                    model_name='Journal Entry',
+                    object_id=str(je.id),
+                    details=action_desc
+                )
             
         except Exception as e:
             # Log failure but do not rollback receipt? 
@@ -250,12 +324,13 @@ class MembershipService:
         """Get a summary of household's membership status."""
         subscription = MembershipService.get_current_subscription(household)
         
+        config = MembershipService.get_or_create_config()
         if not subscription:
             return {
                 'status': 'EXPIRED',
                 'is_active': False,
                 'amount_paid': Decimal('0.00'),
-                'minimum_required': Decimal('0.00'),
+                'minimum_required': config.minimum_fee,
                 'subscription': None
             }
         

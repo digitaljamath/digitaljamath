@@ -1,21 +1,26 @@
 from django.db import models
-from django_tenants.models import TenantMixin, DomainMixin
 import uuid
 
-class Client(TenantMixin):
+class Mosque(models.Model):
     name = models.CharField(max_length=100)
     owner_email = models.EmailField(default='admin@localhost.com') # To recover workspaces
     email_verified = models.BooleanField(default=False)
     verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
     created_on = models.DateField(auto_now_add=True)
-
+    
+    # Feature Flags
+    allow_manual_ledger = models.BooleanField(default=False, help_text="Allow this Mosque to use Manual Ledger (Advanced Finance Mode)")
+    
     # Add more fields here if needed (e.g. city, contact info)
     
     def __str__(self):
         return self.name
 
-class Domain(DomainMixin):
-    pass
+class MosqueScoped(models.Model):
+    mosque = models.ForeignKey(Mosque, on_delete=models.CASCADE, related_name='%(class)s_objects', null=True, blank=True)
+
+    class Meta:
+        abstract = True
 
 class SystemConfig(models.Model):
     """

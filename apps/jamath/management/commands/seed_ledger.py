@@ -5,7 +5,16 @@ from apps.jamath.models import Ledger
 class Command(BaseCommand):
     help = 'Seed the default Chart of Accounts for Mizan Ledger'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--mosque_id',
+            type=int,
+            help='ID of the Mosque to seed the ledger for',
+            default=None,
+        )
+
     def handle(self, *args, **options):
+        mosque_id = options.get('mosque_id')
         AT = Ledger.AccountType
         FT = Ledger.FundType
 
@@ -65,6 +74,7 @@ class Command(BaseCommand):
         for parent_data in chart:
             parent, created = Ledger.objects.get_or_create(
                 code=parent_data['code'],
+                mosque_id=mosque_id,
                 defaults={
                     'name': parent_data['name'],
                     'account_type': parent_data['type'],
@@ -81,6 +91,7 @@ class Command(BaseCommand):
             for child_data in parent_data.get('children', []):
                 child, created = Ledger.objects.get_or_create(
                     code=child_data['code'],
+                    mosque_id=mosque_id,
                     defaults={
                         'name': child_data['name'],
                         'account_type': child_data['type'],

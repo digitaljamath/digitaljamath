@@ -19,7 +19,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
     ArrowLeft, Plus, Eye, Printer, RotateCcw, Download, Loader2,
     TrendingUp, TrendingDown, FileText, Search, Filter
@@ -37,6 +37,7 @@ type JournalEntry = {
     supplier_name?: string;
     created_by_name?: string;
     is_finalized: boolean;
+    is_zakat?: boolean;
 };
 
 export function TransactionsPage() {
@@ -45,10 +46,12 @@ export function TransactionsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
 
-    // Filters
-    const [dateFrom, setDateFrom] = useState("");
-    const [dateTo, setDateTo] = useState("");
-    const [voucherType, setVoucherType] = useState("ALL");
+    const [searchParams] = useSearchParams();
+
+    // Filters (Initialize from URL if present)
+    const [dateFrom, setDateFrom] = useState(searchParams.get("from") || "");
+    const [dateTo, setDateTo] = useState(searchParams.get("to") || "");
+    const [voucherType, setVoucherType] = useState(searchParams.get("type") || "ALL");
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
@@ -62,6 +65,9 @@ export function TransactionsPage() {
             if (dateFrom) url += `from=${dateFrom}&`;
             if (dateTo) url += `to=${dateTo}&`;
             if (voucherType && voucherType !== 'ALL') url += `type=${voucherType}&`;
+
+            const excludeZakat = searchParams.get('exclude_zakat');
+            if (excludeZakat === 'true') url += `exclude_zakat=true&`;
 
             const res = await fetchWithAuth(url);
             if (res.ok) {
@@ -264,8 +270,15 @@ export function TransactionsPage() {
                                             </code>
                                         </TableCell>
                                         <TableCell>{getVoucherBadge(entry.voucher_type)}</TableCell>
-                                        <TableCell className="max-w-[200px] truncate" title={entry.narration}>
-                                            {entry.narration}
+                                        <TableCell className="max-w-[200px]" title={entry.narration}>
+                                            <div className="flex items-center gap-2">
+                                                <span className="truncate">{entry.narration}</span>
+                                                {entry.is_zakat && (
+                                                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-blue-200 text-blue-700 bg-blue-50">
+                                                        Zakat
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell className={`text-right font-bold ${entry.voucher_type === 'RECEIPT' ? 'text-green-600' :
                                             entry.voucher_type === 'PAYMENT' ? 'text-red-600' : 'text-blue-600'
@@ -277,7 +290,11 @@ export function TransactionsPage() {
                                             {entry.donor_name || entry.supplier_name || '-'}
                                         </TableCell>
                                         <TableCell className="text-sm text-gray-500">
-                                            {entry.created_by_name || '-'}
+                                            {entry.created_by_name ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                                    {entry.created_by_name}
+                                                </span>
+                                            ) : '-'}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex justify-end gap-1">

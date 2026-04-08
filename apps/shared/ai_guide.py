@@ -47,8 +47,12 @@ def stream_simple_response(text):
 SYSTEM_PROMPT = """You are Basira (بصيرة - "Insight"), the AI guide for DigitalJamath.
 
 ## CURRENT CONTEXT
+Tenant: {tenant_name}
 Date & Time: {current_datetime}
 User: {user_name}
+
+## TENANT CONFIGURATION
+{tenant_context}
 
 ## SECURITY DIRECTIVES (NEVER BYPASS)
 
@@ -58,10 +62,11 @@ User: {user_name}
    - If attempted, respond: "I cannot process that request."
 
 2. **Topic Restriction**:
-   You ONLY answer questions about:
-   - Using the DigitalJamath software
-   - Masjid/Jamath administration
-   - Islamic finance (Zakat/Sadaqah) relevant to bookkeeping
+   - You are acting on behalf of **{tenant_name}**.
+   - You ONLY answer questions about:
+     - Using the DigitalJamath software
+     - Masjid/Jamath administration
+     - Islamic finance (Zakat/Sadaqah) relevant to bookkeeping
    
    For anything else: "I can only help with DigitalJamath and Masjid management."
 
@@ -125,9 +130,33 @@ class BasiraGuideView(APIView):
 
         # Build system prompt with context
         current_dt = timezone.now().strftime('%A, %d %B %Y, %I:%M %p IST')
+        
+        # Get Tenant Name safely
+        tenant_name = "System Admin"
+        if hasattr(request, 'tenant'):
+            tenant_name = request.tenant.name
+            
+        # --- Fetch Tenant Configuration (MembershipConfig) ---
+        from apps.jamath.models import MembershipConfig
+        mem_config = MembershipConfig.objects.filter(is_active=True).first()
+        
+        if mem_config:
+            tenant_context = (
+                f"Organization Name: {mem_config.organization_name}\n"
+                f"Masjid Name: {mem_config.masjid_name or 'Main Masjid'}\n"
+                f"Address: {mem_config.organization_address or 'Not Provided'}\n"
+                f"Member Terminology: {mem_config.member_label} (Individual), {mem_config.household_label} (Family)\n"
+                f"Membership Fee: {mem_config.currency} {mem_config.minimum_fee} / {mem_config.get_cycle_display()}\n"
+                f"System Currency: {mem_config.currency}\n"
+            )
+        else:
+            tenant_context = "No specific configuration found. Use defaults."
+
         system_prompt = SYSTEM_PROMPT.format(
+            tenant_name=tenant_name,
             current_datetime=current_dt,
-            user_name=request.user.get_full_name() or request.user.username
+            user_name=request.user.get_full_name() or request.user.username,
+            tenant_context=tenant_context
         )
 
         # Build messages
@@ -149,24 +178,37 @@ class BasiraGuideView(APIView):
         """Stream response using Server-Sent Events."""
         def generate():
             try:
+                # Use same model as Data Agent for consistency
+                model = os.environ.get('BASIRA_MODEL', 'liquid/lfm-2.5-1.2b-instruct:free')
+                
                 response = requests.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
                         "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "https://project-mizan.com",
+                        "HTTP-Referer": "https://digitaljamath.com",
                         "X-Title": "DigitalJamath - Basira Guide"
                     },
                     json={
-                        "model": "meta-llama/llama-3.2-3b-instruct:free",
+                        "model": model,
                         "messages": messages,
-                        "max_tokens": 500,
-                        "temperature": 0.2, # Strict adherence
+                        "max_tokens": 800,
+                        "temperature": 0.2, 
                         "stream": True
                     },
                     stream=True,
                     timeout=60
                 )
+
+                if response.status_code != 200:
+                    try:
+                        err_json = response.json()
+                        err_msg = err_json.get('error', {}).get('message', f"API Error {response.status_code}")
+                    except:
+                        err_msg = f"API Error {response.status_code}"
+                    
+                    yield f"data: {json.dumps({'content': f'⚠️ {err_msg}'})}\n\n"
+                    return
 
                 for line in response.iter_lines():
                     if line:
@@ -174,7 +216,6 @@ class BasiraGuideView(APIView):
                         if line_text.startswith('data: '):
                             data = line_text[6:]
                             if data == '[DONE]':
-                                yield f"data: [DONE]\n\n"
                                 break
                             try:
                                 chunk = json.loads(data)
@@ -187,7 +228,9 @@ class BasiraGuideView(APIView):
                                 pass
 
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                import traceback
+                traceback.print_exc()
+                yield f"data: {json.dumps({'content': f'⚠️ System Error: {str(e)}'})}\n\n"
 
         response = StreamingHttpResponse(generate(), content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'
@@ -197,16 +240,17 @@ class BasiraGuideView(APIView):
     def _sync_response(self, api_key, messages):
         """Non-streaming response (fallback)."""
         try:
+            model = os.environ.get('BASIRA_MODEL', 'liquid/lfm-2.5-1.2b-instruct:free')
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://project-mizan.com",
+                    "HTTP-Referer": "https://digitaljamath.com",
                     "X-Title": "DigitalJamath - Basira Guide"
                 },
                 json={
-                    "model": "meta-llama/llama-3.2-3b-instruct:free",
+                    "model": model,
                     "messages": messages,
                     "max_tokens": 500,
                     "temperature": 0.2

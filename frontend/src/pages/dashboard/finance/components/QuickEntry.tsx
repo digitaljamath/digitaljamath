@@ -92,12 +92,14 @@ export function QuickEntry() {
                             <span className="text-red-700">Payment</span>
                         </Link>
                     </Button>
-                    <Button variant="outline" className="flex-1 min-w-[120px] border-blue-200 hover:bg-blue-50 hover:border-blue-300" asChild>
-                        <Link to="/dashboard/finance/voucher?type=JOURNAL">
-                            <FileText className="h-4 w-4 mr-2 text-blue-600" />
-                            <span className="text-blue-700">Journal</span>
-                        </Link>
-                    </Button>
+                    {localStorage.getItem("financeMode") === "ADVANCED" && (
+                        <Button variant="outline" className="flex-1 min-w-[120px] border-blue-200 hover:bg-blue-50 hover:border-blue-300" asChild>
+                            <Link to="/dashboard/finance/voucher?type=JOURNAL">
+                                <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                                <span className="text-blue-700">Journal</span>
+                            </Link>
+                        </Button>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-3 text-xs text-gray-400">

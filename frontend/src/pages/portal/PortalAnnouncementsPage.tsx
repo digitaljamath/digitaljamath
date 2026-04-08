@@ -5,6 +5,7 @@ import { ArrowLeft, Megaphone, Calendar } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { getApiBaseUrl } from "@/lib/config";
+import { fetchWithAuth } from "@/lib/api";
 
 interface Announcement {
     id: number;
@@ -12,6 +13,9 @@ interface Announcement {
     content: string;
     published_at: string;
     expires_at?: string;
+    image?: string | null;
+    is_fundraiser?: boolean;
+    fundraising_target?: string | null;
 }
 
 export function PortalAnnouncementsPage() {
@@ -25,14 +29,7 @@ export function PortalAnnouncementsPage() {
 
     const fetchAnnouncements = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const apiBase = getApiBaseUrl();
-            const res = await fetch(`${apiBase}/api/portal/announcements/`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const res = await fetchWithAuth(`/api/portal/announcements/`, {}, 'portal');
 
             if (res.ok) {
                 const data = await res.json();
@@ -77,20 +74,42 @@ export function PortalAnnouncementsPage() {
                 ) : (
                     <div className="space-y-4">
                         {announcements.map((announcement) => (
-                            <Card key={announcement.id} className="border-0 shadow-sm rounded-2xl hover:shadow-md transition-shadow">
-                                <CardHeader>
+                            <Card key={announcement.id} className="border-0 shadow-sm rounded-2xl hover:shadow-md transition-shadow overflow-hidden">
+                                {announcement.image && (
+                                    <div className="w-full h-48 bg-gray-100 relative">
+                                        <img 
+                                            src={announcement.image.startsWith('http') ? announcement.image : `${getApiBaseUrl()}${announcement.image}`} 
+                                            alt={announcement.title} 
+                                            className="w-full h-full object-cover" 
+                                        />
+                                    </div>
+                                )}
+                                <CardHeader className={announcement.image ? "pt-4" : ""}>
                                     <div className="flex justify-between items-start">
-                                        <CardTitle className="text-base font-bold">{announcement.title}</CardTitle>
-                                        <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                                        <div className="space-y-1 pr-2">
+                                            <CardTitle className="text-base font-bold">{announcement.title}</CardTitle>
+                                            {announcement.is_fundraiser && (
+                                                <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                                    Fundraiser Campaign
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium shrink-0">
                                             <Calendar className="h-3 w-3" />
                                             {format(new Date(announcement.published_at), 'dd MMM yyyy')}
                                         </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                                    <p className="text-sm text-gray-600 whitespace-pre-wrap mb-4">
                                         {announcement.content}
                                     </p>
+                                    
+                                    {announcement.is_fundraiser && (
+                                        <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm mt-2">
+                                            Donate Now
+                                        </Button>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))}

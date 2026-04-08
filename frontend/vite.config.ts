@@ -15,7 +15,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5173,
+    host: true, // Allow connections from nginx
+    allowedHosts: true, // Allow all hosts (*.localhost)
+    cors: true, // Enable CORS
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -23,4 +26,15 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 3000,
+    host: true,
+    allowedHosts: ['localhost', '127.0.0.1', '*.digitaljamath.com', '.localhost', '.127.0.0.1', '.digitaljamath.com', '.*.digitaljamath.com', 'digitaljamath.com'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: false,
+      },
+    },
+  }
 })

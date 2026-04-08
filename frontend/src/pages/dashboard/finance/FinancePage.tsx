@@ -18,6 +18,8 @@ type JournalEntry = {
     total_amount: string;
     donor_name?: string;
     supplier_name?: string;
+    is_zakat?: boolean;
+    created_by_name?: string;
 };
 
 type LedgerAccount = {
@@ -25,20 +27,28 @@ type LedgerAccount = {
     code: string;
     name: string;
     account_type: string;
+    fund_type?: string;
     balance: string;
 };
 
 export function FinancePage() {
     const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
+    const [stats, setStats] = useState({
+        income: "0",
+        expense: "0",
+        general_balance: "0",
+        zakat_balance: "0"
+    });
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         async function fetchData() {
             try {
-                const [entriesRes, accountsRes] = await Promise.all([
+                const [entriesRes, accountsRes, statsRes] = await Promise.all([
                     fetchWithAuth('/api/ledger/journal-entries/'),
-                    fetchWithAuth('/api/ledger/accounts/?flat=1')
+                    fetchWithAuth('/api/ledger/accounts/?flat=1'),
+                    fetchWithAuth('/api/ledger/reports/dashboard-stats/')
                 ]);
 
                 if (entriesRes.ok) {
@@ -50,6 +60,16 @@ export function FinancePage() {
                     const data = await accountsRes.json();
                     setAccounts(data);
                 }
+
+                if (statsRes.ok) {
+                    const data = await statsRes.json();
+                    setStats({
+                        income: data.income_this_month,
+                        expense: data.expense_this_month,
+                        general_balance: data.general_balance,
+                        zakat_balance: data.zakat_balance
+                    });
+                }
             } catch (error) {
                 console.error("Failed to fetch finance data", error);
             } finally {
@@ -59,14 +79,9 @@ export function FinancePage() {
         fetchData();
     }, []);
 
-    // Calculate summary balances
-    const cashBalance = accounts
-        .filter(a => ['1001', '1002'].includes(a.code))
-        .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
-
-    const zakatBalance = accounts
-        .filter(a => a.code === '1003')
-        .reduce((sum, a) => sum + parseFloat(a.balance || '0'), 0);
+    // Use backend-calculated stats for accurate Fund Accounting
+    const generalBalance = parseFloat(stats.general_balance);
+    const zakatBalance = parseFloat(stats.zakat_balance);
 
     const getVoucherIcon = (type: string) => {
         switch (type) {
@@ -122,11 +137,13 @@ export function FinancePage() {
                     <p className="text-gray-500 mt-1">The Mizan Ledger - Double-Entry Accounting</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" asChild>
-                        <Link to="/dashboard/finance/accounts">
-                            <Building2 className="mr-2 h-4 w-4" /> Chart of Accounts
-                        </Link>
-                    </Button>
+                    {(localStorage.getItem("financeMode") === "ADVANCED") && (
+                        <Button variant="outline" asChild>
+                            <Link to="/dashboard/finance/accounts">
+                                <Building2 className="mr-2 h-4 w-4" /> Chart of Accounts
+                            </Link>
+                        </Button>
+                    )}
                     <Button asChild>
                         <Link to="/dashboard/finance/voucher">
                             <Plus className="mr-2 h-4 w-4" /> New Entry
@@ -141,46 +158,30 @@ export function FinancePage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-linear-to-br from-emerald-500 to-green-600 text-white">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium opacity-90">Cash & Bank</CardTitle>
+                        <CardTitle className="text-sm font-medium opacity-90">Total Available Balance</CardTitle>
+                        {<CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>}
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{cashBalance.toLocaleString('en-IN')}</div>
+                        <div className="text-2xl font-bold">₹{generalBalance.toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                <Card className="bg-linear-to-br from-blue-500 to-indigo-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Zakat Fund</CardTitle>
+                        <CardDescription className="text-blue-100 text-xs">Restricted</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">₹{zakatBalance.toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">This Month Income</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">₹0</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">This Month Expenses</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">₹0</div>
-                    </CardContent>
-                </Card>
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-2 ${localStorage.getItem("financeMode") === "ADVANCED" ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
                 <Link to="/dashboard/finance/voucher?type=RECEIPT">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-green-300">
                         <CardContent className="pt-6 text-center">
@@ -201,15 +202,22 @@ export function FinancePage() {
                     </Card>
                 </Link>
 
-                <Link to="/dashboard/finance/voucher?type=JOURNAL">
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-300">
-                        <CardContent className="pt-6 text-center">
-                            <FileText className="h-8 w-8 mx-auto text-blue-500 mb-2" />
-                            <p className="font-medium">Journal Entry</p>
-                            <p className="text-xs text-gray-500">Adjustments</p>
-                        </CardContent>
-                    </Card>
-                </Link>
+                {/* Advanced Actions - Only for Accountant Mode */}
+                {(localStorage.getItem("financeMode") === "ADVANCED") && (
+                    <>
+                        <Link to="/dashboard/finance/voucher?type=JOURNAL">
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-300">
+                                <CardContent className="pt-6 text-center">
+                                    <FileText className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                                    <p className="font-medium">Journal Entry</p>
+                                    <p className="text-xs text-gray-500">Adjustments</p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+
+                        {/* Note: View All and Reports are useful for everyone, but if Chart of Accounts is advanced... */}
+                    </>
+                )}
 
                 <Link to="/dashboard/finance/reports">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-purple-300">
@@ -247,9 +255,21 @@ export function FinancePage() {
                                             {getVoucherIcon(entry.voucher_type)}
                                         </div>
                                         <div>
-                                            <p className="font-medium">{entry.narration}</p>
-                                            <p className="text-sm text-gray-500">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium">{entry.narration}</p>
+                                                {entry.is_zakat && (
+                                                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                        Zakat
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
                                                 {entry.voucher_number} • {new Date(entry.date).toLocaleDateString('en-IN')}
+                                                {entry.created_by_name && (
+                                                    <span className="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0.5 rounded-md border border-gray-200">
+                                                        Entry by: {entry.created_by_name}
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                     </div>

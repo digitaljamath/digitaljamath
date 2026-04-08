@@ -725,6 +725,77 @@
             margin-top: 16px;
             line-height: 1.5;
         }
+
+        /* Dropdown Styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-btn {
+            font-family: inherit;
+            cursor: pointer;
+            padding: 10px 20px;
+        }
+
+        .dropdown:hover .dropdown-btn {
+            color: white;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 220px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.05);
+            z-index: 100;
+            padding: 8px;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .dropdown-content a {
+            color: var(--text);
+            padding: 10px 16px;
+            text-decoration: none;
+            display: block;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f3f4f6;
+            color: var(--accent-blue);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 8px 0;
+        }
+
+        .dropdown-highlight {
+            color: var(--accent-green) !important;
+            font-weight: 600;
+        }
+        
+        .dropdown-highlight:hover {
+            background-color: rgba(16, 185, 129, 0.05) !important;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -10px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
     </style>
 </head>
 
@@ -745,7 +816,16 @@
                 <a href="#features">Features</a>
                 <a href="#pricing">Pricing</a>
                 <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
-                <a href="/find-masjid" class="btn btn-outline">Find Masjid</a>
+                <a href="http://localhost:5173/find-masjid" class="btn btn-outline">Find Masjid</a>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-btn">Login ▼</button>
+                    <div class="dropdown-content">
+                        <a href="http://localhost:5173/auth/masjid/login">Masjid Admin Login</a>
+                        <a href="http://localhost:5173/portal/login">User Portal Login</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="http://localhost:5173/register" class="dropdown-highlight">Register New Masjid</a>
+                    </div>
+                </div>
             </nav>
             <button class="menu-toggle" aria-label="Toggle menu" onclick="toggleMenu()">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -760,7 +840,12 @@
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
             <a href="https://github.com/digitaljamath/digitaljamath" target="_blank">GitHub</a>
-            <a href="/find-masjid" class="btn btn-primary">Find Masjid</a>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 10px 0; width: 100%;">
+            <a href="http://localhost:5173/auth/masjid/login" style="color: var(--accent-blue);">Masjid Admin Login</a>
+            <a href="http://localhost:5173/portal/login" style="color: var(--accent-blue);">User Portal Login</a>
+            <a href="http://localhost:5173/register" style="color: var(--accent-green); font-weight: 600;">Register New Masjid</a>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 10px 0; width: 100%;">
+            <a href="http://localhost:5173/find-masjid" class="btn btn-primary">Find Masjid</a>
         </nav>
 
     </header>
@@ -775,8 +860,7 @@
                 automation. Free and open source.
             </p>
             <div class="hero-buttons">
-                <a href="https://demo.digitaljamath.com" class="btn btn-demo">Live Demo</a>
-                <a href="/register" class="btn btn-primary">Get Started Free</a>
+                <a href="/start" class="btn btn-primary">Get Started Free</a>
                 <a href="https://github.com/digitaljamath/digitaljamath" target="_blank" class="btn btn-outline">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path
@@ -849,8 +933,7 @@
                 <div class="feature-card">
                     <div class="feature-icon orange">📢</div>
                     <h3>Announcements</h3>
-                    <p>Broadcast important updates via Telegram. Schedule announcements and track delivery to your
-                        community.</p>
+                    <p>Broadcast important updates to your community. Schedule announcements and track delivery.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon pink">🤖</div>
@@ -989,7 +1072,7 @@
                 <h2>Ready to modernize your Masjid?</h2>
                 <p>Self-hosted, privacy-first, and completely free. Deploy in minutes.</p>
                 <div class="cta-buttons">
-                    <a href="/register" class="btn btn-primary">Get Started Free</a>
+                    <a href="/start" class="btn btn-primary">Get Started Free</a>
                     <a href="https://github.com/digitaljamath/digitaljamath" target="_blank"
                         class="btn btn-outline">View Documentation</a>
                 </div>
@@ -1024,6 +1107,26 @@
         function toggleMenu() {
             const nav = document.getElementById('mobileNav');
             nav.classList.toggle('open');
+        }
+
+        /**
+         * Build a subdomain URL based on current window location
+         * @param {string} subdomain - The subdomain to prepend (e.g., "demo")
+         * @returns {string} Full URL like "http://demo.localhost:3000" or "https://demo.digitaljamath.com"
+         */
+        function getSubdomainUrl(subdomain) {
+            const protocol = window.location.protocol; // "http:" or "https:"
+            const hostname = window.location.hostname; // "localhost" or "digitaljamath.com"
+            const port = window.location.port; // "3000" or "" (empty for default ports)
+
+            // Build the subdomain URL
+            const portSuffix = port ? ':' + port : '';
+            return `${protocol}//${subdomain}.${hostname}${portSuffix}`;
+        }
+
+        function redirectToSubdomain(subdomain) {
+            const url = getSubdomainUrl(subdomain);
+            window.location.href = url;
         }
     </script>
 </body>

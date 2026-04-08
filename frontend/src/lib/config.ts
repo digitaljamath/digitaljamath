@@ -14,6 +14,15 @@ export function getApiBaseUrl(): string {
     return ''
 }
 
+export function getLandingPageUrl(): string {
+    // If we're on the local Vite dev server, redirect back to the local Nginx proxy
+    if (window.location.port === '5173' || window.location.port === '5174') {
+        return 'http://127.0.0.1/'
+    }
+    // In production, Nginx serves the root / as the Django landing page
+    return '/'
+}
+
 export const APP_VERSION = '1.0.0';
 
 /**

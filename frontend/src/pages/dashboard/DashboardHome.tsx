@@ -1,7 +1,8 @@
 import { getApiBaseUrl } from "@/lib/config";
+import { useRbac } from "@/context/RbacContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
-import { Users, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, Receipt, UserPlus, Clock } from "lucide-react";
+import { Users, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, Receipt, UserPlus, Clock, Megaphone } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type Stats = {
@@ -10,6 +11,9 @@ type Stats = {
     transactions: number;
     pendingRenewals: number;
     totalIncome: number;
+    incomeThisMonth: number;
+    expenseThisMonth: number;
+    debugError?: string;
 };
 
 type ActivityItem = {
@@ -22,7 +26,11 @@ type ActivityItem = {
 };
 
 export function DashboardHome() {
-    const [stats, setStats] = useState<Stats>({ households: 0, members: 0, transactions: 0, pendingRenewals: 0, totalIncome: 0 });
+    const { user } = useRbac();
+    const [stats, setStats] = useState<Stats>({
+        households: 0, members: 0, transactions: 0, pendingRenewals: 0,
+        totalIncome: 0, incomeThisMonth: 0, expenseThisMonth: 0
+    });
     const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -37,36 +45,30 @@ export function DashboardHome() {
 
                 const apiBase = getApiBaseUrl();
 
-                const [householdsRes, transactionsRes] = await Promise.all([
+                const [householdsRes, transactionsRes, statsRes] = await Promise.all([
                     fetch(`${apiBase}/api/jamath/households/`, { headers }),
-                    fetch(`${apiBase}/api/ledger/journal-entries/`, { headers })
+                    fetch(`${apiBase}/api/ledger/journal-entries/`, { headers }),
+                    fetch(`${apiBase}/api/jamath/finance-summary/`, { headers })
                 ]);
 
-                const [households, transactions] = await Promise.all([
+                const [households, transactions, statsData] = await Promise.all([
                     householdsRes.json(),
-                    transactionsRes.json()
+                    transactionsRes.json(),
+                    statsRes.json()
                 ]);
 
                 const validHouseholds = Array.isArray(households) ? households : [];
-                // Journal entries response might be paginated, check structure
                 const entriesList = transactions.results ? transactions.results : (Array.isArray(transactions) ? transactions : []);
 
-                const totalMembers = validHouseholds.reduce((sum: number, h: any) => sum + (h.member_count || 0), 0);
-
-                // Count households with expired or missing subscriptions
-                const pendingRenewals = validHouseholds.filter((h: any) => !h.is_membership_active).length;
-
-                // Calculate income from Receipt Vouchers
-                const totalIncome = entriesList
-                    .filter((t: any) => t.voucher_type === 'RECEIPT')
-                    .reduce((sum: number, t: any) => sum + parseFloat(t.total_amount || 0), 0);
-
                 setStats({
-                    households: validHouseholds.length,
-                    members: totalMembers,
+                    households: statsData.households || validHouseholds.length,
+                    members: statsData.members || 0,
                     transactions: entriesList.length,
-                    pendingRenewals,
-                    totalIncome
+                    pendingRenewals: statsData.pending_renewals || 0,
+                    totalIncome: statsData.total_income || 0,
+                    incomeThisMonth: statsData.income_this_month || 0,
+                    expenseThisMonth: statsData.expense_this_month || 0,
+                    debugError: statsData.debug_error
                 });
 
                 // Build recent activity from transactions
@@ -117,10 +119,17 @@ export function DashboardHome() {
             href: "/dashboard/households"
         },
         {
-            title: "Total Transactions",
-            value: stats.transactions,
-            icon: DollarSign,
-            color: "from-emerald-500 to-teal-500",
+            title: "Income (This Month)",
+            value: `₹${stats.incomeThisMonth.toLocaleString()}`,
+            icon: TrendingUp,
+            color: "from-emerald-500 to-green-600",
+            href: "/dashboard/finance"
+        },
+        {
+            title: "Expense (This Month)",
+            value: `₹${stats.expenseThisMonth.toLocaleString()}`,
+            icon: TrendingUp,
+            color: "from-red-500 to-orange-600",
             href: "/dashboard/finance"
         },
         {
@@ -129,13 +138,6 @@ export function DashboardHome() {
             icon: AlertCircle,
             color: "from-amber-500 to-orange-500",
             href: "/dashboard/households"
-        },
-        {
-            title: "Total Chanda/Zakat",
-            value: `₹${stats.totalIncome.toLocaleString()}`,
-            icon: TrendingUp,
-            color: "from-orange-500 to-red-500",
-            href: "/dashboard/finance"
         }
     ];
 
@@ -168,6 +170,11 @@ export function DashboardHome() {
                 <p className="text-gray-500">
                     Welcome back! Here's what's happening with your community.
                 </p>
+                {stats.debugError && (
+                    <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md border border-red-200">
+                        Error loading stats: {stats.debugError}
+                    </div>
+                )}
             </div>
 
             {/* Stats Grid */}
@@ -196,35 +203,44 @@ export function DashboardHome() {
                 ))}
             </div>
 
-            {/* Quick Actions */}
-            <Card className="border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-3">
-                    <Link to="/dashboard/households/new">
-                        <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer">
-                            <Users className="h-8 w-8 text-blue-500 mb-2" />
-                            <h3 className="font-semibold">Add Household</h3>
-                            <p className="text-sm text-gray-500">Register a new family</p>
-                        </div>
-                    </Link>
-                    <Link to="/dashboard/finance/new">
-                        <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer">
-                            <DollarSign className="h-8 w-8 text-emerald-500 mb-2" />
-                            <h3 className="font-semibold">Record Transaction</h3>
-                            <p className="text-sm text-gray-500">Log income or expense</p>
-                        </div>
-                    </Link>
-                    <Link to="/dashboard/announcements/new">
-                        <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-500 hover:bg-amber-50 transition-all cursor-pointer">
-                            <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
-                            <h3 className="font-semibold">Send Reminder</h3>
-                            <p className="text-sm text-gray-500">Notify pending renewals</p>
-                        </div>
-                    </Link>
-                </CardContent>
-            </Card>
+            {/* Quick Actions - Admin Only */}
+            {user?.is_superuser && (
+                <Card className="border-0 bg-white/80 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-4">
+                        <Link to="/dashboard/households/new">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer h-full">
+                                <Users className="h-8 w-8 text-blue-500 mb-2" />
+                                <h3 className="font-semibold">Add Household</h3>
+                                <p className="text-sm text-gray-500">Register a new family</p>
+                            </div>
+                        </Link>
+                        <Link to="/dashboard/finance/voucher">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer h-full">
+                                <DollarSign className="h-8 w-8 text-emerald-500 mb-2" />
+                                <h3 className="font-semibold">Record Transaction</h3>
+                                <p className="text-sm text-gray-500">Log income or expense</p>
+                            </div>
+                        </Link>
+                        <Link to="/dashboard/reminders">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-500 hover:bg-amber-50 transition-all cursor-pointer h-full">
+                                <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
+                                <h3 className="font-semibold">Send Reminder</h3>
+                                <p className="text-sm text-gray-500">Notify pending renewals</p>
+                            </div>
+                        </Link>
+                        <Link to="/dashboard/announcements?new=true">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-all cursor-pointer h-full">
+                                <Megaphone className="h-8 w-8 text-purple-500 mb-2" />
+                                <h3 className="font-semibold">Post Announcement</h3>
+                                <p className="text-sm text-gray-500">Broadcast public update</p>
+                            </div>
+                        </Link>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Recent Activity */}
             <Card className="border-0 bg-white/80 backdrop-blur-sm">

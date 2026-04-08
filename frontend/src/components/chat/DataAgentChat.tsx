@@ -32,6 +32,23 @@ export function DataAgentChat() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                const response = await fetchWithAuth("/api/basira/data-query/", { method: "GET" });
+                if (response.ok) {
+                    const history = await response.json();
+                    if (history && history.length > 0) {
+                        setMessages(history);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch chat history:", error);
+            }
+        };
+        fetchHistory();
+    }, []);
+
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
 
@@ -133,7 +150,12 @@ export function DataAgentChat() {
         setInput(prompt);
     };
 
-    const handleClearChat = () => {
+    const handleClearChat = async () => {
+        try {
+            await fetchWithAuth("/api/basira/data-query/", { method: "DELETE" });
+        } catch (error) {
+            console.error("Failed to clear chat history:", error);
+        }
         setMessages([{
             role: "assistant",
             content: "Chat cleared. How can I help you with your Jamath data?"

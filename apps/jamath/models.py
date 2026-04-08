@@ -1,4 +1,5 @@
 from django.db import models
+from apps.shared.models import MosqueScoped
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
@@ -7,7 +8,7 @@ from decimal import Decimal
 # HOUSEHOLD & MEMBER MODELS
 # ============================================================================
 
-class Household(models.Model):
+class Household(MosqueScoped):
     class EconomicStatus(models.TextChoices):
         ZAKAT_ELIGIBLE = 'ZAKAT_ELIGIBLE', 'Zakat Eligible'
         AAM = 'AAM', 'Aam / Sahib-e-Nisab'
@@ -29,6 +30,7 @@ class Household(models.Model):
     
     custom_data = models.JSONField(default=dict, blank=True, help_text="Ad-hoc fields like Village, Blood Group")
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_households')
 
     def __str__(self):
         return f"Household {self.membership_id or self.id} - {self.economic_status}"
@@ -82,7 +84,7 @@ class Household(models.Model):
 
 
 
-class Member(models.Model):
+class Member(MosqueScoped):
     class Gender(models.TextChoices):
         MALE = 'MALE', 'Male'
         FEMALE = 'FEMALE', 'Female'
@@ -125,7 +127,10 @@ class Member(models.Model):
     # Approval Workflow
     is_alive = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=True, help_text="False = Pending admin approval")
+    occupation_details = models.TextField(blank=True, null=True)
+    
     custom_data = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_members')
     
     def __str__(self):
         return f"{self.full_name} ({'Head' if self.is_head_of_family else 'Member'})"
@@ -135,7 +140,7 @@ class Member(models.Model):
 # MEMBERSHIP & SUBSCRIPTION MODELS
 # ============================================================================
 
-class MembershipConfig(models.Model):
+class MembershipConfig(MosqueScoped):
     """Tenant-level configuration for membership fees and cycles."""
     class Cycle(models.TextChoices):
         ANNUAL = 'ANNUAL', 'Annual'
@@ -175,11 +180,6 @@ class MembershipConfig(models.Model):
     member_label = models.CharField(max_length=50, default='Afrad', help_text="Display label for members (e.g., Afrad, Members)")
     masjid_name = models.CharField(max_length=100, default='', blank=True, help_text="Display name for the masjid")
     
-    # Telegram Notification Settings
-    telegram_enabled = models.BooleanField(default=True, help_text="Enable Telegram notifications")
-    telegram_auto_reminders = models.BooleanField(default=False, help_text="Automatically send payment reminders (via cron)")
-    telegram_notify_profile_updates = models.BooleanField(default=True, help_text="Notify members when their profile is updated")
-    telegram_notify_announcements = models.BooleanField(default=False, help_text="Auto-broadcast announcements when published")
     
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -194,7 +194,7 @@ class MembershipConfig(models.Model):
 
 
 
-class Subscription(models.Model):
+class Subscription(MosqueScoped):
     """Tracks a household's membership status for a given period."""
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
@@ -223,7 +223,7 @@ class Subscription(models.Model):
         self.save()
 
 
-class Receipt(models.Model):
+class Receipt(MosqueScoped):
     """Payment record with fee/donation breakdown."""
     subscription = models.ForeignKey(Subscription, related_name='receipts', on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -233,7 +233,9 @@ class Receipt(models.Model):
     receipt_number = models.CharField(max_length=50, unique=True)
     donor_pan = models.CharField(max_length=15, blank=True, null=True, help_text="For 80G Compliance")
     pdf_url = models.URLField(null=True, blank=True)
+    pdf_url = models.URLField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_receipts')
 
     def __str__(self):
         return f"Receipt {self.receipt_number} - ₹{self.amount}"
@@ -243,7 +245,7 @@ class Receipt(models.Model):
 # COMMUNICATION & SERVICE MODELS
 # ============================================================================
 
-class Announcement(models.Model):
+class Announcement(MosqueScoped):
     """Bulletin Board for Jamath announcements."""
     class Status(models.TextChoices):
         DRAFT = 'DRAFT', 'Draft'
@@ -256,6 +258,11 @@ class Announcement(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    target_household = models.ForeignKey('Household', on_delete=models.SET_NULL, null=True, blank=True, related_name='announcements', help_text="If set, this announcement is visible ONLY to this household.")
+    image = models.ImageField(upload_to='announcements/', null=True, blank=True, help_text="Optional thumbnail or poster image")
+    is_public = models.BooleanField(default=False, help_text="Visible to the general public outside the member portal")
+    is_fundraiser = models.BooleanField(default=False, help_text="Flags this announcement as a fundraising campaign")
+    fundraising_target = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Target amount if this is a fundraiser")
 
     class Meta:
         ordering = ['-published_at']
@@ -264,7 +271,7 @@ class Announcement(models.Model):
         return self.title
 
 
-class ServiceRequest(models.Model):
+class ServiceRequest(MosqueScoped):
     """Document/Service requests from households."""
     class RequestType(models.TextChoices):
         NIKAAH_NAMA = 'NIKAAH_NAMA', 'Nikaah Nama'
@@ -296,7 +303,7 @@ class ServiceRequest(models.Model):
 # SURVEY MODELS (Existing)
 # ============================================================================
 
-class Survey(models.Model):
+class Survey(MosqueScoped):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     schema = models.JSONField(default=list, help_text="Form Builder Schema")
@@ -307,7 +314,7 @@ class Survey(models.Model):
         return self.title
 
 
-class SurveyResponse(models.Model):
+class SurveyResponse(MosqueScoped):
     survey = models.ForeignKey(Survey, related_name='responses', on_delete=models.PROTECT)
     household = models.ForeignKey(Household, related_name='survey_responses', on_delete=models.CASCADE)
     auditor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='audited_surveys')
@@ -322,7 +329,7 @@ class SurveyResponse(models.Model):
 # MIZAN LEDGER - DOUBLE-ENTRY ACCOUNTING SYSTEM
 # ============================================================================
 
-class Ledger(models.Model):
+class Ledger(MosqueScoped):
     """Chart of Accounts - the foundation of the double-entry system."""
     class AccountType(models.TextChoices):
         ASSET = 'ASSET', 'Asset'
@@ -337,7 +344,7 @@ class Ledger(models.Model):
         RESTRICTED_CONSTRUCTION = 'CONSTRUCTION', 'Restricted - Construction'
         UNRESTRICTED_GENERAL = 'GENERAL', 'Unrestricted - General'
 
-    code = models.CharField(max_length=20, unique=True, help_text="e.g., 1001, 2001")
+    code = models.CharField(max_length=20, help_text="e.g., 1001, 2001")
     name = models.CharField(max_length=100)
     account_type = models.CharField(max_length=20, choices=AccountType.choices)
     fund_type = models.CharField(max_length=20, choices=FundType.choices, null=True, blank=True,
@@ -351,6 +358,7 @@ class Ledger(models.Model):
         ordering = ['code']
         verbose_name = "Ledger Account"
         verbose_name_plural = "Chart of Accounts"
+        unique_together = ('mosque', 'code')
 
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -367,12 +375,20 @@ class Ledger(models.Model):
         credit = items['total_credit'] or Decimal('0.00')
         
         # Assets & Expenses have debit balances; Liabilities, Income, Equity have credit balances
+        # Assets & Expenses have debit balances; Liabilities, Income, Equity have credit balances
         if self.account_type in [self.AccountType.ASSET, self.AccountType.EXPENSE]:
-            return debit - credit
-        return credit - debit
+            own_balance = debit - credit
+        else:
+            own_balance = credit - debit
+            
+        # Recursive calculation for children
+        # Note: This assumes children have compatible account types (which they should)
+        children_balance = sum(child.balance for child in self.children.filter(is_active=True))
+        
+        return own_balance + children_balance
 
 
-class Supplier(models.Model):
+class Supplier(MosqueScoped):
     """Vendor/Supplier Master for expense tracking."""
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=100, blank=True)
@@ -389,7 +405,7 @@ class Supplier(models.Model):
         return self.name
 
 
-class JournalEntry(models.Model):
+class JournalEntry(MosqueScoped):
     """Parent transaction record - Receipt, Payment, or Journal Voucher."""
     class VoucherType(models.TextChoices):
         RECEIPT = 'RECEIPT', 'Receipt Voucher'
@@ -481,6 +497,114 @@ class JournalEntry(models.Model):
                                 f"Compliance Violation: Cannot use Zakat funds for {item.ledger.name}. "
                                 "Zakat funds can only be used for Zakat-eligible expenses."
                             )
+        
+        # Rule 3: STRICT Mode Validation (Prevent User Errors)
+        # 3a. Payment Voucher: Should NOT result in Net Asset Increase (Debit)
+        if self.voucher_type == self.VoucherType.PAYMENT:
+            asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+            asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+            
+            # If Net Asset Movement is Positive (Debit > Credit), money is coming IN. That's a Receipt.
+            if asset_debits > asset_credits:
+                 raise ValidationError(
+                    "Logic Error: You are recording a 'Payment', but the entries show money coming IN (Net Asset Debit). "
+                    "Did you mean to create a 'Receipt'?"
+                )
+
+        # 3b. Receipt Voucher: Should NOT result in Net Asset Decrease (Credit)
+        if self.voucher_type == self.VoucherType.RECEIPT:
+             asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+             asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+             
+             # If Net Asset Movement is Negative (Credit > Debit), money is going OUT. That's a Payment.
+             if asset_credits > asset_debits:
+                 raise ValidationError(
+                    "Logic Error: You are recording a 'Receipt', but the entries show money going OUT (Net Asset Credit). "
+                    "Did you mean to create a 'Payment'?"
+                )
+
+        # Rule 4: Insufficient Funds Validation
+        self.check_sufficient_funds(items)
+
+    def check_sufficient_funds(self, items):
+        """Ensure we have enough money in the respective fund before spending."""
+        from django.db.models import Sum, Q
+        from django.core.exceptions import ValidationError
+        
+        # We need to check if we are booking an Expense.
+        expense_items = [i for i in items if i.debit_amount > 0 and i.ledger.account_type == Ledger.AccountType.EXPENSE]
+
+        # Helper to get balance excluding current transaction
+        def get_balance(filters, exclude_entry=None):
+            queryset = JournalItem.objects.filter(**filters)
+            if exclude_entry:
+                queryset = queryset.exclude(journal_entry=exclude_entry)
+            
+            credits = queryset.aggregate(sum=Sum('credit_amount'))['sum'] or Decimal('0.00')
+            debits = queryset.aggregate(sum=Sum('debit_amount'))['sum'] or Decimal('0.00')
+            return credits, debits
+
+        # 1. Calculate Pre-Transaction Zakat Balance
+        # Income (Credit) - Expense (Debit)
+        z_inc_c, z_inc_d = get_balance({
+            'ledger__fund_type': Ledger.FundType.RESTRICTED_ZAKAT,
+            'ledger__account_type': Ledger.AccountType.INCOME
+        }, exclude_entry=self)
+        
+        z_exp_c, z_exp_d = get_balance({
+            'ledger__fund_type': Ledger.FundType.RESTRICTED_ZAKAT,
+            'ledger__account_type': Ledger.AccountType.EXPENSE
+        }, exclude_entry=self)
+
+        pre_zakat_balance = (z_inc_c - z_inc_d) + (z_exp_c - z_exp_d) 
+        # Wait. 
+        # Income Ledger: Credit increases balance.
+        # Expense Ledger: Debit increases "Expense", reducing Fund.
+        # Fund Balance = (Income Credit - Income Debit) - (Expense Debit - Expense Credit)
+        #              = z_inc_c - z_inc_d - z_exp_d + z_exp_c. Correct.
+
+        # 2. Calculate Pre-Transaction Liquid Cash
+        # Using code__startswith='100' to capture 1001, 1002, 1003 etc.
+        cash_c, cash_d = get_balance({
+            'ledger__account_type': Ledger.AccountType.ASSET,
+            'ledger__code__startswith': '100' 
+        }, exclude_entry=self)
+        
+        # Cash is Asset (Debit normal). Balance = Debit - Credit.
+        pre_liquid_cash = cash_d - cash_c
+        pre_general_available = pre_liquid_cash - pre_zakat_balance
+
+        # 3. Calculate Deltas from Current Items
+        current_zakat_delta = Decimal('0.00')
+        current_cash_delta = Decimal('0.00')
+
+        for item in items:
+            # Zakat Delta
+            if item.ledger.fund_type == Ledger.FundType.RESTRICTED_ZAKAT:
+                if item.ledger.account_type == Ledger.AccountType.INCOME:
+                    current_zakat_delta += (item.credit_amount - item.debit_amount)
+                elif item.ledger.account_type == Ledger.AccountType.EXPENSE:
+                    current_zakat_delta -= (item.debit_amount - item.credit_amount)
+            
+            # Cash Delta (Liquid Assets)
+            if item.ledger.account_type == Ledger.AccountType.ASSET and item.ledger.code.startswith('100'):
+                current_cash_delta += (item.debit_amount - item.credit_amount)
+
+        # 4. Final Balances
+        post_zakat_balance = pre_zakat_balance + current_zakat_delta
+        post_liquid_cash = pre_liquid_cash + current_cash_delta
+        post_general_available = post_liquid_cash - post_zakat_balance
+
+        # 5. Check Constraints
+        # Rule: You cannot make the balance negative. 
+        # If it is already negative, you cannot make it WORSE (lower).
+        
+        if post_zakat_balance < 0 and post_zakat_balance < pre_zakat_balance:
+             raise ValidationError("Insufficient Funds")
+
+        if post_general_available < 0 and post_general_available < pre_general_available:
+             raise ValidationError("Insufficient Funds")
+
 
     def save(self, *args, **kwargs):
         # Auto-generate voucher number if not set
@@ -516,7 +640,7 @@ class JournalEntry(models.Model):
         return f"{prefix}-{year}-{max_num + 1:03d}"
 
 
-class JournalItem(models.Model):
+class JournalItem(MosqueScoped):
     """Individual line item in a journal entry (debit or credit line)."""
     journal_entry = models.ForeignKey(JournalEntry, related_name='items', on_delete=models.CASCADE)
     ledger = models.ForeignKey(Ledger, on_delete=models.PROTECT, related_name='journal_items')
@@ -545,7 +669,7 @@ class JournalItem(models.Model):
 # RBAC & STAFF MANAGEMENT
 # ============================================================================
 
-class StaffRole(models.Model):
+class StaffRole(MosqueScoped):
     """Dynamic roles for staff/zimmedars with permission policies."""
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -556,35 +680,63 @@ class StaffRole(models.Model):
     def __str__(self):
         return self.name
 
-class StaffMember(models.Model):
+class StaffMember(MosqueScoped):
     """Assigns a user to a specific role within the tenant."""
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_roles')
-    role = models.ForeignKey(StaffRole, on_delete=models.PROTECT, related_name='members')
-    designation = models.CharField(max_length=100, help_text="Official title, e.g. 'General Secretary'")
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profile')
+    role = models.ForeignKey(StaffRole, on_delete=models.SET_NULL, null=True, related_name='members')
+    designation = models.CharField(max_length=100, blank=True, help_text="Official title, e.g. 'General Secretary'")
     is_active = models.BooleanField(default=True)
-    joined_at = models.DateField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('user', 'role')
+    joined_at = models.DateTimeField(auto_now_add=True)
+    
+    # Permissions Override (Optional)
+    permissions = models.JSONField(default=dict, blank=True, help_text="Override role permissions if set")
 
     def __str__(self):
         return f"{self.user.username} - {self.designation}"
 
 
-# ============================================================================
-# TELEGRAM INTEGRATION
-# ============================================================================
-
-class TelegramLink(models.Model):
-    """Links a phone number to a Telegram chat_id for OTP delivery."""
-    phone_number = models.CharField(max_length=20, unique=True, primary_key=True)
-    chat_id = models.CharField(max_length=50)
-    linked_at = models.DateTimeField(auto_now_add=True)
-    is_verified = models.BooleanField(default=False)
+class ActivityLog(MosqueScoped):
+    """Audit log for staff actions."""
+    ACTION_TYPES = (
+        ('CREATE', 'Created'),
+        ('UPDATE', 'Updated'),
+        ('DELETE', 'Deleted'),
+    )
+    
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=20, choices=ACTION_TYPES)
+    module = models.CharField(max_length=50, blank=True) # e.g. Household, Finance
+    model_name = models.CharField(max_length=50) # e.g. Household
+    object_id = models.CharField(max_length=50, null=True) 
+    details = models.TextField(blank=True) # "Added Member John"
+    timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Telegram Link"
-        verbose_name_plural = "Telegram Links"
+        ordering = ['-timestamp']
 
     def __str__(self):
-        return f"{self.phone_number} → {self.chat_id}"
+        return f"{self.user} {self.action} {self.model_name}"
+
+
+
+
+# ============================================================================
+# DATA AGENT CHAT HISTORY
+# ============================================================================
+
+class DataAgentChatLog(MosqueScoped):
+    """Persistent chat history for Basira Data Agent."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='agent_chats')
+    role = models.CharField(max_length=20)  # 'user' or 'assistant'
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_cleared = models.BooleanField(default=False)  # Soft delete for 'Clear Chat'
+
+    class Meta:
+        ordering = ['timestamp']
+        indexes = [
+            models.Index(fields=['user', 'is_cleared', 'timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.role} - {self.timestamp}"

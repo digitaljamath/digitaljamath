@@ -426,11 +426,58 @@ export function HouseholdFormPage() {
 
                                     <div className="space-y-2">
                                         <Label>Date of Birth</Label>
-                                        <Input
-                                            type="date"
-                                            value={member.dob}
-                                            onChange={(e) => updateMember(member.id, 'dob', e.target.value)}
-                                        />
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={member.dob ? member.dob.split('-')[2] : ''}
+                                                onChange={(e) => {
+                                                    const day = e.target.value;
+                                                    const current = member.dob ? member.dob.split('-') : ['', '', ''];
+                                                    const month = current[1] || '01';
+                                                    const year = current[0] || '2000';
+                                                    if (day) updateMember(member.id, 'dob', `${year}-${month}-${day}`);
+                                                }}
+                                            >
+                                                <option value="">Day</option>
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                                    <option key={d} value={d.toString().padStart(2, '0')}>{d}</option>
+                                                ))}
+                                            </select>
+
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={member.dob ? member.dob.split('-')[1] : ''}
+                                                onChange={(e) => {
+                                                    const month = e.target.value;
+                                                    const current = member.dob ? member.dob.split('-') : ['', '', ''];
+                                                    const day = current[2] || '01';
+                                                    const year = current[0] || '2000';
+                                                    if (month) updateMember(member.id, 'dob', `${year}-${month}-${day}`);
+                                                }}
+                                            >
+                                                <option value="">Month</option>
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={m} value={(i + 1).toString().padStart(2, '0')}>{m}</option>
+                                                ))}
+                                            </select>
+
+                                            <select
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                value={member.dob ? member.dob.split('-')[0] : ''}
+                                                onChange={(e) => {
+                                                    const year = e.target.value;
+                                                    const current = member.dob ? member.dob.split('-') : ['', '', ''];
+                                                    const day = current[2] || '01';
+                                                    const month = current[1] || '01';
+                                                    if (year) updateMember(member.id, 'dob', `${year}-${month}-${day}`);
+                                                }}
+                                            >
+                                                <option value="">Year</option>
+                                                {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-2">

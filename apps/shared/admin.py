@@ -1,15 +1,10 @@
 from django.contrib import admin
-from .models import Client, Domain, SystemConfig
+from .models import Mosque, SystemConfig
 
-@admin.register(Client)
-class ClientAdmin(admin.ModelAdmin):
-    list_display = ('name', 'schema_name', 'owner_email', 'created_on')
-    search_fields = ('name', 'schema_name', 'owner_email')
-
-@admin.register(Domain)
-class DomainAdmin(admin.ModelAdmin):
-    list_display = ('domain', 'tenant', 'is_primary')
-    search_fields = ('domain',)
+@admin.register(Mosque)
+class MosqueAdmin(admin.ModelAdmin):
+    list_display = ('name', 'owner_email', 'created_on')
+    search_fields = ('name', 'owner_email')
 
 @admin.register(SystemConfig)
 class SystemConfigAdmin(admin.ModelAdmin):

@@ -42,10 +42,7 @@ CACHES = {
 
 
 
-# Telegram Bot Configuration (for Member Portal OTP)
-# Get token from @BotFather
-TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', None)
-TELEGRAM_BOT_USERNAME = os.environ.get('TELEGRAM_BOT_USERNAME', 'DigitalJamathBot')
+
 
 # Razorpay Configuration
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', None)
@@ -54,9 +51,8 @@ RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', None)
 
 # Application definition
 SHARED_APPS = (
-    'django_tenants',  # mandatory
     'corsheaders',     # CORS headers
-    'apps.shared',     # your tenant and domain models
+    'apps.shared',     # your shared models
 
     'django.contrib.contenttypes',
     'django.contrib.auth',
@@ -78,15 +74,7 @@ TENANT_APPS = (
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
-TENANT_MODEL = "shared.Client"
-TENANT_DOMAIN_MODEL = "shared.Domain"
-
-# Fall back to public tenant for unknown domains (enables registration from any domain)
-SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
-
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware', # mandatory, top
-    'apps.shared.middleware.PublicSchemaProtectionMiddleware',  # Block public schema access
     'corsheaders.middleware.CorsMiddleware',               # CORS Middleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -121,18 +109,14 @@ WSGI_APPLICATION = 'digitaljamath.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django_tenants.postgresql_backend',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DATABASE_NAME', 'digitaljamath_db'),
         'USER': os.environ.get('DATABASE_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DATABASE_PASSWORD', 'password'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD', 'postgres'),
         'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
         'PORT': os.environ.get('DATABASE_PORT', '5432'),
     }
 }
-
-DATABASE_ROUTERS = (
-    'django_tenants.routers.TenantSyncRouter',
-)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -206,18 +190,19 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Email Configuration - Brevo SMTP
+# Email Configuration - SMTP
 # Set these environment variables for production:
-# BREVO_SMTP_KEY - Your Brevo SMTP API key
-# EMAIL_HOST_USER - Your Brevo login (usually email)
-# DEFAULT_FROM_EMAIL - Your verified sender email
+# EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
 
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('BREVO_EMAIL_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('BREVO_SMTP_KEY', '')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+
+# Support both generic and legacy Brevo env vars
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', os.environ.get('BREVO_EMAIL_USER', ''))
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', os.environ.get('BREVO_SMTP_KEY', ''))
+
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@project-mizan.com')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 

@@ -18,7 +18,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Plus, Pencil, Trash2, Loader2, Users, ArrowLeft } from "lucide-react";
+import { Shield, Plus, Pencil, Trash2, Loader2, Users, ArrowLeft, ClipboardList } from "lucide-react";
 import { fetchWithAuth } from "@/lib/api";
 import { RoleForm } from "./components/RoleForm";
 import { StaffForm } from "./components/StaffForm";
@@ -69,7 +69,7 @@ export function UsersPage() {
     };
 
     const handleDeleteStaff = async (id: number) => {
-        if (!confirm("Remove this staff assignment? The user account will remain.")) return;
+        if (!confirm("Remove this staff member? Their user account will be deleted and they will no longer be able to log in.")) return;
         try {
             await fetchWithAuth(`/api/jamath/staff-members/${id}/`, { method: 'DELETE' });
             fetchData();
@@ -103,9 +103,16 @@ export function UsersPage() {
                     <Button variant="ghost" size="icon" asChild>
                         <Link to="/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
                     </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Access Control</h1>
-                        <p className="text-gray-500 mt-1">Manage staff, roles, and permissions</p>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h2 className="text-3xl font-bold tracking-tight">Access Control (RBAC)</h2>
+                            <p className="text-muted-foreground">Manage staff roles, permissions, and audit logs.</p>
+                        </div>
+                        <Link to="/dashboard/users/activity">
+                            <Button variant="outline">
+                                <ClipboardList className="mr-2 h-4 w-4" /> Activity Logs
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 

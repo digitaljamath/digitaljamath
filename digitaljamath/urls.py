@@ -8,7 +8,7 @@ from apps.jamath.api import (
     HouseholdViewSet, MemberViewSet, SurveyViewSet, SurveyResponseViewSet,
     AnnouncementViewSet, ServiceRequestViewSet,
     # OTP Auth
-    RequestOTPView, VerifyOTPView,
+    RequestOTPView, VerifyOTPView, PortalLoginView,
     # Member Portal
     MemberPortalProfileView, MemberPortalReceiptsView, 
     MemberPortalAnnouncementsView, MemberPortalServiceRequestView,
@@ -25,17 +25,29 @@ from apps.jamath.api import (
     LedgerViewSet, SupplierViewSet, JournalEntryViewSet, LedgerReportsView,
     TallyExportView,
     # RBAC
-    StaffRoleViewSet, StaffMemberViewSet,
+    StaffRoleViewSet, StaffMemberViewSet, MemberStaffLookupView,
     # Telegram
-    TelegramBroadcastAnnouncementView, TelegramPaymentRemindersView, TelegramStatsView, TelegramIndividualReminderView,
+
     # Receipts PDF
-    ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView
+    ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView,
+    # Reminders
+    ReceiptPDFView, PortalReceiptListView, PortalReceiptPDFView,
+    # Reminders
+    ReminderViewSet,
+    # Logs
+    ActivityLogViewSet,
+    DashboardStatsView,
+    ActivityLogStaffSourceView,
+    SeedLedgerView
 )
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
-from apps.shared.api import    TenantRegistrationView, FindWorkspaceView, VerifyEmailView, CheckTenantView, \
+from apps.shared.api import MosqueRegistrationView, FindWorkspaceView, VerifyEmailView, CheckTenantView, \
     RequestRegistrationOTPView, VerifyRegistrationOTPView, SetupTenantView, \
-    PasswordResetRequestView, PasswordResetConfirmView, TenantInfoView
+    TenantInfoView, RequestPasswordResetOTPView, VerifyPasswordResetOTPView, \
+    ConfirmPasswordResetOTPView, PublicMosqueListView, GuestDonationView, PublicMosqueAnnouncementView, \
+    GlobalPublicAnnouncementsView
+from apps.shared.api_settings import SystemConfigView
 
 from apps.shared.ai_guide import BasiraGuideView
 from apps.shared.data_agent import BasiraDataAgentView
@@ -56,7 +68,9 @@ router.register(r'jamath/households', HouseholdViewSet)
 router.register(r'jamath/members', MemberViewSet)
 router.register(r'jamath/surveys', SurveyViewSet)
 router.register(r'jamath/responses', SurveyResponseViewSet)
+router.register(r'jamath/activity-logs', ActivityLogViewSet)
 router.register(r'jamath/announcements', AnnouncementViewSet)
+router.register(r'jamath/reminders', ReminderViewSet, basename='reminders')
 router.register(r'jamath/service-requests', ServiceRequestViewSet)
 router.register(r'jamath/staff-roles', StaffRoleViewSet)
 router.register(r'jamath/staff-members', StaffMemberViewSet)
@@ -74,7 +88,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # Tenant Registration
-    path('api/register/', TenantRegistrationView.as_view(), name='register-tenant'),
+    path('api/register/', MosqueRegistrationView.as_view(), name='register-tenant'),
     path('api/register/otp/request/', RequestRegistrationOTPView.as_view(), name='register-otp-request'),
     path('api/register/otp/verify/', VerifyRegistrationOTPView.as_view(), name='register-otp-verify'),
     path('api/register/setup/', SetupTenantView.as_view(), name='register-setup'),
@@ -82,16 +96,25 @@ urlpatterns = [
     path('api/check-tenant/', CheckTenantView.as_view(), name='check-tenant'),
     path('api/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
     path('api/tenant-info/', TenantInfoView.as_view(), name='tenant-info'),
+    path('api/system-config/', SystemConfigView.as_view(), name='system-config'),
+    
+    # Public Unified APIs
+    path('api/public/masjids/', PublicMosqueListView.as_view(), name='public-masjids-list'),
+    path('api/public/masjids/<int:mosque_id>/donate/', GuestDonationView.as_view(), name='public-masjid-donate'),
+    path('api/public/masjids/<int:mosque_id>/announcements/', PublicMosqueAnnouncementView.as_view(), name='public-masjid-announcements'),
+    path('api/public/announcements/', GlobalPublicAnnouncementsView.as_view(), name='global-public-announcements'),
     
     # Admin Auth (username/password)
-    path('api/auth/password-reset-request/', PasswordResetRequestView.as_view(), name='password-reset-request'),
-    path('api/auth/password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('api/auth/password-reset-otp/request/', RequestPasswordResetOTPView.as_view(), name='password-reset-otp-request'),
+    path('api/auth/password-reset-otp/verify/', VerifyPasswordResetOTPView.as_view(), name='password-reset-otp-verify'),
+    path('api/auth/password-reset-otp/confirm/', ConfirmPasswordResetOTPView.as_view(), name='password-reset-otp-confirm'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Member Portal OTP Auth
     path('api/portal/request-otp/', RequestOTPView.as_view(), name='request-otp'),
     path('api/portal/verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
+    path('api/portal/login/', PortalLoginView.as_view(), name='portal-login'),
     
     # Member Portal APIs
     path('api/portal/profile/', MemberPortalProfileView.as_view(), name='portal-profile'),
@@ -119,20 +142,28 @@ urlpatterns = [
 
     # Mizan Ledger Reports
     path('api/ledger/reports/<str:report_type>/', LedgerReportsView.as_view(), name='ledger-reports'),
+    path('api/ledger/seed/', SeedLedgerView.as_view(), name='seed-ledger'),
     path('api/ledger/export/', TallyExportView.as_view(), name='ledger-export'),
     path('api/ledger/receipt/<int:entry_id>/pdf/', ReceiptPDFView.as_view(), name='admin-receipt-pdf'),
     
-    # Telegram Notifications
-    path('api/telegram/broadcast/', TelegramBroadcastAnnouncementView.as_view(), name='telegram-broadcast'),
-    path('api/telegram/payment-reminders/', TelegramPaymentRemindersView.as_view(), name='telegram-reminders'),
-    path('api/telegram/stats/', TelegramStatsView.as_view(), name='telegram-stats'),
-    path('api/telegram/remind/<int:household_id>/', TelegramIndividualReminderView.as_view(), name='telegram-remind-individual'),
+
     
     # Basira AI Guide
     path('api/basira/', BasiraGuideView.as_view(), name='basira-guide'),
     path('api/basira/data-query/', BasiraDataAgentView.as_view(), name='basira-data-agent'),
     path('api/basira/simple-entry/', SimpleEntryView.as_view(), name='basira-simple-entry'),
     
+    # Staff Lookup
+    path('api/jamath/staff-lookup/', MemberStaffLookupView.as_view(), name='member-staff-lookup'),
+    path('api/jamath/finance-summary/', DashboardStatsView.as_view(), name='finance-summary'),
+    path('api/jamath/activity-log-staff/', ActivityLogStaffSourceView.as_view(), name='activity-log-staff'),
+    
     # REST API Router
     path('api/', include(router.urls)),
 ]
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

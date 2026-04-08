@@ -1,6 +1,7 @@
 from django.db import models
+from apps.shared.models import MosqueScoped
 
-class Volunteer(models.Model):
+class Volunteer(MosqueScoped):
     # Link to Member potentially? For now standalone or linking to Member by ID if needed.
     # Assuming integration with Member later.
     full_name = models.CharField(max_length=200)
@@ -10,7 +11,7 @@ class Volunteer(models.Model):
     def __str__(self):
         return self.full_name
 
-class GrantApplication(models.Model):
+class GrantApplication(MosqueScoped):
     class Status(models.TextChoices):
         APPLIED = 'APPLIED', 'Applied'
         SCORING = 'SCORING', 'Scoring'

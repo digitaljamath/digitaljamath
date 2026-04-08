@@ -4,8 +4,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { fetchWithAuth } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 import {
-    User, Receipt, Bell, FileText, LogOut,
+    User, Receipt, Bell, FileText, LogOut, Lock,
     CheckCircle, AlertCircle, Users, Home, Loader2, CreditCard
 } from "lucide-react";
 import {
@@ -50,6 +52,7 @@ type Household = {
 
 export function PortalDashboardPage() {
     const navigate = useNavigate();
+    const { toast } = useToast();
     const [household, setHousehold] = useState<Household | null>(null);
     const [membership, setMembership] = useState<MembershipStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +60,9 @@ export function PortalDashboardPage() {
 
     // For Payment Integration
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+    const [fundType, setFundType] = useState<'GENERAL' | 'ZAKAT'>('GENERAL');
     const [extraCharity, setExtraCharity] = useState(0);
+    const [narration, setNarration] = useState("");
     const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
     // 80G Logic
@@ -65,7 +70,10 @@ export function PortalDashboardPage() {
     const [donorPan, setDonorPan] = useState("");
 
     useEffect(() => {
-        const token = localStorage.getItem("access_token");
+        // fetchWithAuth will handle redirect if 401/token missing eventually, 
+        // but for initial load check we might still want to check token existence or just let the first call fail.
+        // Keeping explicit check for now for faster UI feedback, but using key directly is fine or could use helper.
+        const token = localStorage.getItem("portal_access_token");
         if (!token) {
             navigate("/portal/login");
             return;
@@ -75,58 +83,69 @@ export function PortalDashboardPage() {
         const params = new URLSearchParams(window.location.search);
         const orderId = params.get('order_id');
         const panParam = params.get('pan');
+        const zakatParam = params.get('is_zakat');
 
         if (orderId) {
             // Clear URL params to avoid re-trigger
             window.history.replaceState({}, '', window.location.pathname);
-            verifyCashfree(orderId, panParam || "", token);
+            verifyCashfree(orderId, panParam || "", zakatParam === 'true');
         }
 
-        setHeadName(localStorage.getItem("head_name") || "Member");
-        fetchProfile(token);
+        setHeadName(localStorage.getItem("portal_head_name") || "Member");
+        fetchProfile();
     }, [navigate]);
 
-    const verifyCashfree = async (orderId: string, pan: string, token: string) => {
+    const verifyCashfree = async (orderId: string, pan: string, isZakat: boolean) => {
         setIsPaymentLoading(true);
-        const apiBase = getApiBaseUrl();
+        // const apiBase = getApiBaseUrl(); // fetchWithAuth handles this
         try {
-            const verifyRes = await fetch(`${apiBase}/api/portal/payment/verify/`, {
+            const verifyRes = await fetchWithAuth(`/api/portal/payment/verify/`, {
                 method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
                 body: JSON.stringify({
                     order_id: orderId,
-                    donor_pan: pan
+                    donor_pan: pan,
+                    is_zakat: isZakat,
+                    narration: "" // Verify from return URL doesn't have narration yet unless we stash it, but for flow starting here it's fine. 
+                    // Actually, for cashfree return, we might lose narration if not in URL or session.
+                    // For now, let's keep it empty as return flow is tricky without persistence.
                 })
-            });
+            }, 'portal');
             const verifyData = await verifyRes.json();
             if (verifyData.status === 'success') {
-                alert("Payment Successful! Receipt Generated: " + verifyData.receipt);
+                toast({
+                    title: "Payment Successful!",
+                    description: "Receipt Generated: " + verifyData.receipt,
+                });
                 // fetchProfile call handled by useEffect or manually called?
                 // profile fetch happens in useEffect anyway if component mounts, but here just alert.
                 window.location.reload(); // Simple reload to refresh data
             } else {
-                alert("Payment verification failed: " + verifyData.error);
+                toast({
+                    variant: "destructive",
+                    title: "Payment Failed",
+                    description: verifyData.error,
+                });
             }
         } catch (err) {
-            alert("Payment verification error");
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Payment verification error",
+            });
         } finally {
             setIsPaymentLoading(false);
         }
     };
 
-    const fetchProfile = async (token: string) => {
+    const fetchProfile = async () => {
         try {
-            const apiBase = getApiBaseUrl();
-
-            const res = await fetch(`${apiBase}/api/portal/profile/`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetchWithAuth(`/api/portal/profile/`, {}, 'portal');
 
             if (res.status === 401) {
-                localStorage.clear();
+                // fetchWithAuth handles refresh, if it returns 401 it means refresh failed.
+                // We can rely on its internal Logout or manual here.
+                // API util already calls logoutPortal() on final fail if we want, 
+                // but let's keep the redirect here just in case.
                 navigate("/portal/login");
                 return;
             }
@@ -144,7 +163,11 @@ export function PortalDashboardPage() {
     };
 
     const handleLogout = () => {
-        localStorage.clear();
+        localStorage.removeItem('portal_access_token');
+        localStorage.removeItem('portal_refresh_token');
+        localStorage.removeItem('portal_household_id');
+        localStorage.removeItem('portal_membership_id');
+        localStorage.removeItem('portal_head_name');
         navigate("/portal/login");
     };
 
@@ -173,37 +196,39 @@ export function PortalDashboardPage() {
 
         // Validate 80G PAN
         if (need80G && !donorPan) {
-            alert("Please enter PAN Number for 80G receipt.");
+            toast({
+                variant: "destructive",
+                title: "Validation Error",
+                description: "Please enter PAN Number for 80G receipt.",
+            });
             setIsPaymentLoading(false);
             return;
         }
-
-        const token = localStorage.getItem("access_token");
-        const apiBase = getApiBaseUrl();
 
         // Calculate total
         const due = membership ? Math.max(0, parseFloat(membership.minimum_required) - parseFloat(membership.amount_paid)) : 0;
         const total = due + extraCharity;
 
         if (total <= 0) {
-            alert("Amount must be greater than 0");
+            toast({
+                variant: "destructive",
+                title: "Validation Error",
+                description: "Amount must be greater than 0",
+            });
             setIsPaymentLoading(false);
             return;
         }
 
         try {
             // 1. Create Order
-            const orderRes = await fetch(`${apiBase}/api/portal/payment/create-order/`, {
+            const orderRes = await fetchWithAuth(`/api/portal/payment/create-order/`, {
                 method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
                 body: JSON.stringify({
                     amount: total,
-                    donor_pan: donorPan
+                    donor_pan: donorPan,
+                    is_zakat: fundType === 'ZAKAT'
                 })
-            });
+            }, 'portal');
 
             if (!orderRes.ok) throw new Error("Failed to create order");
             const orderData = await orderRes.json();
@@ -211,7 +236,15 @@ export function PortalDashboardPage() {
             // CHECK PROVIDER
             if (orderData.provider === 'CASHFREE') {
                 const res = await loadCashfree();
-                if (!res) { alert("Cashfree SDK failed to load"); setIsPaymentLoading(false); return; }
+                if (!res) {
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Cashfree SDK failed to load",
+                    });
+                    setIsPaymentLoading(false);
+                    return;
+                }
 
                 const cashfree = new (window as any).Cashfree({ mode: orderData.env === 'SANDBOX' ? "sandbox" : "production" });
                 cashfree.checkout({
@@ -224,7 +257,15 @@ export function PortalDashboardPage() {
             } else {
                 // RAZORPAY (Default)
                 const res = await loadRazorpay();
-                if (!res) { alert("Razorpay SDK failed"); setIsPaymentLoading(false); return; }
+                if (!res) {
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Razorpay SDK failed",
+                    });
+                    setIsPaymentLoading(false);
+                    return;
+                }
 
                 const options = {
                     key: orderData.key_id,
@@ -237,31 +278,40 @@ export function PortalDashboardPage() {
                     handler: async function (response: any) {
                         // 3. Verify Payment
                         try {
-                            const verifyRes = await fetch(`${apiBase}/api/portal/payment/verify/`, {
+                            const verifyRes = await fetchWithAuth(`/api/portal/payment/verify/`, {
                                 method: "POST",
-                                headers: {
-                                    "Authorization": `Bearer ${token}`,
-                                    "Content-Type": "application/json"
-                                },
                                 body: JSON.stringify({
                                     razorpay_order_id: response.razorpay_order_id,
                                     razorpay_payment_id: response.razorpay_payment_id,
                                     razorpay_signature: response.razorpay_signature,
                                     amount: total, // Send total logic
-                                    donor_pan: donorPan
+                                    donor_pan: donorPan,
+                                    narration: narration,
+                                    is_zakat: fundType === 'ZAKAT'
                                 })
-                            });
+                            }, 'portal');
 
                             const verifyData = await verifyRes.json();
                             if (verifyData.status === 'success') {
-                                alert("Payment Successful! Receipt Generated: " + verifyData.receipt);
+                                toast({
+                                    title: "Payment Successful!",
+                                    description: "Receipt Generated: " + verifyData.receipt,
+                                });
                                 setIsPaymentOpen(false);
-                                fetchProfile(token!); // Reload profile
+                                fetchProfile(); // Reload profile
                             } else {
-                                alert("Payment verification failed: " + verifyData.error);
+                                toast({
+                                    variant: "destructive",
+                                    title: "Payment Failed",
+                                    description: verifyData.error,
+                                });
                             }
                         } catch (err) {
-                            alert("Payment verification error");
+                            toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: "Payment verification error",
+                            });
                         }
                     },
                     prefill: {
@@ -280,7 +330,11 @@ export function PortalDashboardPage() {
 
         } catch (err) {
             console.error(err);
-            alert("Payment initiation failed. Please check gateway configuration.");
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Payment initiation failed. Please check gateway configuration.",
+            });
         } finally {
             // Note: If Cashfree redirects, this finally might run before unload? 
             if ((window as any).Cashfree) {
@@ -288,6 +342,81 @@ export function PortalDashboardPage() {
             } else {
                 setIsPaymentLoading(false);
             }
+        }
+    };
+
+    // Change Password Logic
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [isChangePasswordLoading, setIsChangePasswordLoading] = useState(false);
+
+    const handleChangePassword = async () => {
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "All fields are required",
+            });
+            return;
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "New passwords do not match",
+            });
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Password must be at least 8 characters long",
+            });
+            return;
+        }
+
+        setIsChangePasswordLoading(true);
+        try {
+            const res = await fetchWithAuth(`/api/user/change-password/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                    confirm_password: confirmNewPassword
+                })
+            }, 'portal');
+
+            const data = await res.json();
+
+            if (res.ok) {
+                toast({
+                    title: "Success",
+                    description: "Password changed successfully",
+                });
+                setIsChangePasswordOpen(false);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmNewPassword("");
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: data.error || "Failed to change password",
+                });
+            }
+        } catch (err) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "An error occurred while changing password",
+            });
+        } finally {
+            setIsChangePasswordLoading(false);
         }
     };
 
@@ -322,14 +451,26 @@ export function PortalDashboardPage() {
                         <img src="/logo.png" alt="Logo" className="h-6 w-6" />
                         <h1 className="font-bold text-lg tracking-tight text-gray-900">Digital Jamath</h1>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleLogout}
-                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all"
-                    >
-                        <LogOut className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsChangePasswordOpen(true)}
+                            className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:scale-95 transition-all"
+                            title="Change Password"
+                        >
+                            <Lock className="h-5 w-5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleLogout}
+                            className="text-gray-500 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all"
+                            title="Logout"
+                        >
+                            <LogOut className="h-5 w-5" />
+                        </Button>
+                    </div>
                 </div>
             </header>
 
@@ -363,7 +504,9 @@ export function PortalDashboardPage() {
                             {amountDue > 0 && (
                                 <div className="flex items-end justify-between mb-4 animate-in fade-in duration-500">
                                     <div>
-                                        <p className="text-[12px] text-gray-500 font-medium">Amount Due</p>
+                                        <p className="text-[12px] text-gray-500 font-medium">
+                                            {membership.status === 'EXPIRED' ? 'Renewal Fee' : 'Amount Due'}
+                                        </p>
                                         <p className="text-2xl font-bold text-gray-900 leading-tight">₹{amountDue}</p>
                                     </div>
                                     <div className="text-right">
@@ -381,7 +524,7 @@ export function PortalDashboardPage() {
                                             : 'bg-blue-600 hover:bg-blue-700'
                                             }`}
                                     >
-                                        {amountDue > 0 ? "Pay Now" : "Make a Donation"}
+                                        {amountDue > 0 ? (membership.status === 'EXPIRED' ? "Renew Membership" : "Pay Now") : "Make a Donation"}
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-md rounded-t-[24px]">
@@ -412,6 +555,37 @@ export function PortalDashboardPage() {
                                             </div>
                                         </Card>
 
+                                        {/* Fund Type Selection */}
+                                        <div className="bg-gray-50 p-3 rounded-2xl space-y-2">
+                                            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Payment Type</label>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${fundType === 'GENERAL'
+                                                        ? 'bg-white border-blue-600 text-blue-600 shadow-sm'
+                                                        : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-200'
+                                                        }`}
+                                                    onClick={() => setFundType('GENERAL')}
+                                                >
+                                                    General / Sadaqah
+                                                </button>
+                                                <button
+                                                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${fundType === 'ZAKAT'
+                                                        ? 'bg-white border-green-600 text-green-600 shadow-sm'
+                                                        : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-200'
+                                                        }`}
+                                                    onClick={() => setFundType('ZAKAT')}
+                                                >
+                                                    Zakat
+                                                </button>
+                                            </div>
+                                            {fundType === 'ZAKAT' && (
+                                                <div className="flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg">
+                                                    <AlertCircle className="h-3 w-3 mt-0.5" />
+                                                    <p>Zakat is a restricted fund. This amount will <strong>not</strong> be counted towards your membership fees.</p>
+                                                </div>
+                                            )}
+                                        </div>
+
                                         <div className="space-y-3">
                                             <label className="text-[13px] font-bold text-gray-500 uppercase tracking-wider">
                                                 Add Extra Donation
@@ -438,6 +612,17 @@ export function PortalDashboardPage() {
                                                     onChange={(e) => setExtraCharity(parseInt(e.target.value) || 0)}
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <label className="text-[13px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                                                Narration (Optional)
+                                            </label>
+                                            <textarea
+                                                placeholder="e.g., Zakat calculation for 2025, Building Fund..."
+                                                className="w-full px-3 py-2 text-sm border-gray-200 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[60px] resize-none"
+                                                value={narration}
+                                                onChange={(e) => setNarration(e.target.value)}
+                                            />
                                         </div>
 
                                         <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
@@ -488,7 +673,7 @@ export function PortalDashboardPage() {
                 )}
 
                 {/* 2. Digital ID Card */}
-                <Card className="bg-gradient-to-br from-blue-600 to-indigo-900 text-white border-0 shadow-xl relative overflow-hidden h-[200px] rounded-[24px]">
+                <Card className="bg-linear-to-br from-blue-600 to-indigo-900 text-white border-0 shadow-xl relative overflow-hidden h-[200px] rounded-[24px]">
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 blur-3xl"></div>
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400/10 rounded-full -ml-16 -mb-16 blur-2xl"></div>
 
@@ -604,11 +789,62 @@ export function PortalDashboardPage() {
                     <span>•</span>
                     <a href="#" className="hover:text-blue-600 transition-colors">Support</a>
                 </div>
+
+                {/* Hidden Dialog Triggered by Header Button */}
+                <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Change Password</DialogTitle>
+                            <DialogDescription>
+                                Enter your current password and a new password.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Current Password</label>
+                                <input
+                                    type="password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-md"
+                                    placeholder="••••••"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">New Password</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-md"
+                                    placeholder="••••••"
+                                />
+                                <p className="text-xs text-gray-500">Min. 8 characters</p>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    value={confirmNewPassword}
+                                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                    className="w-full px-3 py-2 border rounded-md"
+                                    placeholder="••••••"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={handleChangePassword} disabled={isChangePasswordLoading || !currentPassword || !newPassword || !confirmNewPassword}>
+                                {isChangePasswordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Change Password"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 <p className="text-[9px] text-gray-300 mt-8 font-black uppercase tracking-[0.3em] border border-gray-200/50 rounded-full py-1 px-4 inline-block">
                     v2.0.0 Alpha
                 </p>
             </footer>
-        </div>
+        </div >
     );
 }
 
