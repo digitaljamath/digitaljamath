@@ -45,6 +45,7 @@ export function ReportsPage() {
     // Day Book State
     const [reportView, setReportView] = useState("GENERAL"); // Default to General to hide Zakat
     const [sortOrder, setSortOrder] = useState("newest");
+    const [dayBookMode, setDayBookMode] = useState<"date" | "month">("date");
     const [dayBookDate, setDayBookDate] = useState(new Date().toISOString().split('T')[0]);
     const [dayBookEntries, setDayBookEntries] = useState<DayBookEntry[]>([]);
     const [dayBookSummary, setDayBookSummary] = useState({ total_receipts: 0, total_payments: 0 });
@@ -90,7 +91,17 @@ export function ReportsPage() {
     const fetchDayBook = async () => {
         setIsLoading(true);
         try {
-            let url = `/api/ledger/reports/day-book/?date=${dayBookDate}&sort=${sortOrder}`;
+            let formattedDate = dayBookDate;
+            if (dayBookMode === 'month' && dayBookDate.length === 7) {
+                formattedDate = `${dayBookDate}-01`;
+            } else if (dayBookMode === 'date' && dayBookDate.length === 7) {
+                formattedDate = `${dayBookDate}-01`;
+            } else if (dayBookMode === 'month' && dayBookDate.length === 10) {
+                // Ignore the -DD part for backend if it still sends YYYY-MM-DD
+                formattedDate = `${dayBookDate.substring(0, 7)}-01`;
+            }
+
+            let url = `/api/ledger/reports/day-book/?date=${formattedDate}&sort=${sortOrder}&mode=${dayBookMode}`;
             if (reportView !== 'ALL') {
                 url += `&fund_type=${reportView}`;
             }
@@ -194,6 +205,22 @@ export function ReportsPage() {
                                     <div className="flex items-center gap-2">
                                         <div className="flex bg-slate-100 rounded-lg p-1">
                                             <button
+                                                onClick={() => setDayBookMode('date')}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${dayBookMode === 'date' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                            >
+                                                Daily
+                                            </button>
+                                            <button
+                                                onClick={() => setDayBookMode('month')}
+                                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${dayBookMode === 'month' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+                                            >
+                                                Monthly
+                                            </button>
+                                        </div>
+                                        <div className="h-4 w-px bg-gray-300 mx-1"></div>
+
+                                        <div className="flex bg-slate-100 rounded-lg p-1">
+                                            <button
                                                 onClick={() => setSortOrder('newest')}
                                                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${sortOrder === 'newest' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
                                             >
@@ -207,10 +234,10 @@ export function ReportsPage() {
                                             </button>
                                         </div>
                                         <div className="h-4 w-px bg-gray-300 mx-1"></div>
-                                        <Label>Date:</Label>
+                                        <Label>{dayBookMode === 'month' ? 'Month:' : 'Date:'}</Label>
                                         <Input
-                                            type="date"
-                                            value={dayBookDate}
+                                            type={dayBookMode === 'month' ? 'month' : 'date'}
+                                            value={dayBookMode === 'month' && dayBookDate.length === 10 ? dayBookDate.substring(0, 7) : dayBookDate}
                                             onChange={(e) => setDayBookDate(e.target.value)}
                                             className="w-36 h-9"
                                         />

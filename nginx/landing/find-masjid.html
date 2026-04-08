@@ -1,221 +1,23 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Find Masjid | DigitalJamath</title>
-    <meta name="description" content="Find your Masjid URL by entering your admin email.">
-
-    <!-- Open Graph -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Find Masjid | DigitalJamath">
-    <meta property="og:description" content="Find your Masjid URL by entering your admin email.">
-    <meta property="og:image" content="/img/og-image.png">
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <link rel="icon" href="/img/icon.png" type="image/png">
-    <link rel="stylesheet" href="/styles.css">
-
-
-</head>
-
-<body class="bg-gray-50">
-    <!-- Header -->
-    <header class="header">
-        <div class="container header-content">
-            <a href="/" class="logo">
-                <img src="/img/icon.png" alt="DigitalJamath" width="32" height="32">
-                <span>DigitalJamath</span>
-            </a>
-            <a href="/" class="btn btn-outline">← Back to Home</a>
-        </div>
-    </header>
-
-    <main class="onboarding-main">
-        <div class="container">
-            <div class="onboarding-card">
-                <div id="search-view">
-                    <div class="card-header">
-                        <h1>Find Masjid</h1>
-                        <p>Enter your admin email to find your Masjid URL.</p>
-                    </div>
-
-                    <form id="find-form" class="onboarding-form">
-                        <div class="form-group">
-                            <label for="email">Admin Email</label>
-                            <input type="email" id="email" name="email" placeholder="admin@masjid.com" required>
-                        </div>
-                        <div id="error-message" class="error-text hidden"></div>
-                        <button type="submit" id="submit-btn" class="btn btn-primary btn-full btn-lg">Find
-                            Masjid</button>
-                    </form>
-                </div>
-
-                <div id="results-view" class="hidden">
-                    <div class="card-header">
-                        <h1 id="results-title">Found Masjid</h1>
-                        <p id="results-count"></p>
-                    </div>
-
-                    <div id="workspaces-list" class="workspaces-grid">
-                        <!-- Workspaces will be injected here -->
-                    </div>
-
-                    <div class="card-footer">
-                        <button id="search-again" class="btn btn-outline btn-full">Try Another Email</button>
-                    </div>
-                </div>
-
-
-                <div id="success-view" class="hidden text-center">
-                    <div class="success-icon">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                            <polyline points="22 4 12 14.01 9 11.01" />
-                        </svg>
-                    </div>
-                    <h2>Check Your Email</h2>
-                    <p class="text-gray-500" style="margin-bottom: 1.5rem;">If an account exists with this email, you
-                        will receive login information shortly.</p>
-                    <p class="text-gray-400 text-sm">Don't forget to check your spam folder.</p>
-                    <button id="search-again-success" class="btn btn-outline" style="margin-top: 1.5rem;">Try Another
-                        Email</button>
-                </div>
-
-                <div class="onboarding-footer">
-                    <p>Don't have a Masjid yet? <a href="/register">Register your Masjid</a></p>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <footer class="onboarding-footer-bar">
-        <div class="container">
-            <p>© 2026 DigitalJamath. All rights reserved.</p>
-            <div class="footer-links">
-                <a href="/terms">Terms</a>
-                <a href="/privacy">Privacy</a>
-                <span class="version">v1.2.0</span>
-            </div>
-        </div>
-    </footer>
-
-
-
+    <title>Redirecting to Find Masjid...</title>
     <script>
-        const searchView = document.getElementById('search-view');
-        const resultsView = document.getElementById('results-view');
-        const successView = document.getElementById('success-view');
-        const findForm = document.getElementById('find-form');
-        const submitBtn = document.getElementById('submit-btn');
-        const errorMessage = document.getElementById('error-message');
-        const workspacesList = document.getElementById('workspaces-list');
-        const resultsCount = document.getElementById('results-count');
-        const searchAgainBtn = document.getElementById('search-again');
-
-        findForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Sending...';
-            errorMessage.classList.add('hidden');
-
-            try {
-                const response = await fetch('/api/find-workspace/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-
-                // Check content type
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    data = await response.json();
-                } else {
-                    const text = await response.text();
-                    console.error('Non-JSON response:', text);
-                    throw new Error(`Server Error (${response.status}): Expected JSON but got ${contentType}`);
-                }
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Something went wrong');
-                }
-
-                // Show success view (email sent)
-                showSuccessView();
-            } catch (err) {
-                errorMessage.textContent = err.message || 'Something went wrong. Please try again.';
-                errorMessage.classList.remove('hidden');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Find Masjid';
-            }
-        });
-
-        function showSuccessView() {
-            searchView.classList.add('hidden');
-            resultsView.classList.add('hidden');
-            successView.classList.remove('hidden');
+        // Redirect to the new Unified React frontend running on port 5173 for local dev, or relative path for prod
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.location.replace('http://localhost:5173/find-masjid');
+        } else {
+            // In production, the Nginx reverse proxy routes the React app under the same domain
+            window.location.replace('/find-masjid'); 
         }
-
-        document.getElementById('search-again-success').addEventListener('click', () => {
-            successView.classList.add('hidden');
-            searchView.classList.remove('hidden');
-            document.getElementById('email').value = '';
-        });
-
-        function showResults(workspaces) {
-            workspacesList.innerHTML = '';
-            searchView.classList.add('hidden');
-            resultsView.classList.remove('hidden');
-
-            if (workspaces.length === 0) {
-                resultsCount.textContent = 'No Masjids found for this email.';
-                return;
-            }
-
-            resultsCount.textContent = `Found ${workspaces.length} Masjid${workspaces.length > 1 ? 's' : ''}:`;
-
-            workspaces.forEach(ws => {
-                // Adjust URL for local testing if needed
-                let loginUrl = ws.login_url.replace('/auth/login', '/auth/signin');
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    const url = new URL(loginUrl);
-                    url.port = window.location.port;
-                    url.hostname = window.location.hostname;
-                    loginUrl = url.toString();
-                }
-
-                const card = document.createElement('a');
-                card.href = loginUrl;
-                card.className = 'workspace-card';
-                card.innerHTML = `
-    <div class="workspace-info">
-        <span class="workspace-name">${ws.name}</span>
-        <span class="workspace-url">${ws.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-        <polyline points="15 3 22 3 22 10" />
-        <line x1="10" y1="14" x2="22" y2="2" />
-    </svg>
-    `;
-                workspacesList.appendChild(card);
-            });
-        }
-
-        searchAgainBtn.addEventListener('click', () => {
-            resultsView.classList.add('hidden');
-            searchView.classList.remove('hidden');
-        });
     </script>
+</head>
+<body style="font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f9fafb; margin: 0;">
+    <div style="text-align: center;">
+        <h2>Connecting to DigitalJamath...</h2>
+        <p style="color: #6b7280;">If you are not redirected automatically, <a href="http://localhost:5173/find-masjid" style="color: #2563eb;">click here</a>.</p>
+    </div>
 </body>
-
 </html>

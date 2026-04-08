@@ -158,8 +158,8 @@ export function FinancePage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-emerald-500 to-green-600 text-white">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-linear-to-br from-emerald-500 to-green-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Total Available Balance</CardTitle>
                         {<CardDescription className="text-emerald-100 text-xs">Unrestricted (General)</CardDescription>}
@@ -169,7 +169,7 @@ export function FinancePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                <Card className="bg-linear-to-br from-blue-500 to-indigo-600 text-white">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium opacity-90">Zakat Fund</CardTitle>
                         <CardDescription className="text-blue-100 text-xs">Restricted</CardDescription>
@@ -178,34 +178,10 @@ export function FinancePage() {
                         <div className="text-2xl font-bold">₹{zakatBalance.toLocaleString('en-IN')}</div>
                     </CardContent>
                 </Card>
-
-                <Link to={`/dashboard/finance/transactions?from=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01&to=${new Date().toISOString().split('T')[0]}&type=RECEIPT&exclude_zakat=true`}>
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-green-300">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-500">Income This Month</CardTitle>
-                            <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-green-600">₹{parseFloat(stats.income).toLocaleString('en-IN')}</div>
-                        </CardContent>
-                    </Card>
-                </Link>
-
-                <Link to={`/dashboard/finance/transactions?from=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01&to=${new Date().toISOString().split('T')[0]}&type=PAYMENT&exclude_zakat=true`}>
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-red-300">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-500">Expenses This Month</CardTitle>
-                            <CardDescription className="text-xs text-gray-400">Excl. Zakat</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-red-600">₹{parseFloat(stats.expense).toLocaleString('en-IN')}</div>
-                        </CardContent>
-                    </Card>
-                </Link>
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-2 ${localStorage.getItem("financeMode") === "ADVANCED" ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
                 <Link to="/dashboard/finance/voucher?type=RECEIPT">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-green-300">
                         <CardContent className="pt-6 text-center">

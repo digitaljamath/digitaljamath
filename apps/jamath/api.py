@@ -34,38 +34,59 @@ class HasStaffPermission(permissions.BasePermission):
     Checks if the user has specific module-level permissions via their assigned StaffRole.
     """
     def has_permission(self, request, view):
-        if request.user.is_superuser:
-            return True
-        if not request.user.is_authenticated:
+        if not request.user or not request.user.is_authenticated:
             return False
             
-        try:
-            # Use staff_profile (OneToOne) 
-            staff_member = request.user.staff_profile
-            if not staff_member or not staff_member.is_active:
-                return False
-        except Exception:
-            return False
+        # Superusers bypass checks
+        if request.user.is_superuser:
+            return True
             
         required_module = getattr(view, 'required_module', None)
         if not required_module:
             return True
             
-        user_permissions = staff_member.role.permissions if staff_member.role else {}
-        # Merge with individual overrides
-        if staff_member.permissions:
-            user_permissions = {**user_permissions, **staff_member.permissions}
+        try:
+            from .models import StaffMember
+            staff = StaffMember.objects.select_related('role').get(user=request.user)
+            user_perms = staff.role.permissions
             
-        access_level = user_permissions.get(required_module)
-        
-        if not access_level or access_level == 'none':
+            # Module-level access check
+            access_level = user_perms.get(required_module)
+            if not access_level or access_level == 'none':
+                return False
+                
+            if access_level == 'read' and request.method not in permissions.SAFE_METHODS:
+                return False
+                
+            return True
+        except StaffMember.DoesNotExist:
             return False
-            
-        if access_level == 'read' and request.method not in permissions.SAFE_METHODS:
-            return False
-            
-        return True
 
+class MosqueScopedViewSet(viewsets.ModelViewSet):
+    """
+    Base ViewSet that automatically scopes all queries and creations to the 
+    Mosque the current user belongs to (via StaffMember or Member).
+    """
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Find Mosque context for Staff Admin Users
+        if self.request.user.is_authenticated:
+            try:
+                from .models import StaffMember
+                staff = StaffMember.objects.get(user=self.request.user)
+                return qs.filter(mosque=staff.mosque)
+            except StaffMember.DoesNotExist:
+                pass
+                
+        return qs.none()
+
+    def perform_create(self, serializer):
+        try:
+            from .models import StaffMember
+            staff = StaffMember.objects.get(user=self.request.user)
+            serializer.save(mosque=staff.mosque)
+        except StaffMember.DoesNotExist:
+            super().perform_create(serializer)
 
 # ============================================================================
 # AUDIT LOGGING
@@ -77,16 +98,19 @@ class AuditLogMixin:
     Also handles setting 'created_by' field if it exists on the model.
     """
     def perform_create(self, serializer):
+        super().perform_create(serializer)
+        instance = serializer.instance
+        
         # Auto-set created_by if model has it
-        if hasattr(serializer.Meta.model, 'created_by'):
-            instance = serializer.save(created_by=self.request.user)
-        else:
-            instance = serializer.save()
+        if hasattr(serializer.Meta.model, 'created_by') and not getattr(instance, 'created_by_id', None):
+            instance.created_by = self.request.user
+            instance.save(update_fields=['created_by'])
             
         self._log_activity('CREATE', instance, "Created new entry", self.request.user)
 
     def perform_update(self, serializer):
-        instance = serializer.save()
+        super().perform_update(serializer)
+        instance = serializer.instance
         self._log_activity('UPDATE', instance, "Updated entry", self.request.user)
 
     def perform_destroy(self, instance):
@@ -253,7 +277,9 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Announcement
-        fields = ['id', 'title', 'content', 'published_at', 'expires_at', 'created_by_name', 'status']
+        fields = ['id', 'title', 'content', 'published_at', 'expires_at', 
+                  'created_by_name', 'status', 'image', 'is_public', 
+                  'is_fundraiser', 'fundraising_target']
 
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
@@ -814,12 +840,12 @@ class MemberPortalMemberView(APIView):
 # RBAC APIs
 # ============================================================================
 
-class StaffRoleViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class StaffRoleViewSet(AuditLogMixin, MosqueScopedViewSet):
     queryset = StaffRole.objects.all()
     serializer_class = StaffRoleSerializer
     permission_classes = [IsAdminUser] # For now only admins can manage roles
 
-class StaffMemberViewSet(viewsets.ModelViewSet):
+class StaffMemberViewSet(MosqueScopedViewSet):
     queryset = StaffMember.objects.all()
     serializer_class = StaffMemberSerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
@@ -1021,7 +1047,7 @@ class AdminMembershipConfigView(APIView):
 # EXISTING VIEWSETS (Updated)
 # ============================================================================
 
-class HouseholdViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class HouseholdViewSet(AuditLogMixin, MosqueScopedViewSet):
     queryset = Household.objects.prefetch_related(
         models.Prefetch('members', queryset=Member.objects.order_by('-is_head_of_family', 'dob'))
     ).distinct()
@@ -1056,7 +1082,7 @@ class HouseholdViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 
 
-class MembershipConfigViewSet(viewsets.ModelViewSet):
+class MembershipConfigViewSet(MosqueScopedViewSet):
     queryset = MembershipConfig.objects.all()
     serializer_class = MembershipConfigSerializer
     
@@ -1072,7 +1098,7 @@ class MembershipConfigViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
 
-class MemberViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class MemberViewSet(AuditLogMixin, MosqueScopedViewSet):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
@@ -1086,14 +1112,14 @@ class MemberViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return queryset
 
 
-class SurveyViewSet(viewsets.ModelViewSet):
+class SurveyViewSet(MosqueScopedViewSet):
     queryset = Survey.objects.all()
     serializer_class = SurveySerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'jamath'
 
 
-class SurveyResponseViewSet(viewsets.ModelViewSet):
+class SurveyResponseViewSet(MosqueScopedViewSet):
     queryset = SurveyResponse.objects.filter(survey__is_active=True)
     serializer_class = SurveyResponseSerializer
 
@@ -1103,7 +1129,7 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
         JamathService.process_survey_response(instance)
 
 
-class AnnouncementViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class AnnouncementViewSet(AuditLogMixin, MosqueScopedViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
@@ -1117,11 +1143,20 @@ class AnnouncementViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return queryset.order_by('-published_at')
 
     def perform_create(self, serializer):
-        instance = serializer.save(created_by=self.request.user)
+        mosque = None
+        if self.request.user.is_authenticated:
+            try:
+                from .models import StaffMember
+                staff = StaffMember.objects.get(user=self.request.user)
+                mosque = staff.mosque
+            except StaffMember.DoesNotExist:
+                pass
+                
+        instance = serializer.save(created_by=self.request.user, mosque=mosque)
         self._log_activity('CREATE', instance, f"Created Announcement: {instance.title}", self.request.user)
 
 
-class ServiceRequestViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class ServiceRequestViewSet(AuditLogMixin, MosqueScopedViewSet):
     queryset = ServiceRequest.objects.all()
     serializer_class = ServiceRequestSerializer
     permission_classes = [IsAdminUser | HasStaffPermission]
@@ -1478,7 +1513,7 @@ class ChangePasswordView(APIView):
 # MIZAN LEDGER VIEWSETS
 # ============================================================================
 
-class LedgerViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class LedgerViewSet(AuditLogMixin, MosqueScopedViewSet):
     """Chart of Accounts management."""
     queryset = Ledger.objects.filter(parent=None, is_active=True)  # Only top-level by default
     serializer_class = LedgerSerializer
@@ -1525,7 +1560,7 @@ class LedgerViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return Response(status=204)
 
 
-class SupplierViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class SupplierViewSet(AuditLogMixin, MosqueScopedViewSet):
     """Vendor/Supplier management."""
     queryset = Supplier.objects.filter(is_active=True)
     serializer_class = SupplierSerializer
@@ -1547,7 +1582,7 @@ class SupplierViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return Response(status=204)
 
 
-class JournalEntryViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class JournalEntryViewSet(AuditLogMixin, MosqueScopedViewSet):
     """Journal Entry (Voucher) management."""
     queryset = JournalEntry.objects.all().order_by('-date')
     serializer_class = JournalEntrySerializer
@@ -1825,14 +1860,17 @@ class LedgerReportsView(APIView):
                 zakat_stats = JournalItem.objects.filter(
                     ledger__fund_type='ZAKAT'
                 ).aggregate(
-                    income=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
-                    equity=Sum('credit_amount', filter=Q(ledger__account_type='EQUITY')),
-                    expense=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE'))
+                    income_c=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
+                    income_d=Sum('debit_amount', filter=Q(ledger__account_type='INCOME')),
+                    equity_c=Sum('credit_amount', filter=Q(ledger__account_type='EQUITY')),
+                    equity_d=Sum('debit_amount', filter=Q(ledger__account_type='EQUITY')),
+                    expense_d=Sum('debit_amount', filter=Q(ledger__account_type='EXPENSE')),
+                    expense_c=Sum('credit_amount', filter=Q(ledger__account_type='EXPENSE'))
                 )
                 
-                z_income = zakat_stats['income'] or Decimal('0')
-                z_equity = zakat_stats['equity'] or Decimal('0')
-                z_expense = zakat_stats['expense'] or Decimal('0')
+                z_income = (zakat_stats['income_c'] or Decimal('0')) - (zakat_stats['income_d'] or Decimal('0'))
+                z_equity = (zakat_stats['equity_c'] or Decimal('0')) - (zakat_stats['equity_d'] or Decimal('0'))
+                z_expense = (zakat_stats['expense_d'] or Decimal('0')) - (zakat_stats['expense_c'] or Decimal('0'))
                 
                 zakat_balance = (z_income + z_equity) - z_expense
                 
@@ -1843,7 +1881,8 @@ class LedgerReportsView(APIView):
                 # We should only reserve positive Zakat balances.
                 zakat_reserve = max(Decimal('0'), zakat_balance)
                 
-                general_available = gross_cash - zakat_reserve
+                # UI Request: Balance should never display as negative
+                general_available = max(Decimal('0'), gross_cash - zakat_reserve)
 
                 return Response({
                     'income_this_month': str(income_this_month),
@@ -2524,7 +2563,9 @@ class SeedLedgerView(APIView):
 
     def post(self, request):
         try:
-            call_command('seed_ledger')
+            from apps.jamath.models import StaffMember
+            staff = StaffMember.objects.get(user=request.user)
+            call_command('seed_ledger', mosque_id=staff.mosque_id)
             return Response({'message': 'Chart of Accounts seeded successfully.'})
         except Exception as e:
             return Response({'error': str(e)}, status=500)

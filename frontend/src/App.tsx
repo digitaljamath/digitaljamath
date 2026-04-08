@@ -1,6 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { LoginPage } from './pages/auth/LoginPage'
+
+import { RegisterPage } from './pages/auth/RegisterPage'
+import { MasjidLoginPage } from './pages/auth/MasjidLoginPage'
 import { FindWorkspacePage } from './pages/auth/FindWorkspacePage'
+import { PublicMasjidPage } from './pages/public/PublicMasjidPage'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { DashboardHome } from './pages/dashboard/DashboardHome'
 import { HouseholdsPage } from './pages/dashboard/households/HouseholdsPage'
@@ -28,15 +31,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { Toaster } from './components/ui/toaster'
 import './index.css'
 
-// Placeholder pages - to be migrated
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">{title}</h1>
-      <p className="text-muted-foreground">This page is being migrated from Next.js...</p>
-    </div>
-  )
-}
+
 
 import { PortalLoginPage } from './pages/portal/PortalLoginPage'
 import { PortalDashboardPage } from './pages/portal/PortalDashboardPage'
@@ -52,8 +47,10 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Auth Routes (public) */}
-          <Route path="/auth/signin" element={<LoginPage />} />
-          <Route path="/auth/login" element={<Navigate to="/auth/signin" replace />} />
+          <Route path="/auth/signin" element={<Navigate to="/auth/masjid/login" replace />} />
+          <Route path="/auth/masjid/login" element={<MasjidLoginPage />} />
+          <Route path="/auth/login" element={<Navigate to="/auth/masjid/login" replace />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/find-masjid" element={<FindWorkspacePage />} />
 
           {/* Portal Routes (public) */}
@@ -100,11 +97,13 @@ function App() {
             <Route path="basira" element={<BasiraPage />} />
             <Route path="profile" element={<ProfilePage />} />
 
-            {/* Any remaining placeholders or sub-routes */}
-            <Route path="reports" element={<PlaceholderPage title="Reports" />} />
+
           </Route>
 
           {/* Tenant Home Page */}
+          <Route path="/m/:id" element={<PublicMasjidPage />} />
+          <Route path="/masjid/:id" element={<PublicMasjidPage />} />
+          <Route path="/start" element={<TenantHomePage />} />
           <Route path="/" element={<TenantHomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

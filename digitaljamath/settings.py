@@ -51,9 +51,8 @@ RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', None)
 
 # Application definition
 SHARED_APPS = (
-    'django_tenants',  # mandatory
     'corsheaders',     # CORS headers
-    'apps.shared',     # your tenant and domain models
+    'apps.shared',     # your shared models
 
     'django.contrib.contenttypes',
     'django.contrib.auth',
@@ -75,15 +74,7 @@ TENANT_APPS = (
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
-TENANT_MODEL = "shared.Client"
-TENANT_DOMAIN_MODEL = "shared.Domain"
-
-# Fall back to public tenant for unknown domains (enables registration from any domain)
-SHOW_PUBLIC_IF_NO_TENANT_FOUND = True
-
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware', # mandatory, top
-    'apps.shared.middleware.PublicSchemaProtectionMiddleware',  # Block public schema access
     'corsheaders.middleware.CorsMiddleware',               # CORS Middleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -118,7 +109,7 @@ WSGI_APPLICATION = 'digitaljamath.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django_tenants.postgresql_backend',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DATABASE_NAME', 'digitaljamath_db'),
         'USER': os.environ.get('DATABASE_USER', 'postgres'),
         'PASSWORD': os.environ.get('DATABASE_PASSWORD', 'postgres'),
@@ -126,10 +117,6 @@ DATABASES = {
         'PORT': os.environ.get('DATABASE_PORT', '5432'),
     }
 }
-
-DATABASE_ROUTERS = (
-    'django_tenants.routers.TenantSyncRouter',
-)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

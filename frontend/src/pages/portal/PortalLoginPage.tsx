@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Loader2, MessageCircle } from "lucide-react";
-import { getApiBaseUrl } from "@/lib/config";
+import { getApiBaseUrl, getLandingPageUrl } from "@/lib/config";
+import logo from "@/assets/logo.png";
 
 export function PortalLoginPage() {
     const navigate = useNavigate();
@@ -78,10 +79,10 @@ export function PortalLoginPage() {
             {/* Header */}
             <header className="bg-white border-b sticky top-0 z-50">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <Link to="/" className="flex items-center gap-2">
-                        <img src="/logo.png" alt="Logo" className="h-8 w-8" />
+                    <a href={getLandingPageUrl()} className="flex items-center gap-2">
+                        <img src={logo} alt="Logo" className="h-8 w-8 drop-shadow-sm" />
                         <span className="font-bold text-xl text-gray-900">{masjidName}</span>
-                    </Link>
+                    </a>
                     <Link to="/auth/signin" className="text-sm text-gray-500 hover:text-gray-700">
                         Staff Login →
                     </Link>
@@ -93,7 +94,7 @@ export function PortalLoginPage() {
                 <Card className="w-full max-w-md">
                     <CardHeader className="text-center">
                         <div className="mx-auto mb-4">
-                            <img src="/logo.png" alt="Logo" className="h-16 w-16 mx-auto" />
+                            <img src={logo} alt="Logo" className="h-16 w-16 mx-auto drop-shadow-sm" />
                         </div>
                         <CardTitle className="text-2xl">Member Login</CardTitle>
                         <CardDescription>
@@ -171,7 +172,7 @@ export function PortalLoginPage() {
             {/* Footer */}
             <footer className="bg-white border-t py-4">
                 <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-                    <p>Powered by <a href="https://digitaljamath.com" className="text-blue-600 hover:underline">DigitalJamath</a></p>
+                    <p>Powered by <a href={getLandingPageUrl()} className="text-blue-600 hover:underline">DigitalJamath</a></p>
                 </div>
             </footer>
         </div>

@@ -89,9 +89,7 @@ if [[ "$INSTALL_MODE" == "1" ]]; then
     cd frontend
     npm install
     cd ..
-    echo "✅ Frontend dependencies installed."
-
-    # 7. Database Migrations
+    echo "✅ F    # 7. Database Migrations
     echo "[5/8] Running Database Migrations..."
     python manage.py makemigrations
     python manage.py migrate_schemas --shared
@@ -163,6 +161,9 @@ else:
         echo "🏠 Access your masjid at: http://$MASJID_DOMAIN:8000"
     else
         echo "💡 Tip: If accounting dropdowns are empty, run:"
+        echo "   python manage.py seed_ledger"
+    fi
+re empty, run:"
         echo "   python manage.py seed_ledger"
     fi
 

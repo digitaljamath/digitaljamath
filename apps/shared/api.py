@@ -1,115 +1,68 @@
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
-import requests
 from django.conf import settings
-from .models import Client, Domain
+from .models import Mosque
 from .serializers import TenantRegistrationSerializer
-from django_tenants.utils import schema_context
 from django.contrib.auth.models import User
 import random
 from django.utils import timezone
 from rest_framework.views import APIView
 from .email_service import EmailService
+from django.core.signing import Signer, BadSignature
 
 
-# Custom throttle for Find Workspace API - prevents email enumeration attacks
 class FindWorkspaceThrottle(AnonRateThrottle):
-    rate = '100/hour'  # Increased for development (was 5/hour)
+    rate = '100/hour'
 
-
-# Registration throttles - prevent abuse of registration flow
 class OTPRequestThrottle(AnonRateThrottle):
-    rate = '100/hour'  # Increased for development (was 3/hour)
+    rate = '100/hour'
 
-
-class CheckTenantThrottle(AnonRateThrottle):
-    rate = '100/hour'  # Increased for development (was 10/hour)
-
+class CheckMosqueThrottle(AnonRateThrottle):
+    rate = '100/hour'
 
 class RegistrationThrottle(AnonRateThrottle):
-    rate = '100/hour'  # Increased for development (was 5/hour)
+    rate = '100/hour'
 
 
-
-
-class TenantRegistrationView(generics.CreateAPIView):
-    queryset = Client.objects.all()
+class MosqueRegistrationView(generics.CreateAPIView):
+    queryset = Mosque.objects.all()
     serializer_class = TenantRegistrationSerializer
-    permission_classes = []  # Allow anyone to register
-    throttle_classes = [RegistrationThrottle]  # Rate limit: 5/hour per IP
+    permission_classes = []
+    throttle_classes = [RegistrationThrottle]
     
     def post(self, request, *args, **kwargs):
-        # 1. Validate Data
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         
-        # 2. Check Verification (Using Verification Token from OTP step)
-        verification_token = request.data.get('verification_token')
-        if not verification_token:
-             return Response({"error": "Verification token required. Please verify email first."}, status=status.HTTP_400_BAD_REQUEST)
+        # Removed verification token check for seamless registration
+        # We assume the provided email is correct for now on the unified platform
         
-        # Verify the token (Simple check against our cache/store)
-        # For MVP, we decode the token or check local store.
-        # Let's assume the token IS the email (signed) or we check a store.
-        # We will implement a simple signed token verification here.
-        from django.core.signing import Signer, BadSignature
-        signer = Signer()
-        try:
-             original_email = signer.unsign(verification_token)
-             if original_email != data['email']:
-                 return Response({"error": "Token does not match email."}, status=status.HTTP_400_BAD_REQUEST)
-        except BadSignature:
-             return Response({"error": "Invalid verification token."}, status=status.HTTP_400_BAD_REQUEST)
-
+        # Check against existing mosques by owner email or name
+        if Mosque.objects.filter(name__iexact=data['name']).exists():
+             return Response({"error": "This Mosque name is already taken."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # 3. Check Availability
-        # Force lowercase for domain and schema to avoid case-sensitivity issues
-        domain_part = data.get('domain', '').lower()
-        schema_name = data.get('schema_name')
-        
-        if not schema_name:
-             schema_name = domain_part.replace('-', '_')
-        else:
-             schema_name = schema_name.lower()
-             
-        data['schema_name'] = schema_name
-        data['domain'] = domain_part # Update data dict just in case
-
-        if Client.objects.filter(schema_name=schema_name).exists():
-             return Response({"error": "This Masjid workspace name is already taken."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # 4. Prepare Task Data
         task_data = {
             'name': data['name'],
-            'schema_name': schema_name,
             'owner_email': data['email'],
-            'domain_part': domain_part,
-            'email': data['email'],
             'password': data['password'],
-            'setup_type': data.get('setup_type', 'STANDARD'),  # standard or custom
+            'setup_type': data.get('setup_type', 'STANDARD'),
         }
 
-        # 5. Trigger Task (Async if Celery is running, Sync for local dev)
         from .tasks import create_tenant_task
-        from django.conf import settings
         import os
         
         base_domain = os.environ.get('DOMAIN_NAME', 'localhost')
-        full_domain = f"{domain_part}.{base_domain}"
         
-        # In DEBUG mode or when CELERY_SYNC=True, run synchronously
         if settings.DEBUG or os.environ.get('CELERY_SYNC', 'false').lower() == 'true':
-            # Run synchronously for local development
             try:
                 result = create_tenant_task(task_data)
                 return Response({
-                    "message": "Workspace created successfully.",
+                    "message": "Mosque created successfully.",
                     "status": "SUCCESS",
                     "task_id": "sync-task",
-                    "tenant_url": result.get('tenant_url', f"http://{full_domain}/"),
-                    "login_url": result.get('login_url', f"http://{full_domain}/auth/login")
+                    "login_url": result.get('login_url', f"http://{base_domain}/auth/masjid/login")
                 }, status=status.HTTP_201_CREATED)
             except Exception as e:
                 return Response({
@@ -117,37 +70,28 @@ class TenantRegistrationView(generics.CreateAPIView):
                     "status": "FAILURE"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            # Run async via Celery in production
             task_result = create_tenant_task.delay(task_data)
             return Response({
-                "message": "Workspace creation started.",
+                "message": "Mosque creation started.",
                 "status": "pending",
                 "task_id": task_result.id,
-                "tenant_url": f"http://{full_domain}/",
-                "login_url": f"http://{full_domain}/auth/login"
+                "login_url": f"http://{base_domain}/auth/masjid/login"
             }, status=status.HTTP_202_ACCEPTED)
 
-# In-memory OTP store for Registration
 _reg_otp_store = {}
 
 class RequestRegistrationOTPView(APIView):
-    """Send OTP to email for registration."""
     permission_classes = []
-    throttle_classes = [OTPRequestThrottle]  # Rate limit: 3/hour per IP
+    throttle_classes = [OTPRequestThrottle]
 
     def post(self, request):
         email = request.data.get('email')
-        masjid_name = request.data.get('masjid_name', 'DigitalJamath Workspace')
+        masjid_name = request.data.get('masjid_name', 'DigitalJamath Platform')
         
         if not email:
             return Response({'error': 'Email is required'}, status=400)
             
-        # Check if email is already an owner? (Optional, maybe allow multiple workspaces)
-        
-        # Generate OTP (Random 6-digit)
         otp = str(random.randint(100000, 999999))
-        
-        # Debug: Print OTP to console in DEBUG mode for easier testing if SMTP fails
         if settings.DEBUG:
             print(f"DEBUG OTP for {email}: {otp}")
             
@@ -156,35 +100,27 @@ class RequestRegistrationOTPView(APIView):
             'expires': timezone.now() + timezone.timedelta(minutes=10)
         }
         
-        # Send OTP
         try:
-            from .email_service import EmailService
             EmailService.send_email(
                 subject=f"Verification Code for {masjid_name}",
                 html_content=f"""
                 <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; text-align: center;">
                     <h2 style="color: #333;">Verify your Email</h2>
-                    <p style="color: #666;">You are setting up a workspace for <strong>{masjid_name}</strong>.</p>
+                    <p style="color: #666;">You are setting up a platform for <strong>{masjid_name}</strong>.</p>
                     <p>Use the code below to complete verification:</p>
-                    
                     <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
                         <h1 style="font-size: 32px; letter-spacing: 5px; color: #111; margin: 0; font-family: monospace;">{otp}</h1>
                     </div>
-                    
-                    <p style="font-size: 12px; color: #999;">This code expires in 10 minutes.</p>
-                </div>
-                """,
+                </div>""",
                 recipient_list=[email]
             )
         except Exception as e:
-            # Log error but don't crash if console backend
             print(f"OTP Send Error: {e}")
             return Response({'error': 'Failed to send OTP. Please try again.'}, status=500)
             
         return Response({'message': 'OTP sent successfully'})
 
 class VerifyRegistrationOTPView(APIView):
-    """Verify OTP and return a signed token for registration."""
     permission_classes = []
 
     def post(self, request):
@@ -205,12 +141,8 @@ class VerifyRegistrationOTPView(APIView):
              del _reg_otp_store[email]
              return Response({'error': 'OTP expired'}, status=400)
         
-        # Success: Generate Signed Token
-        from django.core.signing import Signer
         signer = Signer()
         verification_token = signer.sign(email)
-        
-        # Clear OTP
         del _reg_otp_store[email]
             
         return Response({
@@ -218,86 +150,50 @@ class VerifyRegistrationOTPView(APIView):
             'verification_token': verification_token
         })
 
-
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-
-@method_decorator(csrf_exempt, name='dispatch')
 class FindWorkspaceView(generics.GenericAPIView):
-    """
-    Find Masjid API with security protections:
-    - Rate limiting (5 requests/hour per IP)
-    - reCAPTCHA v3 verification
-    - Email confirmation (sends login info via email, no direct data return)
-    """
     permission_classes = []
     throttle_classes = [FindWorkspaceThrottle]
     
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
-        
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Find workspaces for this email
-        clients = Client.objects.filter(owner_email__iexact=email)
+        mosques = Mosque.objects.filter(owner_email__iexact=email)
         
-        if clients.exists():
+        if mosques.exists():
             try:
                 results = []
-                for client in clients:
-                    # Defensive check for domains/domain_set
-                    domains = getattr(client, 'domains', None) or getattr(client, 'domain_set', None)
-                    if domains:
-                        domain = domains.filter(is_primary=True).first()
-                        if domain:
-                            protocol = 'https' if not settings.DEBUG else 'http'
-                            results.append({
-                                "name": client.name,
-                                "url": f"{protocol}://{domain.domain}/",
-                                "login_url": f"{protocol}://{domain.domain}/auth/login"
-                            })
-                
-                # Send email with workspace info instead of returning directly
+                for mosque in mosques:
+                    protocol = 'https' if not settings.DEBUG else 'http'
+                    domain = os.environ.get('DOMAIN_NAME', 'localhost:5173')
+                    results.append({
+                        "name": mosque.name,
+                        "url": f"{protocol}://{domain}/",
+                        "login_url": f"{protocol}://{domain}/auth/login"
+                    })
                 if results:
                     EmailService.send_workspace_login_info(email, results)
-                    
             except Exception as e:
-                # Catch ALL errors (AttributeError, SMTP, etc) to prevent 500
-                import traceback
                 print(f"Find Workspace Error: {str(e)}")
-                traceback.print_exc()
 
-        
-        # Always return same success message to prevent email enumeration
         return Response({
             "success": True,
             "message": "If an account exists with this email, you will receive login information shortly."
         }, status=status.HTTP_200_OK)
 
+
 class TenantInfoView(generics.GenericAPIView):
     permission_classes = []
 
     def get(self, request):
-        tenant = request.tenant
-        if tenant.schema_name == 'public':
-            return Response({"name": "DigitalJamath", "is_public": True})
-        
-        from django.conf import settings
+        # We can pass Mosque ID from headers if needed, but for public info,
+        # it might just return the unified platform name.
         return Response({
-            "name": tenant.name,
-            "schema_name": tenant.schema_name,
-            "is_public": False,
-
-            "allow_manual_ledger": tenant.allow_manual_ledger,
-            "setup_type": tenant.setup_type
+            "name": "DigitalJamath Platform",
+            "is_public": True,
         })
 
-from .utils import send_verification_email, send_password_reset_email
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
-from django.core.signing import Signer, BadSignature
 
 class VerifyEmailView(generics.GenericAPIView):
     permission_classes = []
@@ -308,23 +204,19 @@ class VerifyEmailView(generics.GenericAPIView):
              return Response({"error": "Token required"}, status=status.HTTP_400_BAD_REQUEST)
              
         try:
-            client = Client.objects.get(verification_token=token)
+            client = Mosque.objects.get(verification_token=token)
             if client.email_verified:
                  return Response({"message": "Email already verified."}, status=status.HTTP_200_OK)
             
             client.email_verified = True
             client.save()
             return Response({"message": "Email verified successfully."}, status=status.HTTP_200_OK)
-        except Client.DoesNotExist:
+        except Mosque.DoesNotExist:
             return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
-# In-memory OTP store for Password Reset
 _reset_otp_store = {}
 
 class RequestPasswordResetOTPView(generics.GenericAPIView):
-    """
-    Step 1: Request OTP for Password Reset.
-    """
     permission_classes = []
     throttle_classes = [OTPRequestThrottle] 
 
@@ -333,60 +225,39 @@ class RequestPasswordResetOTPView(generics.GenericAPIView):
         if not email:
             return Response({'error': 'Email is required'}, status=400)
             
-        tenant = request.tenant
-        if tenant.schema_name == 'public':
-             return Response({"error": "Please use your workspace URL to reset password."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if user exists in this tenant
-        with schema_context(tenant.schema_name):
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                # Security: Don't reveal user existence
-                return Response({'message': 'If an account exists, an OTP has been sent.'})
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'message': 'If an account exists, an OTP has been sent.'})
         
-        # Generate OTP
         otp = str(random.randint(100000, 999999))
-        
-        # Debug: Print OTP to console
         if settings.DEBUG:
             print(f"RESET OTP for {email}: {otp}")
             
         _reset_otp_store[email] = {
             'otp': otp,
             'expires': timezone.now() + timezone.timedelta(minutes=10),
-            'schema_name': tenant.schema_name 
         }
         
-        # Send Email
         try:
             EmailService.send_email(
-                subject=f"Password Reset Code - {tenant.name}",
+                subject=f"Password Reset Code",
                 html_content=f"""
                 <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; text-align: center;">
                     <h2 style="color: #333;">Reset Your Password</h2>
-                    <p style="color: #666;">Use the code below to reset your password for <strong>{tenant.name}</strong>.</p>
-                    
+                    <p style="color: #666;">Use the code below to reset your password.</p>
                     <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
                         <h1 style="font-size: 32px; letter-spacing: 5px; color: #111; margin: 0; font-family: monospace;">{otp}</h1>
                     </div>
-                    
-                    <p style="font-size: 12px; color: #999;">This code expires in 10 minutes.</p>
-                    <p>If you didn't request this, please ignore this email.</p>
-                </div>
-                """,
+                </div>""",
                 recipient_list=[email]
             )
         except Exception as e:
             print(f"OTP Send Error: {e}")
-            # If console backend, it won't fail usually.
             
         return Response({'message': 'If an account exists, an OTP has been sent.'})
 
 class VerifyPasswordResetOTPView(generics.GenericAPIView):
-    """
-    Step 2: Verify OTP and return a signed reset token.
-    """
     permission_classes = []
 
     def post(self, request):
@@ -399,11 +270,6 @@ class VerifyPasswordResetOTPView(generics.GenericAPIView):
         stored = _reset_otp_store.get(email)
         if not stored:
             return Response({'error': 'OTP expired or not found'}, status=400)
-            
-        # Verify Context (Tenant)
-        tenant = request.tenant
-        if stored.get('schema_name') != tenant.schema_name:
-             return Response({'error': 'Invalid workspace context'}, status=400)
 
         if stored['otp'] != otp:
              return Response({'error': 'Invalid OTP'}, status=400)
@@ -412,12 +278,8 @@ class VerifyPasswordResetOTPView(generics.GenericAPIView):
              del _reset_otp_store[email]
              return Response({'error': 'OTP expired'}, status=400)
         
-        # Success: Generate Signed RESET Token
-        # We need a different salt than registration to avoid confusion/misuse
         signer = Signer(salt='password-reset') 
         reset_token = signer.sign(email)
-        
-        # Clear OTP
         del _reset_otp_store[email]
             
         return Response({
@@ -426,9 +288,6 @@ class VerifyPasswordResetOTPView(generics.GenericAPIView):
         })
 
 class ConfirmPasswordResetOTPView(generics.GenericAPIView):
-    """
-    Step 3: Reset Password using signed token.
-    """
     permission_classes = []
 
     def post(self, request):
@@ -437,10 +296,6 @@ class ConfirmPasswordResetOTPView(generics.GenericAPIView):
         
         if not reset_token or not new_password:
              return Response({'error': 'Missing fields'}, status=400)
-        
-        tenant = request.tenant
-        if tenant.schema_name == 'public':
-             return Response({"error": "Invalid context"}, status=status.HTTP_400_BAD_REQUEST)
              
         signer = Signer(salt='password-reset')
         try:
@@ -448,77 +303,24 @@ class ConfirmPasswordResetOTPView(generics.GenericAPIView):
         except BadSignature:
             return Response({'error': 'Invalid or expired token'}, status=400)
             
-        with schema_context(tenant.schema_name):
-            try:
-                user = User.objects.get(email=email)
-                user.set_password(new_password)
-                user.save()
-                return Response({"message": "Password reset successful. Please login."}, status=status.HTTP_200_OK)
-            except User.DoesNotExist:
-                 return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
-
-# Legacy Link-based View (kept for backward compatibility or admin usage)
-class PasswordResetRequestView(generics.GenericAPIView):
-    permission_classes = []
-    
-    def post(self, request):
-        email = request.data.get('email')
-        
-        tenant = request.tenant
-        if tenant.schema_name == 'public':
-             return Response({"error": "Please use your workspace URL to reset password."}, status=status.HTTP_400_BAD_REQUEST)
-             
-        with schema_context(tenant.schema_name):
-            try:
-                user = User.objects.get(email=email)
-                try:
-                    send_password_reset_email(user, tenant.domains.first().domain)
-                except Exception as e:
-                    print(f"Failed to send password reset email: {e}")
-                    pass
-                return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
-            except User.DoesNotExist:
-                 return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
-
-class PasswordResetConfirmView(generics.GenericAPIView):
-    permission_classes = []
-    
-    def post(self, request):
-        uidb64 = request.data.get('uid')
-        token = request.data.get('token')
-        password = request.data.get('password')
-        
-        if not uidb64 or not token or not password:
-             return Response({"error": "Missing fields"}, status=status.HTTP_400_BAD_REQUEST)
-             
-        tenant = request.tenant
-        if tenant.schema_name == 'public':
-             return Response({"error": "Invalid context"}, status=status.HTTP_400_BAD_REQUEST)
-             
-        with schema_context(tenant.schema_name):
-            try:
-                uid = force_str(urlsafe_base64_decode(uidb64))
-                user = User.objects.get(pk=uid)
-                
-                if default_token_generator.check_token(user, token):
-                    user.set_password(password)
-                    user.save()
-                    return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)
-                else:
-                    return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
-            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-                 return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(email=email)
+            user.set_password(new_password)
+            user.save()
+            return Response({"message": "Password reset successful. Please login."}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
 
 class CheckTenantView(generics.GenericAPIView):
     permission_classes = []
-    throttle_classes = [CheckTenantThrottle]  # Rate limit: 10/hour per IP
+    throttle_classes = [CheckMosqueThrottle]
 
     def get(self, request):
-        schema_name = request.query_params.get('schema_name')
-        if not schema_name:
-             return Response({"error": "Schema name required"}, status=status.HTTP_400_BAD_REQUEST)
+        name = request.query_params.get('name', request.query_params.get('schema_name'))
+        if not name:
+             return Response({"error": "Name required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        exists = Client.objects.filter(schema_name=schema_name).exists()
+        exists = Mosque.objects.filter(name__iexact=name).exists()
         return Response({"exists": exists}, status=status.HTTP_200_OK)
 
 class SetupTenantView(APIView):
@@ -527,7 +329,6 @@ class SetupTenantView(APIView):
     permission_classes = []
 
     def get(self, request):
-        """Poll for Celery task status (provisioning progress)."""
         task_id = request.query_params.get('task_id')
         if not task_id:
             return Response({'error': 'task_id is required'}, status=400)
@@ -541,7 +342,6 @@ class SetupTenantView(APIView):
         }
         
         if result.status == 'SUCCESS':
-            # Task completed - return login URL
             task_result = result.result or {}
             response_data['login_url'] = task_result.get('login_url', '')
             response_data['tenant_url'] = task_result.get('tenant_url', '')
@@ -552,53 +352,224 @@ class SetupTenantView(APIView):
 
     def post(self, request):
         token = request.data.get('verification_token')
-        schema_name = request.data.get('schema_name')
+        mosque_id = request.data.get('mosque_id')
         setup_data = request.data.get('setup_data', {})
         
-        if not token or not schema_name:
-            return Response({'error': 'Missing token or schema'}, status=400)
+        if not token or not mosque_id:
+            return Response({'error': 'Missing token or mosque ID'}, status=400)
 
-        # Verify Token
         signer = Signer()
         try:
             original_email = signer.unsign(token)
         except BadSignature:
             return Response({'error': 'Invalid token'}, status=400)
 
-        # Verify Tenant Ownership
         try:
-            client = Client.objects.get(schema_name=schema_name)
-            if client.owner_email != original_email:
+            mosque = Mosque.objects.get(id=mosque_id)
+            if mosque.owner_email != original_email:
                 return Response({'error': 'Permission denied'}, status=403)
-        except Client.DoesNotExist:
+        except Mosque.DoesNotExist:
             return Response({'error': 'Workspace not found'}, status=404)
 
-        # Apply Setup
         try:
-            from django_tenants.utils import schema_context
-            # Note: FundCategory import must happen inside a method or ensure app is ready
-            # But since this is a shared app, it's fine.
-            # However, to be safe from 'AppRegistryNotReady' if imported at top level in some configs:
-            # from apps.finance.models import FundCategory
-            
-            with schema_context(schema_name):
-                # CHART OF ACCOUNTS
-                account_type = setup_data.get('accountType', 'standard')
-                if account_type == 'standard':
-                    from django.core.management import call_command
-                    # Seed Mizan Ledger Chart of Accounts
-                    call_command('seed_ledger')
-                    print(f"[{schema_name}] Seeded Mizan Ledger Chart of Accounts.")
-
+            account_type = setup_data.get('accountType', 'standard')
+            if account_type == 'standard':
+                from django.core.management import call_command
+                call_command('seed_ledger', mosque=mosque.id)
+                print(f"[{mosque.name}] Seeded Mizan Ledger Chart of Accounts.")
         except Exception as e:
             print(f"Setup Error: {e}")
-            # We don't want to fail the whole process if seeding fails, just log it.
-            # But for now, let's return success with warning or just success.
-            # return Response({'error': str(e)}, status=500) 
             pass
 
         return Response({'message': 'Setup applied successfully'})
 
 
+class PublicMosqueListView(APIView):
+    """Publicly lists all available Mosques on the platform."""
+    permission_classes = []
+
+    def get(self, request):
+        mosques = Mosque.objects.all().values('id', 'name').order_by('name')
+        return Response(list(mosques))
 
 
+class PublicMosqueAnnouncementView(APIView):
+    """Public endpoint to fetch announcements marked as is_public for a specific Masjid."""
+    permission_classes = []
+
+    def get(self, request, mosque_id):
+        from apps.jamath.models import Announcement
+        
+        try:
+            mosque = Mosque.objects.get(id=mosque_id)
+        except Mosque.DoesNotExist:
+            return Response({"error": "Masjid not found"}, status=404)
+            
+        announcements = Announcement.objects.filter(
+            mosque=mosque,
+            is_public=True,
+            status='PUBLISHED'
+        ).order_by('-published_at')[:10]
+        
+        data = []
+        for ann in announcements:
+            data.append({
+                'id': ann.id,
+                'title': ann.title,
+                'content': ann.content,
+                'published_at': ann.published_at,
+                'image': request.build_absolute_uri(ann.image.url) if ann.image else None,
+                'is_fundraiser': ann.is_fundraiser,
+                'fundraising_target': ann.fundraising_target,
+                'created_by_name': ann.created_by.username if ann.created_by else 'Admin'
+            })
+            
+        return Response(data)
+
+
+class GlobalPublicAnnouncementsView(APIView):
+    """Public endpoint to fetch all recent globally public announcements across all Masjids."""
+    permission_classes = []
+
+    def get(self, request):
+        from apps.jamath.models import Announcement
+        
+        announcements = Announcement.objects.filter(
+            is_public=True,
+            status='PUBLISHED'
+        ).select_related('mosque').order_by('-published_at')[:5]
+        
+        from apps.jamath.models import JournalEntry, JournalItem
+        from django.db.models import Sum
+
+        data = []
+        for ann in announcements:
+            # Dynamically calculate amount raised by matching a specific pattern in the narration string
+            narration_pattern = f"Ann: {ann.id}"
+            
+            raised = JournalItem.objects.filter(
+                journal_entry__narration__contains=narration_pattern,
+                credit_amount__gt=0
+            ).aggregate(total=Sum('credit_amount'))['total'] or 0.00
+            
+            data.append({
+                'id': ann.id,
+                'mosque_id': ann.mosque.id if ann.mosque else 0,
+                'mosque_name': ann.mosque.name if ann.mosque else "Platform wide",
+                'title': ann.title,
+                'content': ann.content,
+                'published_at': ann.published_at,
+                'image': request.build_absolute_uri(ann.image.url) if ann.image else None,
+                'is_fundraiser': ann.is_fundraiser,
+                'fundraising_target': ann.fundraising_target,
+                'amount_raised': raised,
+                'is_fully_funded': (float(raised) >= float(ann.fundraising_target)) if ann.fundraising_target else False
+            })
+            
+        return Response(data)
+
+
+class GuestDonationView(APIView):
+    """Accepts unauthenticated guest donations straight to a Masjid's Mizan Ledger."""
+    permission_classes = []
+
+    def post(self, request, mosque_id):
+        from apps.jamath.models import Ledger, JournalEntry, JournalItem, Announcement
+        from django.db import transaction
+        from django.utils import timezone
+        from django.db.models import Sum
+        
+        try:
+            mosque = Mosque.objects.get(id=mosque_id)
+        except Mosque.DoesNotExist:
+            return Response({"error": "Masjid not found"}, status=404)
+            
+        amount = request.data.get('amount')
+        donor_name = request.data.get('donor_name', 'Guest User')
+        donation_type = request.data.get('donation_type', 'General')
+        announcement_id = request.data.get('announcement_id')
+        
+        if not amount:
+            return Response({"error": "Amount is required"}, status=400)
+            
+        try:
+            amount = float(amount)
+        except ValueError:
+            return Response({"error": "Invalid amount"}, status=400)
+            
+        # Optional: Prevent over-donation if linked to an announcement target
+        announcement = None
+        if announcement_id:
+            try:
+                announcement = Announcement.objects.get(id=announcement_id, mosque=mosque)
+                if announcement.fundraising_target:
+                    # Dynamically calculate current raised via narration matching
+                    narration_pattern = f"Ann: {announcement.id}"
+                    raised = JournalItem.objects.filter(
+                        journal_entry__narration__contains=narration_pattern,
+                        credit_amount__gt=0
+                    ).aggregate(total=Sum('credit_amount'))['total'] or 0.00
+                    
+                    remaining = float(announcement.fundraising_target) - float(raised)
+                    
+                    if remaining <= 0:
+                        return Response({"error": "Goal reached! We are fully funded."}, status=400)
+                    if amount > remaining:
+                        return Response({"error": f"You can only donate up to ₹{remaining} to reach the goal!"}, status=400)
+                        
+            except Announcement.DoesNotExist:
+                pass # Proceed normally without announcement tracking
+
+        # Map donation type to the correct Income Ledger code
+        ledger_map = {
+            'General': '3001',
+            'Zakat': '3002',
+            'Sadaqah': '3003',
+            'Construction': '3004'
+        }
+        income_code = ledger_map.get(donation_type, '3001')
+        
+        try:
+            with transaction.atomic():
+                # Get the relevant ledgers
+                income_ledger = Ledger.objects.get(mosque=mosque, code=income_code)
+                asset_ledger = Ledger.objects.get(mosque=mosque, code='1002') # Assuming guest pays via online/Bank
+                
+                # Build the Double-Entry Accounting record
+                narration = f"Guest Donation - {donation_type}"
+                if announcement:
+                    narration += f" - Ann: {announcement.id}"
+                    
+                je = JournalEntry.objects.create(
+                    mosque=mosque,
+                    voucher_type=JournalEntry.VoucherType.RECEIPT,
+                    date=timezone.now().date(),
+                    narration=narration,
+                    donor_name_manual=donor_name,
+                    payment_mode=JournalEntry.PaymentMode.UPI # Online donation proxy
+                )
+                
+                # Debit: Add money to the Bank Account (Asset)
+                JournalItem.objects.create(
+                    mosque=mosque,
+                    journal_entry=je,
+                    ledger=asset_ledger,
+                    debit_amount=amount,
+                    credit_amount=0
+                )
+                # Credit: Record as Income
+                JournalItem.objects.create(
+                    mosque=mosque,
+                    journal_entry=je,
+                    ledger=income_ledger,
+                    debit_amount=0,
+                    credit_amount=amount
+                )
+                
+            return Response({"message": "Donation successful", "voucher_number": je.voucher_number})
+        except Ledger.DoesNotExist:
+            return Response({"error": "The Chart of Accounts for this Masjid is incomplete."}, status=400)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Guest Donation Error: {e}")
+            return Response({"error": "Failed to process donation."}, status=500)

@@ -42,10 +42,11 @@ from apps.jamath.api import (
 )
 
 from apps.welfare.api import VolunteerViewSet, GrantApplicationViewSet
-from apps.shared.api import    TenantRegistrationView, FindWorkspaceView, VerifyEmailView, CheckTenantView, \
+from apps.shared.api import MosqueRegistrationView, FindWorkspaceView, VerifyEmailView, CheckTenantView, \
     RequestRegistrationOTPView, VerifyRegistrationOTPView, SetupTenantView, \
-    PasswordResetRequestView, PasswordResetConfirmView, TenantInfoView, \
-    RequestPasswordResetOTPView, VerifyPasswordResetOTPView, ConfirmPasswordResetOTPView
+    TenantInfoView, RequestPasswordResetOTPView, VerifyPasswordResetOTPView, \
+    ConfirmPasswordResetOTPView, PublicMosqueListView, GuestDonationView, PublicMosqueAnnouncementView, \
+    GlobalPublicAnnouncementsView
 from apps.shared.api_settings import SystemConfigView
 
 from apps.shared.ai_guide import BasiraGuideView
@@ -87,7 +88,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # Tenant Registration
-    path('api/register/', TenantRegistrationView.as_view(), name='register-tenant'),
+    path('api/register/', MosqueRegistrationView.as_view(), name='register-tenant'),
     path('api/register/otp/request/', RequestRegistrationOTPView.as_view(), name='register-otp-request'),
     path('api/register/otp/verify/', VerifyRegistrationOTPView.as_view(), name='register-otp-verify'),
     path('api/register/setup/', SetupTenantView.as_view(), name='register-setup'),
@@ -97,13 +98,16 @@ urlpatterns = [
     path('api/tenant-info/', TenantInfoView.as_view(), name='tenant-info'),
     path('api/system-config/', SystemConfigView.as_view(), name='system-config'),
     
+    # Public Unified APIs
+    path('api/public/masjids/', PublicMosqueListView.as_view(), name='public-masjids-list'),
+    path('api/public/masjids/<int:mosque_id>/donate/', GuestDonationView.as_view(), name='public-masjid-donate'),
+    path('api/public/masjids/<int:mosque_id>/announcements/', PublicMosqueAnnouncementView.as_view(), name='public-masjid-announcements'),
+    path('api/public/announcements/', GlobalPublicAnnouncementsView.as_view(), name='global-public-announcements'),
+    
     # Admin Auth (username/password)
     path('api/auth/password-reset-otp/request/', RequestPasswordResetOTPView.as_view(), name='password-reset-otp-request'),
     path('api/auth/password-reset-otp/verify/', VerifyPasswordResetOTPView.as_view(), name='password-reset-otp-verify'),
     path('api/auth/password-reset-otp/confirm/', ConfirmPasswordResetOTPView.as_view(), name='password-reset-otp-confirm'),
-
-    path('api/auth/password-reset-request/', PasswordResetRequestView.as_view(), name='password-reset-request'),
-    path('api/auth/password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
@@ -157,3 +161,9 @@ urlpatterns = [
     # REST API Router
     path('api/', include(router.urls)),
 ]
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

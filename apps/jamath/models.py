@@ -1,4 +1,5 @@
 from django.db import models
+from apps.shared.models import MosqueScoped
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
@@ -7,7 +8,7 @@ from decimal import Decimal
 # HOUSEHOLD & MEMBER MODELS
 # ============================================================================
 
-class Household(models.Model):
+class Household(MosqueScoped):
     class EconomicStatus(models.TextChoices):
         ZAKAT_ELIGIBLE = 'ZAKAT_ELIGIBLE', 'Zakat Eligible'
         AAM = 'AAM', 'Aam / Sahib-e-Nisab'
@@ -83,7 +84,7 @@ class Household(models.Model):
 
 
 
-class Member(models.Model):
+class Member(MosqueScoped):
     class Gender(models.TextChoices):
         MALE = 'MALE', 'Male'
         FEMALE = 'FEMALE', 'Female'
@@ -139,7 +140,7 @@ class Member(models.Model):
 # MEMBERSHIP & SUBSCRIPTION MODELS
 # ============================================================================
 
-class MembershipConfig(models.Model):
+class MembershipConfig(MosqueScoped):
     """Tenant-level configuration for membership fees and cycles."""
     class Cycle(models.TextChoices):
         ANNUAL = 'ANNUAL', 'Annual'
@@ -193,7 +194,7 @@ class MembershipConfig(models.Model):
 
 
 
-class Subscription(models.Model):
+class Subscription(MosqueScoped):
     """Tracks a household's membership status for a given period."""
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
@@ -222,7 +223,7 @@ class Subscription(models.Model):
         self.save()
 
 
-class Receipt(models.Model):
+class Receipt(MosqueScoped):
     """Payment record with fee/donation breakdown."""
     subscription = models.ForeignKey(Subscription, related_name='receipts', on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -244,7 +245,7 @@ class Receipt(models.Model):
 # COMMUNICATION & SERVICE MODELS
 # ============================================================================
 
-class Announcement(models.Model):
+class Announcement(MosqueScoped):
     """Bulletin Board for Jamath announcements."""
     class Status(models.TextChoices):
         DRAFT = 'DRAFT', 'Draft'
@@ -258,6 +259,10 @@ class Announcement(models.Model):
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     target_household = models.ForeignKey('Household', on_delete=models.SET_NULL, null=True, blank=True, related_name='announcements', help_text="If set, this announcement is visible ONLY to this household.")
+    image = models.ImageField(upload_to='announcements/', null=True, blank=True, help_text="Optional thumbnail or poster image")
+    is_public = models.BooleanField(default=False, help_text="Visible to the general public outside the member portal")
+    is_fundraiser = models.BooleanField(default=False, help_text="Flags this announcement as a fundraising campaign")
+    fundraising_target = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Target amount if this is a fundraiser")
 
     class Meta:
         ordering = ['-published_at']
@@ -266,7 +271,7 @@ class Announcement(models.Model):
         return self.title
 
 
-class ServiceRequest(models.Model):
+class ServiceRequest(MosqueScoped):
     """Document/Service requests from households."""
     class RequestType(models.TextChoices):
         NIKAAH_NAMA = 'NIKAAH_NAMA', 'Nikaah Nama'
@@ -298,7 +303,7 @@ class ServiceRequest(models.Model):
 # SURVEY MODELS (Existing)
 # ============================================================================
 
-class Survey(models.Model):
+class Survey(MosqueScoped):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     schema = models.JSONField(default=list, help_text="Form Builder Schema")
@@ -309,7 +314,7 @@ class Survey(models.Model):
         return self.title
 
 
-class SurveyResponse(models.Model):
+class SurveyResponse(MosqueScoped):
     survey = models.ForeignKey(Survey, related_name='responses', on_delete=models.PROTECT)
     household = models.ForeignKey(Household, related_name='survey_responses', on_delete=models.CASCADE)
     auditor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='audited_surveys')
@@ -324,7 +329,7 @@ class SurveyResponse(models.Model):
 # MIZAN LEDGER - DOUBLE-ENTRY ACCOUNTING SYSTEM
 # ============================================================================
 
-class Ledger(models.Model):
+class Ledger(MosqueScoped):
     """Chart of Accounts - the foundation of the double-entry system."""
     class AccountType(models.TextChoices):
         ASSET = 'ASSET', 'Asset'
@@ -339,7 +344,7 @@ class Ledger(models.Model):
         RESTRICTED_CONSTRUCTION = 'CONSTRUCTION', 'Restricted - Construction'
         UNRESTRICTED_GENERAL = 'GENERAL', 'Unrestricted - General'
 
-    code = models.CharField(max_length=20, unique=True, help_text="e.g., 1001, 2001")
+    code = models.CharField(max_length=20, help_text="e.g., 1001, 2001")
     name = models.CharField(max_length=100)
     account_type = models.CharField(max_length=20, choices=AccountType.choices)
     fund_type = models.CharField(max_length=20, choices=FundType.choices, null=True, blank=True,
@@ -353,6 +358,7 @@ class Ledger(models.Model):
         ordering = ['code']
         verbose_name = "Ledger Account"
         verbose_name_plural = "Chart of Accounts"
+        unique_together = ('mosque', 'code')
 
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -382,7 +388,7 @@ class Ledger(models.Model):
         return own_balance + children_balance
 
 
-class Supplier(models.Model):
+class Supplier(MosqueScoped):
     """Vendor/Supplier Master for expense tracking."""
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=100, blank=True)
@@ -399,7 +405,7 @@ class Supplier(models.Model):
         return self.name
 
 
-class JournalEntry(models.Model):
+class JournalEntry(MosqueScoped):
     """Parent transaction record - Receipt, Payment, or Journal Voucher."""
     class VoucherType(models.TextChoices):
         RECEIPT = 'RECEIPT', 'Receipt Voucher'
@@ -634,7 +640,7 @@ class JournalEntry(models.Model):
         return f"{prefix}-{year}-{max_num + 1:03d}"
 
 
-class JournalItem(models.Model):
+class JournalItem(MosqueScoped):
     """Individual line item in a journal entry (debit or credit line)."""
     journal_entry = models.ForeignKey(JournalEntry, related_name='items', on_delete=models.CASCADE)
     ledger = models.ForeignKey(Ledger, on_delete=models.PROTECT, related_name='journal_items')
@@ -663,7 +669,7 @@ class JournalItem(models.Model):
 # RBAC & STAFF MANAGEMENT
 # ============================================================================
 
-class StaffRole(models.Model):
+class StaffRole(MosqueScoped):
     """Dynamic roles for staff/zimmedars with permission policies."""
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -674,7 +680,7 @@ class StaffRole(models.Model):
     def __str__(self):
         return self.name
 
-class StaffMember(models.Model):
+class StaffMember(MosqueScoped):
     """Assigns a user to a specific role within the tenant."""
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profile')
     role = models.ForeignKey(StaffRole, on_delete=models.SET_NULL, null=True, related_name='members')
@@ -689,7 +695,7 @@ class StaffMember(models.Model):
         return f"{self.user.username} - {self.designation}"
 
 
-class ActivityLog(models.Model):
+class ActivityLog(MosqueScoped):
     """Audit log for staff actions."""
     ACTION_TYPES = (
         ('CREATE', 'Created'),
@@ -718,7 +724,7 @@ class ActivityLog(models.Model):
 # DATA AGENT CHAT HISTORY
 # ============================================================================
 
-class DataAgentChatLog(models.Model):
+class DataAgentChatLog(MosqueScoped):
     """Persistent chat history for Basira Data Agent."""
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='agent_chats')
     role = models.CharField(max_length=20)  # 'user' or 'assistant'

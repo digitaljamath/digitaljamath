@@ -1,4 +1,5 @@
-import { getApiBaseUrl } from "@/lib/config";
+import { getApiBaseUrl, getLandingPageUrl } from "@/lib/config";
+import logo from "@/assets/logo.png";
 import { useRbac } from "@/context/RbacContext";
 import { useLocation, useNavigate, Link, Outlet } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -128,17 +129,18 @@ function DashboardInner() {
 
             {/* Sidebar */}
             <aside className={`
-                fixed top-0 left-0 z-50 h-screen w-64 transform transition-transform duration-300 ease-in-out
-                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                fixed top-0 left-0 z-50 h-screen w-72 transform transition-all duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]
+                ${sidebarOpen ? 'translate-x-0 shadow-[20px_0_40px_rgba(0,0,0,0.1)]' : '-translate-x-full'}
                 lg:translate-x-0
-                bg-white border-r border-gray-200
+                bg-white/80 backdrop-blur-2xl border-r border-slate-200/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)]
             `}>
                 <div className="flex flex-col h-full">
                     {/* Logo */}
-                    <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-                        <Link to="/" className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate">
-                            DigitalJamath
-                        </Link>
+                    <div className="flex items-center justify-between h-20 px-8 border-b border-slate-200/50">
+                        <a href={getLandingPageUrl()} className="flex items-center justify-center font-extrabold text-xl gap-2 text-slate-900 tracking-tight hover:opacity-90 transition-opacity">
+                            <img src={logo} alt="DigitalJamath Logo" className="h-8 w-8 drop-shadow-sm" />
+                            <span>Digital<span className="text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">Jamath</span></span>
+                        </a>
                         <Button
                             variant="ghost"
                             size="icon"
@@ -150,7 +152,8 @@ function DashboardInner() {
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+                    <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto custom-scrollbar">
+                        <div className="px-4 mb-2 text-xs font-bold tracking-wider text-slate-400 uppercase">Menu</div>
                         {navigation.map((item) => {
                             const isActive = item.href === '/dashboard'
                                 ? pathname === '/dashboard'
@@ -162,17 +165,17 @@ function DashboardInner() {
                                     to={item.href}
                                     onClick={() => setSidebarOpen(false)}
                                     className={`
-                                        flex items-center px-4 py-3 rounded-lg transition-all duration-200
+                                        flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 group
                                         ${isActive
-                                            ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                            ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-[0_8px_16px_-4px_rgba(79,70,229,0.3)] hover:shadow-[0_10px_20px_-4px_rgba(79,70,229,0.4)] hover:-translate-y-0.5'
+                                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                                         }
                                     `}
                                 >
-                                    <item.icon className="h-5 w-5 mr-3" />
-                                    <span className="font-medium flex-1">{item.name}</span>
+                                    <item.icon className={`h-5 w-5 mr-3 transition-transform duration-300 ${isActive ? 'scale-110 text-white/90' : 'text-slate-400 group-hover:text-blue-600 group-hover:scale-110'}`} />
+                                    <span className="font-semibold text-[15px] flex-1 tracking-tight">{item.href === '/dashboard/households' ? `Jamath (${config?.household_label || 'Gharane'})` : item.name}</span>
                                     {item.href === '/dashboard/inbox' && pendingCount > 0 && (
-                                        <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
+                                        <span className="ml-2 px-2.5 py-0.5 text-xs font-bold bg-white text-blue-600 rounded-full shadow-sm">
                                             {pendingCount}
                                         </span>
                                     )}
@@ -227,7 +230,7 @@ function DashboardInner() {
             </aside>
 
             {/* Main content */}
-            <div className="lg:pl-64">
+            <div className="lg:pl-72 flex flex-col min-h-screen">
                 {/* Top bar */}
                 <header className="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-xl border-b border-gray-200">
                     <div className="flex items-center justify-between h-full px-6">

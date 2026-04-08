@@ -1,23 +1,101 @@
-# Python
+# ============================================================
+# Python / Django
+# ============================================================
 __pycache__/
 *.py[cod]
 *$py.class
-venv/
-.env
+*.pyo
+*.pyd
+.Python
 
-# Django
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Django artifacts
 db.sqlite3
+db.sqlite3-journal
 media/
 staticfiles/
-django_cache
+django_cache/
+*.log
 
-# IDE
-.vscode/
-.idea/
+# Celery
+celerybeat-schedule
+celerybeat.pid
 
-# OS
-.DS_Store
+# pytest / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 
-# Node
+# mypy / type checking
+.mypy_cache/
+.dmypy.json
+
+# ============================================================
+# Environment & Secrets (NEVER commit these)
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# ============================================================
+# Node / Frontend
+# ============================================================
 node_modules/
 frontend/dist/
+frontend/dist-ssr/
+frontend/.cache/
+frontend/build/
+
+# npm / yarn / pnpm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================================
+# Docker
+# ============================================================
+.docker/
+docker-compose.override.yml
+
+# ============================================================
+# IDE & Editors
+# ============================================================
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ============================================================
+# OS Junk
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================================
+# Misc
+# ============================================================
+*.bak
+*.tmp
+*.orig
+*.swp
+*.swo

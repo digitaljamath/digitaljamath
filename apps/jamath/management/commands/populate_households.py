@@ -1,25 +1,25 @@
 import random
 from django.core.management.base import BaseCommand
-from django_tenants.utils import schema_context
 from apps.jamath.models import Household, Member
+from apps.shared.models import Mosque
 
 class Command(BaseCommand):
     help = 'Populates the database with 10 demo households'
 
     def add_arguments(self, parser):
-        parser.add_argument('--schema', type=str, help='Schema to populate data in')
+        parser.add_argument('--mosque', type=int, required=True, help='ID of the Mosque to populate data in')
 
     def handle(self, *args, **kwargs):
-        schema = kwargs.get('schema')
-        if schema:
-            self.stdout.write(f'Switching to schema: {schema}')
-            with schema_context(schema):
-                self._populate()
-        else:
-            self.stdout.write('No schema specified, running in current context (likely public). Use --schema to specify.')
-            self._populate()
+        mosque_id = kwargs.get('mosque')
+        try:
+            mosque = Mosque.objects.get(id=mosque_id)
+            self.stdout.write(f'Populating data for Mosque: {mosque.name}')
+            self._populate(mosque)
+        except Mosque.DoesNotExist:
+            self.stdout.write(self.style.ERROR(f"Mosque with ID '{mosque_id}' not found!"))
+            return
             
-    def _populate(self):
+    def _populate(self, mosque):
         self.stdout.write('Creating demo households...')
         
         # Data for 10 households
@@ -39,12 +39,13 @@ class Command(BaseCommand):
         count = 0
         for phone, head_name, spouse_name in data:
             # Check if exists
-            if Household.objects.filter(phone_number=phone).exists():
-                self.stdout.write(self.style.WARNING(f'Household with phone {phone} already exists. Skipping.'))
+            if Household.objects.filter(phone_number=phone, mosque=mosque).exists():
+                self.stdout.write(self.style.WARNING(f'Household with phone {phone} already exists in this Mosque. Skipping.'))
                 continue
                 
             # Create Household
             household = Household.objects.create(
+                mosque=mosque,
                 phone_number=phone,
                 address=f"House No. {random.randint(1, 999)}, Jamath Mohalla",
                 economic_status=random.choice(['ZAKAT_ELIGIBLE', 'AAM']),
@@ -54,6 +55,7 @@ class Command(BaseCommand):
             
             # Create Head
             Member.objects.create(
+                mosque=mosque,
                 household=household,
                 full_name=head_name,
                 is_head_of_family=True,
@@ -66,6 +68,7 @@ class Command(BaseCommand):
             
             # Create Spouse
             Member.objects.create(
+                mosque=mosque,
                 household=household,
                 full_name=spouse_name,
                 is_head_of_family=False,

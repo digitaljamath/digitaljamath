@@ -2,7 +2,7 @@ import { getApiBaseUrl } from "@/lib/config";
 import { useRbac } from "@/context/RbacContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
-import { Users, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, Receipt, UserPlus, Clock } from "lucide-react";
+import { Users, DollarSign, AlertCircle, TrendingUp, ArrowUpRight, Receipt, UserPlus, Clock, Megaphone } from "lucide-react";
 import { Link } from "react-router-dom";
 
 type Stats = {
@@ -209,26 +209,33 @@ export function DashboardHome() {
                     <CardHeader>
                         <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid gap-4 md:grid-cols-3">
+                    <CardContent className="grid gap-4 md:grid-cols-4">
                         <Link to="/dashboard/households/new">
-                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer h-full">
                                 <Users className="h-8 w-8 text-blue-500 mb-2" />
                                 <h3 className="font-semibold">Add Household</h3>
                                 <p className="text-sm text-gray-500">Register a new family</p>
                             </div>
                         </Link>
                         <Link to="/dashboard/finance/voucher">
-                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer h-full">
                                 <DollarSign className="h-8 w-8 text-emerald-500 mb-2" />
                                 <h3 className="font-semibold">Record Transaction</h3>
                                 <p className="text-sm text-gray-500">Log income or expense</p>
                             </div>
                         </Link>
                         <Link to="/dashboard/reminders">
-                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-500 hover:bg-amber-50 transition-all cursor-pointer">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-500 hover:bg-amber-50 transition-all cursor-pointer h-full">
                                 <AlertCircle className="h-8 w-8 text-amber-500 mb-2" />
                                 <h3 className="font-semibold">Send Reminder</h3>
                                 <p className="text-sm text-gray-500">Notify pending renewals</p>
+                            </div>
+                        </Link>
+                        <Link to="/dashboard/announcements?new=true">
+                            <div className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-all cursor-pointer h-full">
+                                <Megaphone className="h-8 w-8 text-purple-500 mb-2" />
+                                <h3 className="font-semibold">Post Announcement</h3>
+                                <p className="text-sm text-gray-500">Broadcast public update</p>
                             </div>
                         </Link>
                     </CardContent>

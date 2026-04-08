@@ -29,6 +29,10 @@ interface Announcement {
     expires_at: string | null;
     created_by_name?: string;
     status: 'DRAFT' | 'PUBLISHED';
+    image?: string | null;
+    is_public: boolean;
+    is_fundraiser: boolean;
+    fundraising_target?: number | null;
 }
 
 export function AnnouncementsPage() {
@@ -38,11 +42,24 @@ export function AnnouncementsPage() {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // Form State
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        title: string;
+        content: string;
+        published_at: string;
+        expires_at: string;
+        is_public: boolean;
+        is_fundraiser: boolean;
+        fundraising_target: string;
+        image: File | null;
+    }>({
         title: "",
         content: "",
         published_at: "",
-        expires_at: ""
+        expires_at: "",
+        is_public: false,
+        is_fundraiser: false,
+        fundraising_target: "",
+        image: null
     });
 
 
@@ -84,6 +101,14 @@ export function AnnouncementsPage() {
 
     useEffect(() => {
         fetchAnnouncements();
+        
+        // Open modal if URL has ?new=true
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get('new') === 'true') {
+            setIsCreateOpen(true);
+            // Clean up the URL so it doesn't re-open on refresh
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }, []);
 
     const showMessage = (type: 'success' | 'error', text: string) => {
@@ -98,26 +123,45 @@ export function AnnouncementsPage() {
         }
 
         try {
-            const payload: any = {
-                title: formData.title,
-                content: formData.content,
-                status: status,
-                expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : null
-            };
-
+            const payload = new FormData();
+            payload.append('title', formData.title);
+            payload.append('content', formData.content);
+            payload.append('status', status);
+            
+            if (formData.expires_at) {
+                payload.append('expires_at', new Date(formData.expires_at).toISOString());
+            }
             if (formData.published_at) {
-                payload.published_at = new Date(formData.published_at).toISOString();
+                payload.append('published_at', new Date(formData.published_at).toISOString());
+            }
+            
+            payload.append('is_public', formData.is_public ? 'true' : 'false');
+            payload.append('is_fundraiser', formData.is_fundraiser ? 'true' : 'false');
+            if (formData.fundraising_target) {
+                payload.append('fundraising_target', formData.fundraising_target);
+            }
+            if (formData.image) {
+                payload.append('image', formData.image);
             }
 
             const res = await fetchWithAuth('/api/jamath/announcements/', {
                 method: "POST",
-                body: JSON.stringify(payload),
+                body: payload,
             });
 
             if (res.ok) {
                 showMessage('success', status === 'DRAFT' ? 'Draft saved.' : 'Announcement published.');
                 setIsCreateOpen(false);
-                setFormData({ title: "", content: "", published_at: "", expires_at: "" });
+                setFormData({ 
+                    title: "", 
+                    content: "", 
+                    published_at: "", 
+                    expires_at: "",
+                    is_public: false,
+                    is_fundraiser: false,
+                    fundraising_target: "",
+                    image: null
+                });
                 fetchAnnouncements();
             } else {
                 showMessage('error', 'Failed to save announcement.');
@@ -183,16 +227,70 @@ export function AnnouncementsPage() {
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="content">Content <span className="text-red-500">*</span></Label>
-                                <Textarea
-                                    id="content"
-                                    placeholder="Enter detailed information..."
-                                    className="h-32"
-                                    value={formData.content}
-                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                                />
-                            </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="content">Content <span className="text-red-500">*</span></Label>
+                                    <Textarea
+                                        id="content"
+                                        placeholder="Enter detailed information..."
+                                        className="h-32"
+                                        value={formData.content}
+                                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                    />
+                                </div>
+                                
+                                <div className="space-y-2 border-t pt-4 mt-2">
+                                    <h4 className="font-semibold text-sm">Media & Visibility</h4>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="image">Image Attachment (Optional)</Label>
+                                        <Input
+                                            id="image"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files.length > 0) {
+                                                    setFormData({ ...formData, image: e.target.files[0] });
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="flex items-center space-x-2 pt-2">
+                                        <input 
+                                            type="checkbox" 
+                                            id="is_public" 
+                                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" 
+                                            checked={formData.is_public}
+                                            onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                                        />
+                                        <Label htmlFor="is_public" className="font-normal cursor-pointer text-sm">
+                                            Make Public (Display on external portal)
+                                        </Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2 pt-1">
+                                        <input 
+                                            type="checkbox" 
+                                            id="is_fundraiser" 
+                                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" 
+                                            checked={formData.is_fundraiser}
+                                            onChange={(e) => setFormData({ ...formData, is_fundraiser: e.target.checked })}
+                                        />
+                                        <Label htmlFor="is_fundraiser" className="font-normal cursor-pointer text-sm">
+                                            Enable Donations (Fundraising campaign)
+                                        </Label>
+                                    </div>
+                                    
+                                    {formData.is_fundraiser && (
+                                        <div className="space-y-2 mt-2 pt-2 pl-6">
+                                            <Label htmlFor="fundraising_target">Target Amount (₹)</Label>
+                                            <Input
+                                                id="fundraising_target"
+                                                type="number"
+                                                placeholder="e.g. 50000"
+                                                value={formData.fundraising_target}
+                                                onChange={(e) => setFormData({ ...formData, fundraising_target: e.target.value })}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="publish_at">Publish Date (Optional)</Label>
@@ -252,10 +350,10 @@ export function AnnouncementsPage() {
                             <Card key={item.id} className="flex flex-col relative">
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
-                                        <CardTitle className="text-lg font-semibold line-clamp-2">
+                                        <CardTitle className="text-lg font-semibold line-clamp-2 pr-2">
                                             {item.title}
                                         </CardTitle>
-                                        <div className="flex gap-1">
+                                        <div className="flex gap-1 shrink-0">
                                             {item.status === 'DRAFT' && <Badge variant="secondary">Draft</Badge>}
                                             {item.status === 'PUBLISHED' && new Date(item.published_at) > new Date() && <Badge variant="outline">Scheduled</Badge>}
                                             <Button
@@ -268,6 +366,10 @@ export function AnnouncementsPage() {
                                             </Button>
                                         </div>
                                     </div>
+                                    <div className="flex flex-wrap gap-1 mt-1 mb-2">
+                                        {item.is_public && <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 text-[10px]">Public</Badge>}
+                                        {item.is_fundraiser && <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50 text-[10px]">Fundraiser</Badge>}
+                                    </div>
                                     <CardDescription className="flex items-center text-xs flex-wrap gap-1">
                                         <Calendar className="h-3 w-3 mr-1" />
                                         {format(new Date(item.published_at), "MMM d, yyyy h:mm a")}
@@ -278,7 +380,12 @@ export function AnnouncementsPage() {
                                         )}
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent className="flex-1">
+                                {item.image && (
+                                    <div className="w-full h-32 overflow-hidden bg-gray-100 flex items-center justify-center border-y">
+                                        <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                                <CardContent className="flex-1 pt-4">
                                     <p className="text-sm text-gray-600 line-clamp-4 whitespace-pre-wrap">
                                         {item.content}
                                     </p>

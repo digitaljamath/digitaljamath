@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Build](https://github.com/digitaljamath/digitaljamath/actions/workflows/build-and-push.yml/badge.svg)
 
-**DigitalJamath** is an open-source, production-grade SaaS ERP for Indian Masjids, Jamaths, and Welfare organizations. It provides a robust multi-tenant architecture to handle census data, financial management (Baitul Maal), welfare distribution, and community engagement.
+**DigitalJamath** is an open-source, production-grade SaaS ERP for Indian Masjids, Jamaths, and Welfare organizations. It operates as a single unified platform with three main options (Login as Mosque, Register as Mosque, Login as User) to handle census data, financial management (Baitul Maal), welfare distribution, and community engagement. Mosques can register and manage their own users centrally.
 
 <p align="center">
   <img src="frontend/public/logo.png" alt="DigitalJamath Logo" width="200"/>
@@ -43,7 +43,7 @@
 |---------|-------------|
 | **Digital Census** | Manage household and member profiles with socio-economic data |
 | **Baitul Maal** | Track Zakat, Sadaqah, and operational funds with strict fund isolation |
-| **Multi-Tenant** | Each Masjid gets isolated database schema |
+| **Unified Platform** | One website where Mosques register and manage their own users centrally |
 | **Member Portal** | Mobile-first self-service portal with OTP login and digital ID card |
 | **Service Requests** | Members request certificates (Nikah, Death, NOC) online |
 | **Announcements** | Community notifications and event announcements |
@@ -59,7 +59,7 @@
 | Layer | Technology |
 |-------|------------|
 | **Backend** | Python 3.11+, Django 5.0, Django REST Framework |
-| **Multi-Tenancy** | django-tenants (PostgreSQL Schema Isolation) |
+| **Architecture** | Single Unified Database Platform (No Multi-Tenancy) |
 | **Database** | PostgreSQL 16+ |
 | **Frontend** | React 19, Vite, TypeScript |
 | **Styling** | Tailwind CSS + Shadcn UI |
@@ -71,25 +71,16 @@
 
 ---
 
-## 🚀 Installation Options
+## 🚀 Unified Platform
 
-DigitalJamath supports two installation modes:
+DigitalJamath operates as a single unified platform on one website.
 
-### Option 1: Single-Tenant (Self-Hosted)
-**Best for:** Individual masjids who want a simple setup without subdomains.
+### Three Main Options
+1. **Login as Mosque**
+2. **Register as Mosque**
+3. **Login as User**
 
-- ✅ One masjid, one domain (e.g., `masjid.org`)
-- ✅ No subdomain configuration needed
-- ✅ Simpler DNS setup
-- ✅ Full feature access
-
-### Option 2: Multi-Tenant (SaaS)
-**Best for:** Organizations managing multiple masjids or running a hosted service.
-
-- ✅ Multiple masjids with subdomains (e.g., `demo.digitaljamath.com`)
-- ✅ Isolated database schemas per tenant
-- ✅ Central administration
-- ✅ Scalable architecture
+After a Mosque registers, it can create and manage its own users. Those users log in through the "Login as User" option, functioning similarly to a tenant system but without actually implementing multi-tenancy.
 
 ---
 
@@ -105,8 +96,8 @@ cd digitaljamath
 
 The `setup.sh` script will guide you through:
 1. **Environment Mode**: Development (local) or Production (Docker)
-2. **Tenant Mode**: Single-Tenant or Multi-Tenant
-3. **Database Setup**: Migrations and initial tenant creation
+2. **Platform Mode**: Unified Platform initialization
+3. **Database Setup**: Migrations and initial Mosque setup
 4. **Admin User**: Create your first superuser
 5. **Chart of Accounts**: Seed standard ledger accounts
 
@@ -134,9 +125,9 @@ npm run dev
 
 Access: http://localhost:5173 (frontend) | http://localhost:8000 (backend)
 
-### Local Development with Nginx (Multi-Tenant Subdomains)
+### Local Development with Nginx (Unified Platform)
 
-For testing multi-tenant subdomain routing locally (e.g., `demo.localhost`), use the local nginx config:
+For testing unified local routing, use the local nginx config:
 
 **Prerequisites:**
 - Install nginx: `brew install nginx` (macOS) or `apt install nginx` (Linux)
@@ -162,9 +153,8 @@ nginx -p $(pwd) -c nginx/nginx.local.conf
 
 | URL | What it serves |
 |-----|----------------|
-| http://localhost | Landing page (static HTML) |
-| http://demo.localhost | React app (tenant workspace) |
-| http://anyname.localhost | React app (any subdomain works) |
+| http://localhost | Main website (Login/Register Mosque, Login User) |
+| http://localhost/portal | React app (Mosque/User workspace) |
 | http://localhost/api/ | Django API |
 | http://localhost/admin/ | Django Admin |
 
@@ -187,9 +177,9 @@ nano .env  # Set DATABASE_PASSWORD, DOMAIN_NAME, etc.
 docker-compose up -d
 
 # Run migrations
-docker-compose exec web python manage.py migrate_schemas --shared
+docker-compose exec web python manage.py migrate
 
-# Create your tenant (see Tenant Setup below)
+# Create your initial Mosque (see Platform Setup below)
 ```
 
 ---
@@ -221,38 +211,17 @@ Copy `.env.example` to `.env` and configure:
 
 ---
 
-## 🏠 Tenant Setup
+## 🏠 Platform Setup
 
-### Single-Tenant Mode (One Masjid)
-
-```bash
-# Create your masjid (use your MAIN domain, not subdomain)
-python manage.py shell -c "
-from apps.shared.models import Client, Domain
-tenant = Client(schema_name='mymasjid', name='My Masjid', on_trial=False)
-tenant.save()
-Domain.objects.create(domain='masjid.org', tenant=tenant, is_primary=True)
-"
-
-# Create admin user
-python manage.py tenant_command createsuperuser --schema=mymasjid
-
-# Seed Chart of Accounts
-python manage.py tenant_command seed_ledger --schema=mymasjid
-```
-
-### Multi-Tenant Mode (Multiple Masjids)
+### Unified Platform Operations
 
 ```bash
-# Create public tenant (main site)
-python manage.py create_tenant --schema_name=public --domain_domain=digitaljamath.com --client_name="Digital Ummah"
+# Create a Mosque account
+python manage.py create_mosque --name="Demo Masjid" --email="demo@masjid.org"
 
-# Create first masjid
-python manage.py create_tenant --schema_name=demo --domain_domain=demo.digitaljamath.com --client_name="Demo Masjid"
-
-# Setup admin and data
-python manage.py tenant_command createsuperuser --schema=demo
-python manage.py tenant_command seed_ledger --schema=demo
+# Setup admin and data for a generic user
+python manage.py createsuperuser
+python manage.py seed_ledger --mosque="Demo Masjid"
 ```
 
 ---
@@ -264,12 +233,12 @@ The interactive installer handles everything:
 | Step | What It Does |
 |------|--------------|
 | 1. Environment Mode | Choose Development or Production (Docker) |
-| 2. Tenant Mode | Choose Single-Tenant or Multi-Tenant |
+| 2. Platform Mode | Initializes unified platform mode |
 | 3. Environment Config | Creates `.env` from template if missing |
 | 4. Dependencies | Installs Python and Node.js packages |
 | 5. Database Migrations | Runs Django migrations |
-| 6. Public Tenant | Creates base tenant for routing |
-| 7. Your Masjid | Creates your masjid (Single-Tenant) or offers Demo setup (Multi-Tenant) |
+| 6. Base Setup | Sets up unified database |
+| 7. Your Masjid | Registers the first initial Mosque |
 | 8. Chart of Accounts | Seeds standard accounting ledgers |
 
 ---
@@ -296,9 +265,9 @@ cd ~/workspace/digitaljamath
 This script will:
 1. Pull the latest code (`git pull`)
 2. Rebuild containers (`docker-compose build`)
-3. Run migrations (`migrate_schemas`)
+3. Run migrations (`migrate`)
 4. Restart services
-**It will NOT interfere with your database or delete any tenant data.**
+**It will NOT interfere with your database or delete any platform data.**
 
 ---
 
