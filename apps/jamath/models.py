@@ -44,7 +44,7 @@ class Household(MosqueScoped):
     def _generate_membership_id(self):
         """Generate a unique membership ID with configurable prefix."""
         try:
-            config = MembershipConfig.objects.filter(is_active=True).first()
+            config = MembershipConfig.objects.filter(is_active=True, mosque=self.mosque).first()
             prefix = config.membership_id_prefix if config else 'JM-'
         except:
             prefix = 'JM-'
@@ -55,6 +55,7 @@ class Household(MosqueScoped):
         
         # Get all IDs with this prefix and find max number
         existing = Household.objects.filter(
+            mosque=self.mosque,
             membership_id__startswith=prefix
         ).values_list('membership_id', flat=True)
         
@@ -181,6 +182,7 @@ class MembershipConfig(MosqueScoped):
     masjid_name = models.CharField(max_length=100, default='', blank=True, help_text="Display name for the masjid")
     
     
+    is_strict_accounting = models.BooleanField(default=True, help_text="Enforce strict balance checks and double-entry validations")
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -498,33 +500,43 @@ class JournalEntry(MosqueScoped):
                                 "Zakat funds can only be used for Zakat-eligible expenses."
                             )
         
-        # Rule 3: STRICT Mode Validation (Prevent User Errors)
-        # 3a. Payment Voucher: Should NOT result in Net Asset Increase (Debit)
-        if self.voucher_type == self.VoucherType.PAYMENT:
-            asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
-            asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+        # Infer mosque during pre-save DRF validation where self.mosque is not yet set
+        mosque_context = self.mosque
+        if not mosque_context and items:
+            mosque_context = items[0].ledger.mosque
             
-            # If Net Asset Movement is Positive (Debit > Credit), money is coming IN. That's a Receipt.
-            if asset_debits > asset_credits:
-                 raise ValidationError(
-                    "Logic Error: You are recording a 'Payment', but the entries show money coming IN (Net Asset Debit). "
-                    "Did you mean to create a 'Receipt'?"
-                )
+        # Fetch Config scoped to mosque
+        config = MembershipConfig.objects.filter(is_active=True, mosque=mosque_context).first()
+        is_strict = config.is_strict_accounting if config else True
+        
+        if is_strict:
+            # Rule 3: STRICT Mode Validation (Prevent User Errors)
+            # 3a. Payment Voucher: Should NOT result in Net Asset Increase (Debit)
+            if self.voucher_type == self.VoucherType.PAYMENT:
+                asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+                asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+                
+                # If Net Asset Movement is Positive (Debit > Credit), money is coming IN. That's a Receipt.
+                if asset_debits > asset_credits:
+                    raise ValidationError(
+                        "Logic Error: You are recording a 'Payment', but the entries show money coming IN (Net Asset Debit). "
+                        "Did you mean to create a 'Receipt'?"
+                    )
 
-        # 3b. Receipt Voucher: Should NOT result in Net Asset Decrease (Credit)
-        if self.voucher_type == self.VoucherType.RECEIPT:
-             asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
-             asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
-             
-             # If Net Asset Movement is Negative (Credit > Debit), money is going OUT. That's a Payment.
-             if asset_credits > asset_debits:
-                 raise ValidationError(
-                    "Logic Error: You are recording a 'Receipt', but the entries show money going OUT (Net Asset Credit). "
-                    "Did you mean to create a 'Payment'?"
-                )
+            # 3b. Receipt Voucher: Should NOT result in Net Asset Decrease (Credit)
+            if self.voucher_type == self.VoucherType.RECEIPT:
+                asset_debits = sum(i.debit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+                asset_credits = sum(i.credit_amount for i in items if i.ledger.account_type == Ledger.AccountType.ASSET)
+                
+                # If Net Asset Movement is Negative (Credit > Debit), money is going OUT. That's a Payment.
+                if asset_credits > asset_debits:
+                    raise ValidationError(
+                        "Logic Error: You are recording a 'Receipt', but the entries show money going OUT (Net Asset Credit). "
+                        "Did you mean to create a 'Payment'?"
+                    )
 
-        # Rule 4: Insufficient Funds Validation
-        self.check_sufficient_funds(items)
+            # Rule 4: Insufficient Funds Validation
+            self.check_sufficient_funds(items)
 
     def check_sufficient_funds(self, items):
         """Ensure we have enough money in the respective fund before spending."""
@@ -536,6 +548,12 @@ class JournalEntry(MosqueScoped):
 
         # Helper to get balance excluding current transaction
         def get_balance(filters, exclude_entry=None):
+            # Infer mosque during pre-save DRF validation
+            mosque_context = self.mosque
+            if not mosque_context and items:
+                mosque_context = items[0].ledger.mosque
+                
+            filters['journal_entry__mosque'] = mosque_context
             queryset = JournalItem.objects.filter(**filters)
             if exclude_entry:
                 queryset = queryset.exclude(journal_entry=exclude_entry)
