@@ -50,10 +50,13 @@ class MembershipService:
     """Handles membership subscriptions, payments, and receipts."""
     
     @staticmethod
-    def get_or_create_config() -> MembershipConfig:
-        """Get the active membership config or create a default one."""
+    def get_or_create_config(mosque=None) -> MembershipConfig:
+        """Get the active membership config or create a default one for the mosque."""
+        if not mosque:
+            raise ValueError("Mosque scope is required to fetch membership configuration.")
         config, created = MembershipConfig.objects.get_or_create(
             is_active=True,
+            mosque=mosque,
             defaults={
                 'cycle': MembershipConfig.Cycle.ANNUAL,
                 'minimum_fee': Decimal('1200.00'),
@@ -96,7 +99,7 @@ class MembershipService:
         
         Returns the created Receipt.
         """
-        config = MembershipService.get_or_create_config()
+        config = MembershipService.get_or_create_config(mosque=household.mosque)
         today = timezone.now().date()
         
         # Get or create subscription for current period
@@ -206,21 +209,24 @@ class MembershipService:
         from .models import Ledger, JournalEntry, JournalItem
         
         try:
+            mosque = household.mosque
             # 1. Accounts Discovery / Creation (Idempotent)
             # Debit Account: Bank/Online Gateway
-            bank_acct = Ledger.objects.filter(account_type=Ledger.AccountType.ASSET, name__icontains="Bank").first()
+            bank_acct = Ledger.objects.filter(account_type=Ledger.AccountType.ASSET, name__icontains="Bank", mosque=mosque).first()
             if not bank_acct:
                  # Create a default bank account if none exists
                  bank_acct = Ledger.objects.create(
+                     mosque=mosque,
                      name="Bank Account (Default)", 
                      code="1001", 
                      account_type=Ledger.AccountType.ASSET
                  )
             
             # Credit Account 1: Membership Fees
-            fee_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, name__icontains="Membership").first()
+            fee_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, name__icontains="Membership", mosque=mosque).first()
             if not fee_acct:
                  fee_acct = Ledger.objects.create(
+                     mosque=mosque,
                      name="Membership Fees", 
                      code="4001", 
                      account_type=Ledger.AccountType.INCOME, 
@@ -229,18 +235,20 @@ class MembershipService:
 
             # Credit Account 2: Donations OR Zakat
             if is_zakat:
-                donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, fund_type=Ledger.FundType.RESTRICTED_ZAKAT).first()
+                donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, fund_type=Ledger.FundType.RESTRICTED_ZAKAT, mosque=mosque).first()
                 if not donation_acct:
                      donation_acct = Ledger.objects.create(
+                         mosque=mosque,
                          name="Zakat Fund (Income)", 
                          code="4003", 
                          account_type=Ledger.AccountType.INCOME, 
                          fund_type=Ledger.FundType.RESTRICTED_ZAKAT
                      )
             else:
-                donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, name__icontains="Donation").first()
+                donation_acct = Ledger.objects.filter(account_type=Ledger.AccountType.INCOME, name__icontains="Donation", mosque=mosque).first()
                 if not donation_acct:
                      donation_acct = Ledger.objects.create(
+                         mosque=mosque,
                          name="General Donations", 
                          code="4002", 
                          account_type=Ledger.AccountType.INCOME, 
@@ -324,7 +332,7 @@ class MembershipService:
         """Get a summary of household's membership status."""
         subscription = MembershipService.get_current_subscription(household)
         
-        config = MembershipService.get_or_create_config()
+        config = MembershipService.get_or_create_config(mosque=household.mosque)
         if not subscription:
             return {
                 'status': 'EXPIRED',

@@ -312,6 +312,7 @@ class MembershipConfigSerializer(serializers.ModelSerializer):
         model = MembershipConfig
         fields = ['id', 'cycle', 'minimum_fee', 'currency', 'membership_id_prefix', 
                   'household_label', 'member_label', 'masjid_name', 'is_active',
+                  'is_strict_accounting',
                   'payment_gateway_provider', 'razorpay_key_id', 'razorpay_key_secret',
                   'cashfree_app_id', 'cashfree_secret_key',
                   'organization_name', 'organization_address', 'organization_pan', 'registration_number_80g']
@@ -394,7 +395,7 @@ class JournalEntrySerializer(serializers.ModelSerializer):
                 journal_entry = JournalEntry.objects.create(**validated_data)
                 
                 for item_data in items_data:
-                    JournalItem.objects.create(journal_entry=journal_entry, **item_data)
+                    JournalItem.objects.create(journal_entry=journal_entry, mosque=journal_entry.mosque, **item_data)
                 
                 # Run validation after items are created
                 journal_entry.full_clean()
@@ -421,7 +422,7 @@ class JournalEntrySerializer(serializers.ModelSerializer):
                 if items_data is not None:
                     instance.items.all().delete()
                     for item_data in items_data:
-                        JournalItem.objects.create(journal_entry=instance, **item_data)
+                        JournalItem.objects.create(journal_entry=instance, mosque=instance.mosque, **item_data)
                 
                 instance.full_clean()
         except DjangoValidationError as e:
@@ -1026,16 +1027,32 @@ class AdminPendingMembersView(APIView):
         return Response({'error': 'Invalid action'}, status=400)
 
 
+def get_user_mosque(user):
+    if not user.is_authenticated: return None
+    if user.username.startswith('member_'):
+        try:
+            from apps.jamath.models import Household
+            hid = int(user.username.split('_')[1])
+            return Household.objects.get(id=hid).mosque
+        except: return None
+    else:
+        try:
+            from apps.jamath.models import StaffMember
+            staff = StaffMember.objects.filter(user=user).first()
+            if staff: return staff.mosque
+        except: pass
+    return None
+
 class AdminMembershipConfigView(APIView):
     """View and update membership configuration."""
     permission_classes = [IsAdminUser]
     
     def get(self, request):
-        config = MembershipService.get_or_create_config()
+        config = MembershipService.get_or_create_config(mosque=get_user_mosque(request.user))
         return Response(MembershipConfigSerializer(config).data)
     
     def put(self, request):
-        config = MembershipService.get_or_create_config()
+        config = MembershipService.get_or_create_config(mosque=get_user_mosque(request.user))
         serializer = MembershipConfigSerializer(config, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -1105,7 +1122,7 @@ class MemberViewSet(AuditLogMixin, MosqueScopedViewSet):
     required_module = 'jamath'
 
     def get_queryset(self):
-        queryset = Member.objects.all()
+        queryset = super().get_queryset()
         is_head = self.request.query_params.get('is_head_of_family')
         if is_head == 'true':
             queryset = queryset.filter(is_head_of_family=True)
@@ -1125,7 +1142,15 @@ class SurveyResponseViewSet(MosqueScopedViewSet):
 
     def perform_create(self, serializer):
         from .services import JamathService
-        instance = serializer.save()
+        mosque = None
+        if self.request.user.is_authenticated:
+            try:
+                from .models import StaffMember
+                staff = StaffMember.objects.get(user=self.request.user)
+                mosque = staff.mosque
+            except StaffMember.DoesNotExist:
+                pass
+        instance = serializer.save(respondent=self.request.user, mosque=mosque)
         JamathService.process_survey_response(instance)
 
 
@@ -1136,7 +1161,7 @@ class AnnouncementViewSet(AuditLogMixin, MosqueScopedViewSet):
     required_module = 'announcements'
     
     def get_queryset(self):
-        queryset = Announcement.objects.all()
+        queryset = super().get_queryset()
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
@@ -1163,7 +1188,7 @@ class ServiceRequestViewSet(AuditLogMixin, MosqueScopedViewSet):
     required_module = 'welfare'
     
     def get_queryset(self):
-        queryset = ServiceRequest.objects.all()
+        queryset = super().get_queryset()
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
@@ -1207,7 +1232,7 @@ class PortalPaymentOrderView(APIView):
         import uuid
         
         # Get Tenant Config
-        config = MembershipConfig.objects.filter(is_active=True).first()
+        config = MembershipConfig.objects.filter(is_active=True, mosque=get_user_mosque(request.user)).first()
         if not config:
              return Response({'error': 'Membership config missing'}, status=400)
              
@@ -1311,7 +1336,7 @@ class PortalPaymentVerifyView(APIView):
         import razorpay
         import requests
         
-        config = MembershipConfig.objects.filter(is_active=True).first()
+        config = MembershipConfig.objects.filter(is_active=True, mosque=get_user_mosque(request.user)).first()
         if not config:
              return Response({'error': 'Config missing'}, status=400)
              
@@ -1515,14 +1540,14 @@ class ChangePasswordView(APIView):
 
 class LedgerViewSet(AuditLogMixin, MosqueScopedViewSet):
     """Chart of Accounts management."""
-    queryset = Ledger.objects.filter(parent=None, is_active=True)  # Only top-level by default
+    queryset = Ledger.objects.all()
     serializer_class = LedgerSerializer
     
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'finance'
 
     def get_queryset(self):
-        queryset = Ledger.objects.filter(is_active=True)
+        queryset = super().get_queryset().filter(is_active=True)
         account_type = self.request.query_params.get('type')
         flat = self.request.query_params.get('flat')
         
@@ -1590,7 +1615,15 @@ class JournalEntryViewSet(AuditLogMixin, MosqueScopedViewSet):
     required_module = 'finance'
 
     def perform_create(self, serializer):
-        entry = serializer.save(created_by=self.request.user)
+        mosque_obj = None
+        if self.request.user.is_authenticated:
+            try:
+                from .models import StaffMember
+                staff = StaffMember.objects.get(user=self.request.user)
+                mosque_obj = staff.mosque
+            except Exception:
+                pass
+        entry = serializer.save(created_by=self.request.user, mosque=mosque_obj)
         
         action_desc = "Created Journal Entry"
         amount_str = f"₹{entry.total_amount:g}"  # Remove trailing zeros if integer
@@ -1603,7 +1636,7 @@ class JournalEntryViewSet(AuditLogMixin, MosqueScopedViewSet):
         self._log_activity('CREATE', entry, action_desc, self.request.user)
 
     def get_queryset(self):
-        queryset = JournalEntry.objects.all()
+        queryset = super().get_queryset()
         voucher_type = self.request.query_params.get('type')
         date_from = self.request.query_params.get('from')
         date_to = self.request.query_params.get('to')
@@ -1648,11 +1681,22 @@ class JournalEntryViewSet(AuditLogMixin, MosqueScopedViewSet):
                 except Ledger.DoesNotExist:
                     pass
             
-            # Only validate balance for General payments (not Zakat)
-            if not is_zakat_payment and total_payment > 0:
+            # Get current mosque to scope queries
+            mosque = None
+            if request.user.is_authenticated:
+                from apps.jamath.models import StaffMember
+                staff = StaffMember.objects.filter(user=request.user).first()
+                if staff: mosque = staff.mosque
+
+            # Fetch Config
+            config = MembershipConfig.objects.filter(is_active=True, mosque=mosque).first()
+            is_strict = config.is_strict_accounting if config else True
+
+            # Only validate balance for General payments (not Zakat) if strict accounting is enabled
+            if is_strict and not is_zakat_payment and total_payment > 0:
                 # Get available balance (Cash + Bank, excluding Zakat)
-                cash_ledger = Ledger.objects.filter(code='1001').first()  # Cash
-                bank_ledger = Ledger.objects.filter(code='1002').first()  # Bank
+                cash_ledger = Ledger.objects.filter(code='1001', mosque=mosque).first()  # Cash
+                bank_ledger = Ledger.objects.filter(code='1002', mosque=mosque).first()  # Bank
                 
                 available_balance = Decimal('0')
                 if cash_ledger:
@@ -1735,8 +1779,16 @@ class LedgerReportsView(APIView):
     permission_classes = [IsAdminUser | HasStaffPermission]
     required_module = 'finance'
 
+    def get_mosque(self, request):
+        if request.user.is_authenticated:
+            from apps.jamath.models import StaffMember
+            staff = StaffMember.objects.filter(user=request.user).first()
+            if staff: return staff.mosque
+        return None
+
     def get(self, request, report_type):
         from django.db.models import Sum, Q
+        mosque = self.get_mosque(request)
 
         if report_type == 'day-book':
             # Default to Date view (how it was)
@@ -1746,7 +1798,7 @@ class LedgerReportsView(APIView):
             fund_type = request.query_params.get('fund_type')
             
             # Base query
-            entries = JournalEntry.objects.exclude(voucher_type='JOURNAL')
+            entries = JournalEntry.objects.filter(mosque=mosque).exclude(voucher_type='JOURNAL')
             
             date_label = target_date_str
             if filter_mode == 'date':
@@ -1808,6 +1860,7 @@ class LedgerReportsView(APIView):
                 # Note: We include Journal Entries now to catch adjustments
                 # Income: Net Credit (Credit - Debit) to INCOME accounts
                 income_stats = JournalItem.objects.filter(
+                    mosque=mosque,
                     journal_entry__date__gte=start_of_month,
                     journal_entry__date__lte=today,
                     ledger__account_type='INCOME'
@@ -1821,6 +1874,7 @@ class LedgerReportsView(APIView):
 
                 # Expense: Net Debit (Debit - Credit) to EXPENSE accounts
                 expense_stats = JournalItem.objects.filter(
+                    mosque=mosque,
                     journal_entry__date__gte=start_of_month,
                     journal_entry__date__lte=today,
                     ledger__account_type='EXPENSE'
@@ -1846,6 +1900,7 @@ class LedgerReportsView(APIView):
                 # Total Available Balance (Cash + Bank, excluding Zakat)
                 # 1. Calculate Gross Liquid Assets (All Cash + Bank)
                 liquid_assets = JournalItem.objects.filter(
+                    mosque=mosque,
                     ledger__account_type='ASSET',
                     ledger__code__startswith='100'  # Cash & Bank codes
                 ).aggregate(
@@ -1858,6 +1913,7 @@ class LedgerReportsView(APIView):
                 # 2. Calculate Restricted Zakat Balance (Income + Equity - Expense)
                 # We MUST include EQUITY to capture Opening Balances/Corpus
                 zakat_stats = JournalItem.objects.filter(
+                    mosque=mosque,
                     ledger__fund_type='ZAKAT'
                 ).aggregate(
                     income_c=Sum('credit_amount', filter=Q(ledger__account_type='INCOME')),
@@ -1900,7 +1956,7 @@ class LedgerReportsView(APIView):
                 })
 
         elif report_type == 'trial-balance':
-            ledgers = Ledger.objects.filter(is_active=True).order_by('code')
+            ledgers = Ledger.objects.filter(mosque=mosque, is_active=True).order_by('code')
             data = []
             total_debit = Decimal('0.00')
             total_credit = Decimal('0.00')
@@ -2148,7 +2204,7 @@ class ReceiptPDFView(APIView):
             return Response({'error': 'Only receipt vouchers can generate PDFs'}, status=400)
         
         # Get organization config
-        config = MembershipConfig.objects.filter(is_active=True).first()
+        config = MembershipConfig.objects.filter(is_active=True, mosque=get_user_mosque(request.user)).first()
         
         # Calculate amount from journal items (credit side)
         amount = sum(item.credit_amount for item in entry.items.all())
@@ -2243,7 +2299,7 @@ class PortalReceiptPDFView(APIView):
         
         try:
             # Get organization config
-            config = MembershipConfig.objects.filter(is_active=True).first()
+            config = MembershipConfig.objects.filter(is_active=True, mosque=get_user_mosque(request.user)).first()
             
             # JOINT FIX: Access household via donor, and handle donor name correctly
             household = entry.donor.household if entry.donor else None

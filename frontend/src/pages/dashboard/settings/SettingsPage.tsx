@@ -67,6 +67,7 @@ export function SettingsPage() {
     // Feature Flags
     const [allowManualLedger, setAllowManualLedger] = useState(false);
     const [setupType, setSetupType] = useState('STANDARD');
+    const [isStrictAccounting, setIsStrictAccounting] = useState(true);
 
     useEffect(() => {
         fetchSettings();
@@ -101,6 +102,7 @@ export function SettingsPage() {
 
                 setAllowManualLedger(data.allow_manual_ledger ?? false);
                 setSetupType(data.setup_type || 'STANDARD');
+                setIsStrictAccounting(data.is_strict_accounting ?? true);
             }
         } catch (err) {
             console.error("Failed to fetch settings", err);
@@ -156,6 +158,8 @@ export function SettingsPage() {
                     organization_address: orgAddress,
                     organization_pan: orgPan,
                     registration_number_80g: reg80g,
+                    
+                    is_strict_accounting: isStrictAccounting,
 
 
                 })
@@ -355,9 +359,21 @@ export function SettingsPage() {
                             </SelectContent>
                         </Select>
                     </div>
+
+                    <div className="pt-4 border-t flex items-center justify-between">
+                        <div>
+                            <Label>Strict Accounting Enforcement</Label>
+                            <p className="text-xs text-gray-500 mr-6 mt-1">
+                                Enforce double-entry accounting rules and exact balance checks. Turn off for a simpler, unrestricted cash-flow entry system if you manage physical balances outside the app.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={isStrictAccounting}
+                            onCheckedChange={setIsStrictAccounting}
+                        />
+                    </div>
                 </CardContent>
             </Card>
-
             {/* Payment Gateway Settings */}
             <Card>
                 <CardHeader>
