@@ -1,29 +1,36 @@
 <p align="center">
-  <img src="digital_jamath/public/images/logo-lockup.png" alt="digitaljamath" width="320" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="digital_jamath/public/images/logo-lockup-light.svg" />
+    <img src="digital_jamath/public/images/logo-lockup.svg" alt="digitaljamath" width="300" />
+  </picture>
 </p>
 
 <p align="center">
   <strong>Open-source community-trust software for jamaths and masjids</strong><br />
-  Household census · Shariah-aware Baitul Maal · Member portal · Compliance
+  <sub>Household census · Shariah-aware Baitul Maal · Member portal · Compliance</sub>
 </p>
 
 <p align="center">
-  <a href="https://github.com/digitaljamath/digitaljamath/releases/tag/v0.1.0"><img alt="Stable 0.1.0" src="https://img.shields.io/badge/release-v0.1.0%20stable-0B3D2E?style=flat-square" /></a>
-  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-0B3D2E?style=flat-square" /></a>
-  <img alt="Frappe + ERPNext 15" src="https://img.shields.io/badge/stack-Frappe%20%2B%20ERPNext%2015-B18830?style=flat-square" />
-  <a href="https://github.com/digitaljamath/digitaljamath/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/digitaljamath/digitaljamath?style=flat-square" /></a>
+  <a href="https://github.com/digitaljamath/digitaljamath/releases/tag/v0.1.0"><img alt="release v0.1.0" src="https://img.shields.io/badge/release-v0.1.0_stable-0B3D2E?style=flat-square&labelColor=071a14" /></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-146047?style=flat-square&labelColor=071a14" /></a>
+  <img alt="Frappe + ERPNext 15" src="https://img.shields.io/badge/stack-Frappe_+_ERPNext_15-B8892F?style=flat-square&labelColor=071a14" />
+  <a href="https://github.com/digitaljamath/digitaljamath/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/digitaljamath/digitaljamath?style=flat-square&labelColor=071a14&color=3d8f55" /></a>
 </p>
 
 <p align="center">
   <a href="https://digitaljamath.com">Website</a>
-  ·
+  &nbsp;·&nbsp;
   <a href="https://app.digitaljamath.com/login">Live Demo</a>
-  ·
+  &nbsp;·&nbsp;
   <a href="https://digitaljamath.com/portal/login">Member portal</a>
-  ·
-  <a href="https://digitaljamath.com/cloud#interest-form">Start free pilot</a>
-  ·
+  &nbsp;·&nbsp;
+  <a href="https://digitaljamath.com/cloud#signup-form">Start free pilot</a>
+  &nbsp;·&nbsp;
+  <a href="docs/FEATURES.md">Features</a>
+  &nbsp;·&nbsp;
   <a href="DEPLOYMENT.md">Deploy</a>
+  &nbsp;·&nbsp;
+  <a href="docs/README.md">Docs</a>
 </p>
 
 ---
@@ -54,7 +61,9 @@ Digital Jamath helps jamath committees run membership, sacred funds, receipts, a
   <img src="docs/screenshots/01-website.png" alt="Digital Jamath marketing site" width="900" />
 </p>
 
-### Committee Desk (Live Demo login)
+### Committee Desk
+
+Live demo: [app.digitaljamath.com/login](https://app.digitaljamath.com/login) · `demo@digitaljamath.com` / `Experience@DJ1`
 
 <p align="center">
   <img src="docs/screenshots/02-desk-login.png" alt="Digital Jamath Desk login" width="900" />
@@ -62,11 +71,15 @@ Digital Jamath helps jamath committees run membership, sacred funds, receipts, a
 
 ### Member portal
 
+Live demo: [digitaljamath.com/portal/login](https://digitaljamath.com/portal/login) · phone `9876543210`, OTP `123456`
+
 <p align="center">
   <img src="docs/screenshots/06-portal-login.png" alt="Digital Jamath member portal login" width="900" />
 </p>
 
 ### Cloud pilot
+
+Self-serve free 3-month pilot: [digitaljamath.com/cloud](https://digitaljamath.com/cloud#signup-form)
 
 <p align="center">
   <img src="docs/screenshots/07-cloud.png" alt="Digital Jamath Cloud pilot page" width="900" />
@@ -83,7 +96,10 @@ Digital Jamath helps jamath committees run membership, sacred funds, receipts, a
 | **Receipts & compliance** | Digital receipts; India pack for 80G-style and Form 10BD CSV |
 | **Tickets** | Nikah, NOC, certificates, and other member requests |
 | **Member portal** | OTP login, family view, donations, service requests |
+| **Committee console** | Simple SaaS UI at `/jamath`; Desk = Advanced |
 | **Basira** | Optional AI guide (bring your own key when self-hosting) |
+
+Full catalogue (every feature, DocType, and surface): **[docs/FEATURES.md](docs/FEATURES.md)** · index: **[docs/README.md](docs/README.md)**
 
 Community Edition is the full product. Cloud pays for servers, backups, and onboarding, not feature locks.
 
@@ -98,7 +114,7 @@ Community Edition is the full product. Cloud pays for servers, backups, and onbo
 | **Committee Desk** | [app.digitaljamath.com/login](https://app.digitaljamath.com/login) → `demo@digitaljamath.com` / `Experience@DJ1` |
 | **Member portal** | [digitaljamath.com/portal/login](https://digitaljamath.com/portal/login) → phone `9876543210`, OTP `123456` |
 
-Demo data resets every night (IST). Ready for your jamath? [Start a free 3-month Cloud pilot](https://digitaljamath.com/cloud#interest-form) (no credit card).
+Demo data resets every night (IST). Ready for your jamath? [Start a free 3-month Cloud pilot](https://digitaljamath.com/cloud#signup-form) — no credit card.
 
 ---
 
@@ -142,12 +158,18 @@ Full guide: **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 Canonical mark: **Open-D** + lowercase wordmark `digitaljamath`.
 
 <p align="center">
-  <img src="digital_jamath/public/images/logo-mark.png" alt="Digital Jamath Open-D mark" width="96" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="digital_jamath/public/images/logo-lockup-light.svg" />
+    <img src="digital_jamath/public/images/logo-lockup.svg" alt="Digital Jamath lockup" width="220" />
+  </picture>
+  &nbsp;&nbsp;
+  <img src="digital_jamath/public/images/logo-mark.png" alt="Digital Jamath Open-D mark" width="72" />
 </p>
 
 - Forest green `#0B3D2E`, leaf and gold accents in the D
+- Light lockup (`logo-lockup-light.svg`) for dark surfaces
 - Meaning: the jamath lives inside open software
-- Assets in `digital_jamath/public/images/` (lockup, mark, favicons)
+- Assets in `digital_jamath/public/images/`
 
 Do not use crescents, minarets, or calligraphy in the mark. Prefer Inter / system UI for product screens.
 
@@ -157,9 +179,10 @@ Do not use crescents, minarets, or calligraphy in the mark. Prefer Inter / syste
 
 ```
 digital_jamath/     # Frappe app (source of truth)
+committee-ui/       # Committee console SPA (builds into digital_jamath/public/committee)
 docker-compose.yml  # MariaDB + Redis + ERPNext + app
 scripts/            # Bootstrap, COA, cloud helpers
-docs/               # Architecture, licensing, lead routing, screenshots
+docs/               # FEATURES, architecture, licensing, screenshots
 legacy_django/      # Frozen Django snapshot (tag v2.1.0-django-legacy)
 ```
 

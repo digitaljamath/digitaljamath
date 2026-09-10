@@ -1,5 +1,8 @@
 /* Digital Jamath — Desk + login white-label & brand theme
  * Source: logo/BRAND_GUIDELINES.md
+ *
+ * Important: do NOT override Frappe layout tokens (--bg-color, --text-color,
+ * --text-muted, --navbar-bg, --card-bg) on :root — that breaks theme toggle.
  */
 
 :root {
@@ -19,14 +22,22 @@
   --dj-outline: #c5d4cc;
   --dj-error: #dc2626;
 
-  /* Frappe / Desk primary bridge */
+  /* Brand primary only — leave Frappe bg/text tokens alone */
   --primary: var(--dj-primary);
   --primary-color: var(--dj-primary);
-  --btn-primary: var(--dj-primary);
-  --btn-primary-hover: var(--dj-primary-hover);
-  --bg-color: #f8fafc;
-  --text-color: var(--dj-ink);
-  --text-muted: var(--dj-muted);
+}
+
+/* Dark Desk: brighter primary so links/accents stay readable */
+[data-theme="dark"] {
+  --dj-primary: #3d8f55;
+  --dj-primary-hover: #4ea366;
+  --dj-primary-container: #1a3d2e;
+  --dj-leaf: #4ea366;
+  --dj-leaf-bright: #6bb87a;
+  --dj-mist: #1a3d2e;
+  --dj-outline: #2f4a3e;
+  --primary: var(--dj-primary);
+  --primary-color: var(--dj-primary);
 }
 
 /* ----- Hide Frappe / ERPNext chrome ----- */
@@ -66,7 +77,7 @@ div[id^="onboarding-"] {
   display: none !important;
 }
 
-/* ----- Primary actions (Desk) ----- */
+/* ----- Primary actions (Desk) — brand green in both themes ----- */
 .btn-primary,
 .btn.btn-primary,
 button.btn-primary,
@@ -89,6 +100,12 @@ button.btn-primary:hover,
   color: var(--dj-on-primary) !important;
 }
 
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn.btn-primary,
+[data-theme="dark"] button.btn-primary {
+  color: #071a14 !important;
+}
+
 .btn-primary-light,
 .indicator-pill.green,
 .indicator.green {
@@ -96,12 +113,7 @@ button.btn-primary:hover,
   color: var(--dj-primary) !important;
 }
 
-/* Links & focus */
-a,
-.btn-link {
-  --text-color: var(--dj-primary);
-}
-
+/* Focus rings — brand mist, theme-safe */
 input:focus,
 select:focus,
 textarea:focus,
@@ -111,7 +123,17 @@ textarea:focus,
   box-shadow: 0 0 0 2px var(--dj-mist) !important;
 }
 
-/* Login card brand surface — high contrast, readable brand */
+/* Login: hide website chrome */
+body[data-path="login"] > .navbar,
+body[data-path="login"] .web-footer,
+body[data-path="login"] #language-switcher,
+.page-login .navbar,
+#page-login ~ .web-footer {
+  display: none !important;
+}
+
+/* Login page surface (website, always light brand surface) */
+body[data-path="login"],
 .for-login,
 .login-content {
   background:
@@ -120,11 +142,31 @@ textarea:focus,
   min-height: 100vh;
 }
 
-.for-login .page-card {
+body[data-path="login"] .page-content-wrapper,
+body[data-path="login"] main.container {
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.for-login .page-card,
+.for-forgot .page-card,
+.for-login-with-email-link .page-card {
   border-radius: 16px;
   border: 1px solid var(--dj-outline);
   box-shadow: 0 10px 25px -5px rgba(15, 81, 50, 0.08);
   color: var(--dj-ink);
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.for-login .page-card form,
+.for-forgot .page-card form,
+.for-login-with-email-link .page-card form {
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .for-login label,
@@ -134,22 +176,27 @@ textarea:focus,
   color: var(--dj-ink) !important;
 }
 
-.for-login .page-card-head {
+.for-login .page-card-head,
+.for-forgot .page-card-head,
+body[data-path="login"] .page-card-head {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 
-.for-login .page-card-head .app-logo {
+.for-login .page-card-head .app-logo,
+body[data-path="login"] .page-card-head .app-logo {
   max-height: 56px !important;
   width: auto !important;
   max-width: min(280px, 80vw);
   object-fit: contain;
 }
 
-.for-login .page-card-head h4 {
+.for-login .page-card-head h4,
+body[data-path="login"] .page-card-head h4 {
   font-size: 1.25rem !important;
   font-weight: 700 !important;
   color: var(--dj-forest) !important;
@@ -167,7 +214,7 @@ a.navbar-home img {
   object-fit: contain;
 }
 
-/* Desk sidebar / active accents where Frappe uses --primary */
+/* Desk sidebar / active accents */
 .desk-sidebar .selected,
 .list-row-head,
 .workspace-sidebar .item.selected,
@@ -180,23 +227,17 @@ input[type="checkbox"]:checked {
   accent-color: var(--dj-primary);
 }
 
-/* Soft brand chips */
-.dj-chip,
-.indicator-pill.blue {
-  /* don't force all blues — fund General stays blue via DocType CSS if needed */
-}
-
 /* Splash / about */
 .splash img,
 .about-content img {
   max-width: 220px;
 }
 
-/* Hub crumb — always visible escape hatch back to Digital Jamath */
+/* Hub crumb — use theme text + brand weight, not forced dark green */
 #navbar-breadcrumbs li[data-dj-hub] a,
 .navbar .breadcrumb li[data-dj-hub] a {
   font-weight: 600;
-  color: var(--dj-primary) !important;
+  color: var(--primary) !important;
 }
 
 a.navbar-brand.navbar-home,
@@ -204,3 +245,11 @@ a.navbar-home {
   cursor: pointer;
 }
 
+/* Workspace shortcut links: inherit Desk link color (theme-aware) */
+.workspace-sidebar .item a,
+.codex-editor a,
+.widget .shortcut-widget-box a,
+.widget.shortcut a,
+.desktop-list-item a {
+  color: inherit;
+}

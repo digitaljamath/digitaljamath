@@ -4,7 +4,7 @@
 (function () {
   const BRAND = "Digital Jamath";
   const HUB = "/app/digital-jamath";
-  const V = "20260910f";
+  const V = "20260910i";
   const LOGO_MARK = "/assets/digital_jamath/images/logo-mark.png?v=" + V;
   const LOGO_LOCKUP = "/assets/digital_jamath/images/logo-lockup.png?v=" + V;
   const FAVICON_ICO = "/assets/digital_jamath/images/favicon.ico?v=" + V;
@@ -41,7 +41,11 @@
   }
 
   function retitleLogin() {
-    if (!document.body || !document.body.classList.contains("login")) return;
+    const onLogin =
+      (document.body && document.body.getAttribute("data-path") === "login") ||
+      (document.body && document.body.classList.contains("login")) ||
+      !!document.querySelector(".for-login, #page-login");
+    if (!onLogin) return;
     document.title = "Login · " + BRAND;
 
     // Prefer lockup on login (readable brand name)
@@ -177,6 +181,17 @@
     });
   }
 
+  function fixWebFormTitleLeak() {
+    // Jinja DebugUndefined leak: literal "{{ web_form_title }}"
+    document.querySelectorAll(".web-form-title h1, .web-form-head h1").forEach((el) => {
+      const t = (el.textContent || "").trim();
+      if (t === "{{ web_form_title }}" || t === "{{web_form_title}}") {
+        const sub = document.querySelector(".web-form-title p, .web-form-head p");
+        el.textContent = (sub && sub.textContent.trim()) || "Address";
+      }
+    });
+  }
+
   function boot() {
     setFavicons();
     retitleLogin();
@@ -186,6 +201,7 @@
     pinNavbarHome();
     ensureHubCrumb();
     rebrandAboutApps();
+    fixWebFormTitleLeak();
   }
 
   document.addEventListener("DOMContentLoaded", boot);

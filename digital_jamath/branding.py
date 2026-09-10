@@ -5,7 +5,7 @@ White-label Digital Jamath — Desk login, navbar, favicon, apps chrome.
 from digital_jamath.compat import frappe
 
 # Cache-bust so browsers pick up new brand assets
-V = "20260910f"
+V = "20260910i"
 
 # Public asset paths (no query) — used in Website / Navbar Attach fields
 LOGO_ICON_PATH = "/assets/digital_jamath/images/logo.svg"
@@ -66,6 +66,48 @@ def update_website_context(context):
             "app_logo": LOGO_LOGIN,
         }
     )
+    _ensure_web_form_title(context)
+
+
+def _ensure_web_form_title(context):
+    """
+    Frappe web_form.html uses {{ web_form_title }} when show_list and not is_new,
+    but web_form.py only sets it when editing an existing doc. Missing values render
+    as literal '{{ web_form_title }}' via Jinja DebugUndefined.
+    """
+    if context.get("web_form_title"):
+        return
+    wf = context.get("web_form_doc")
+    if not wf:
+        return
+    title = None
+    if isinstance(wf, dict):
+        title = wf.get("title")
+    else:
+        title = getattr(wf, "title", None)
+    context["web_form_title"] = title or context.get("title") or BRAND
+
+
+def fix_address_web_form():
+    """ERPNext standard Address web form ships a broken success_url (/addresses)."""
+    if not frappe.db.exists("Web Form", "addresses"):
+        return
+    current = frappe.db.get_value("Web Form", "addresses", "success_url")
+    if current in (None, "", "/addresses"):
+        frappe.db.set_value("Web Form", "addresses", "success_url", "/address/list", update_modified=False)
+
+    # Redirect the stale success path → list (child table on Website Settings)
+    try:
+        ws = frappe.get_single("Website Settings")
+        rows = getattr(ws, "route_redirects", None) or []
+        if not any((r.source or "").strip() == "addresses" for r in rows):
+            ws.append("route_redirects", {"source": "addresses", "target": "address/list"})
+            ws.flags.ignore_permissions = True
+            ws.flags.ignore_mandatory = True
+            ws.save()
+    except Exception:
+        frappe.log_error(title="DJ address redirect")
+    frappe.db.commit()
 
 
 def apply_website_settings():
@@ -93,6 +135,7 @@ def apply_website_settings():
     ws.flags.ignore_mandatory = True
     ws.save()
     frappe.db.commit()
+    fix_address_web_form()
 
 
 def apply_navbar_settings():

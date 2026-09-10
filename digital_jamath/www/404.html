@@ -1,0 +1,74 @@
+{% extends "templates/web.html" %}
+
+{%- block title -%}{{ _("Not Found") }}{%- endblock -%}
+
+{% block page_content %}
+<script>
+	window.is_404 = true;
+</script>
+
+<style>
+	.dj-404 {
+		max-width: 28rem;
+		margin: 4rem auto 6rem;
+		text-align: center;
+		padding: 0 1.25rem;
+	}
+	.dj-404__code {
+		font-size: clamp(3.5rem, 10vw, 5rem);
+		font-weight: 700;
+		letter-spacing: -0.04em;
+		line-height: 1;
+		color: #0f5132;
+		margin: 0;
+	}
+	.dj-404__label {
+		margin: 0.5rem 0 0;
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: #6b7280;
+	}
+	.dj-404__title {
+		margin: 1.25rem 0 0.5rem;
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #111827;
+	}
+	.dj-404__text {
+		margin: 0;
+		font-size: 0.95rem;
+		line-height: 1.5;
+		color: #6b7280;
+	}
+	.dj-404__actions {
+		margin-top: 1.75rem;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		justify-content: center;
+	}
+	.dj-404__actions .btn-primary {
+		background: #0f5132;
+		border-color: #0f5132;
+	}
+	.dj-404__actions .btn-primary:hover {
+		background: #0b3d2e;
+		border-color: #0b3d2e;
+	}
+</style>
+
+<div class="dj-404">
+	<p class="dj-404__code">404</p>
+	<p class="dj-404__label">{{ _("Error") }}</p>
+	<h1 class="dj-404__title">{{ _("Page not found") }}</h1>
+	<p class="dj-404__text">
+		{{ _("The page you are looking for doesn’t exist or has been moved.") }}
+	</p>
+	<div class="dj-404__actions">
+		<a href="/jamath" class="btn btn-primary">{{ _("Committee console") }}</a>
+		<a href="/app" class="btn btn-default">{{ _("Desk") }}</a>
+	</div>
+</div>
+{% endblock %}

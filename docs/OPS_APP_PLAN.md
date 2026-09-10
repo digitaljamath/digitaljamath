@@ -45,10 +45,14 @@ flowchart LR
 - [x] Digital Jamath workspace hub + navigation escape hatch
 - [x] Demo seed: funds, JE, grants, **staff + salaries + compliance**
 
-### Phase 1 — Ops shell (`/ops` on Next)
-- Auth: staff login (Desk user session cookie or staff OTP)
-- Shell: sidebar Home · Households · Baitul Maal · Grants · Staff · Tickets · Compliance · **Advanced**
-- Home: balances by fund + shortcuts
+### Phase 1 — Ops shell (**shipped as `/jamath` on Frappe**, Kamra-style SPA)
+
+> **Decision update:** Implemented as Vite/React inside `digital_jamath` at `/jamath` (same pattern as Kamra PMS), not `/ops` on Next. Member portal stays Next-only. See [FEATURES.md](FEATURES.md) §9 and `committee-ui/README.md`.
+
+- [x] Auth: Desk user session cookie + CSRF
+- [x] Shell: Home · Community · Baitul Maal · Services · Welfare · Settings · **Advanced → Desk**
+- [x] Home shortcuts + list stubs for core DocTypes
+- [ ] Quick collect/pay, in-console forms, ⌘K, role-gated nav
 
 ### Phase 2 — Core workflows
 - Households list/detail (wrap Jamath Household)
@@ -86,6 +90,6 @@ flowchart LR
 
 | Choice | Decision |
 |--------|----------|
-| Ops host | `/ops` on digitaljamath-website first |
+| Ops host | **`/jamath` on Frappe app** (SPA); `/ops` on Next deferred |
 | Desk | Advanced mode only for day-to-day users |
 | Accounting | Stay on ERPNext JE + Fund Type dimension |
