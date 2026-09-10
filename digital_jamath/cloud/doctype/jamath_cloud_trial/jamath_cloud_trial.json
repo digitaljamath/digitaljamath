@@ -1,0 +1,156 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:CT-{YYYY}-{#####}",
+ "creation": "2026-09-10 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "jamath_name",
+  "slug",
+  "status",
+  "column_break_1",
+  "email",
+  "phone",
+  "country",
+  "section_trial",
+  "trial_start",
+  "trial_end",
+  "days_remaining",
+  "section_links",
+  "company",
+  "user",
+  "converted_on",
+  "section_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "jamath_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Jamath / Masjid Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "slug",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Slug (future site)",
+   "unique": 1
+  },
+  {
+   "default": "Interest",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Interest\nQueued\nTrial\nActive\nExpired\nCancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Admin Email",
+   "options": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "default": "India",
+   "fieldname": "country",
+   "fieldtype": "Data",
+   "label": "Country"
+  },
+  {
+   "fieldname": "section_trial",
+   "fieldtype": "Section Break",
+   "label": "Trial window"
+  },
+  {
+   "fieldname": "trial_start",
+   "fieldtype": "Date",
+   "label": "Trial Start"
+  },
+  {
+   "fieldname": "trial_end",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Trial End"
+  },
+  {
+   "fieldname": "days_remaining",
+   "fieldtype": "Int",
+   "is_virtual": 1,
+   "label": "Days Remaining",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_links",
+   "fieldtype": "Section Break",
+   "label": "Links"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company / Jamath",
+   "options": "Company"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "Admin User",
+   "options": "User"
+  },
+  {
+   "fieldname": "converted_on",
+   "fieldtype": "Datetime",
+   "label": "Converted to Paid On"
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-10 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Cloud",
+ "name": "Jamath Cloud Trial",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

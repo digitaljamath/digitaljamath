@@ -1,0 +1,228 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:STF-{#####}",
+ "creation": "2026-09-10 16:50:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "full_name",
+  "staff_role",
+  "employment_status",
+  "column_break_1",
+  "phone_number",
+  "email",
+  "joining_date",
+  "section_pay",
+  "monthly_salary",
+  "salary_fund",
+  "payment_mode",
+  "column_break_2",
+  "bank_account_last4",
+  "upi_id",
+  "section_compliance",
+  "pan",
+  "aadhaar_last4",
+  "pf_applicable",
+  "esi_applicable",
+  "column_break_3",
+  "contract_on_file",
+  "police_verification",
+  "compliance_notes",
+  "section_notes",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "staff_role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Role",
+   "options": "Imam\nMuezzin\nClerk / Secretary\nAccountant\nCleaner\nWatchman\nTeacher\nOther",
+   "reqd": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "employment_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nOn Leave\nLeft"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Phone"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "joining_date",
+   "fieldtype": "Date",
+   "label": "Joining Date"
+  },
+  {
+   "fieldname": "section_pay",
+   "fieldtype": "Section Break",
+   "label": "Salary"
+  },
+  {
+   "fieldname": "monthly_salary",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Monthly Salary (INR)",
+   "reqd": 1
+  },
+  {
+   "default": "Chanda",
+   "fieldname": "salary_fund",
+   "fieldtype": "Link",
+   "label": "Paid from Fund",
+   "options": "Fund Type"
+  },
+  {
+   "default": "Bank",
+   "fieldname": "payment_mode",
+   "fieldtype": "Select",
+   "label": "Usual Payment Mode",
+   "options": "Cash\nBank\nUPI"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bank_account_last4",
+   "fieldtype": "Data",
+   "label": "Bank A/c (last 4)"
+  },
+  {
+   "fieldname": "upi_id",
+   "fieldtype": "Data",
+   "label": "UPI ID"
+  },
+  {
+   "fieldname": "section_compliance",
+   "fieldtype": "Section Break",
+   "label": "Compliance"
+  },
+  {
+   "fieldname": "pan",
+   "fieldtype": "Data",
+   "label": "PAN"
+  },
+  {
+   "fieldname": "aadhaar_last4",
+   "fieldtype": "Data",
+   "label": "Aadhaar (last 4)"
+  },
+  {
+   "default": "0",
+   "fieldname": "pf_applicable",
+   "fieldtype": "Check",
+   "label": "PF applicable"
+  },
+  {
+   "default": "0",
+   "fieldname": "esi_applicable",
+   "fieldtype": "Check",
+   "label": "ESI applicable"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "contract_on_file",
+   "fieldtype": "Check",
+   "label": "Appointment letter on file"
+  },
+  {
+   "default": "0",
+   "fieldname": "police_verification",
+   "fieldtype": "Check",
+   "label": "Police verification done"
+  },
+  {
+   "fieldname": "compliance_notes",
+   "fieldtype": "Small Text",
+   "label": "Compliance notes"
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-10 16:50:00.000000",
+ "modified_by": "Administrator",
+ "module": "Welfare",
+ "name": "Jamath Staff",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

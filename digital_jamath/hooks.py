@@ -1,22 +1,36 @@
 app_name = "digital_jamath"
 app_title = "Digital Jamath"
 app_publisher = "Digital Jamath"
-app_description = "Open-source community trust, census, and Baitul Maal accounting platform for Indian Masjids, Jamaths & NGOs"
-app_email = "info@digitaljamath.com"
+app_description = "Open-source community trust, census, and Baitul Maal accounting platform for Masjids, Jamaths & Muslim welfare organisations"
+app_email = "salam@digitaljamath.com"
 app_license = "mit"
+app_home = "/app"
+app_logo_url = "/assets/digital_jamath/images/logo-mark.png?v=20260910f"
 
-# Includes in <head>
-# ------------------
+# Branding (Desk + website / login)
+app_include_css = ["/assets/digital_jamath/css/branding.css?v=20260910f"]
+app_include_js = ["/assets/digital_jamath/js/branding.js?v=20260910f"]
+web_include_css = ["/assets/digital_jamath/css/branding.css?v=20260910f"]
+web_include_js = ["/assets/digital_jamath/js/branding.js?v=20260910f"]
 
-# include js, css files in header of desk.html
-# app_include_css = "/assets/digital_jamath/css/digital_jamath.css"
-# app_include_js = "/assets/digital_jamath/js/digital_jamath.js"
+website_context = {
+    "favicon": "/assets/digital_jamath/images/favicon.ico?v=20260910f",
+    "splash_image": "/assets/digital_jamath/images/logo-lockup.png?v=20260910f",
+    "app_name": "Digital Jamath",
+}
+
+update_website_context = "digital_jamath.branding.update_website_context"
+extend_bootinfo = "digital_jamath.branding.extend_bootinfo"
 
 # Document Events
 # ---------------
-# Hook on document methods and events
 
 doc_events = {
+    "*": {
+        "before_insert": "digital_jamath.cloud.trial.trial_write_guard",
+        "before_save": "digital_jamath.cloud.trial.trial_write_guard",
+        "on_trash": "digital_jamath.cloud.trial.trial_write_guard",
+    },
     "Journal Entry": {
         "before_submit": "digital_jamath.baitul_maal.validators.validate_fund_restrictions",
         "on_cancel": "digital_jamath.baitul_maal.validators.validate_fund_on_cancel"
@@ -25,21 +39,14 @@ doc_events = {
         "before_submit": "digital_jamath.baitul_maal.validators.validate_payment_entry_funds",
         "on_cancel": "digital_jamath.baitul_maal.validators.validate_fund_on_cancel"
     },
-    "Jamath Household": {
-        "before_save": "digital_jamath.census.doctype.jamath_household.jamath_household.calculate_zakat_eligibility"
-    },
-    "Jamath Grant Application": {
-        "before_save": "digital_jamath.welfare.doctype.jamath_grant_application.jamath_grant_application.calculate_score"
-    }
 }
 
-# Scheduled Tasks
-# ---------------
-# scheduler_events = {
-#     "daily": [
-#         "digital_jamath.welfare.dedup.refresh_dedup_hashes"
-#     ]
-# }
+scheduler_events = {
+    "daily": [
+        "digital_jamath.cloud.trial.expire_due_trials",
+        "digital_jamath.cloud.demo_jamath.reset_demo_jamath",
+    ]
+}
 
 # Setup & Migrations
 # ------------------

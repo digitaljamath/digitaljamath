@@ -170,9 +170,9 @@ def get_current_fund_balance(company, fund_name):
         FROM `tabGL Entry`
         WHERE company = %s
           AND is_cancelled = 0
-          AND (fund_type = %s OR dimension_fund_type = %s)
+          AND fund_type = %s
         GROUP BY account
-    """, (company, fund_name, fund_name), as_dict=True)
+    """, (company, fund_name), as_dict=True)
 
     net_balance = Decimal("0.00")
     for row in gl_entries:

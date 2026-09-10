@@ -1,0 +1,67 @@
+{% extends "templates/web.html" %}
+{% block title %}{{ _("Set up your Jamath") }} · Digital Jamath{% endblock %}
+
+{% block page_content %}
+<div class="container my-5" style="max-width: 32rem;">
+  <h1 class="mb-2">{{ _("Set up your Jamath") }}</h1>
+  <p class="text-muted mb-4">
+    {{ _("Three fields. We create your ledger as a Jamath — not a generic company wizard.") }}
+  </p>
+
+  <div class="card p-4">
+    <div class="form-group mb-3">
+      <label class="form-label">{{ _("Jamath / Masjid name") }}</label>
+      <input type="text" class="form-control" id="jamath_name" value="{{ jamath_name }}" required>
+    </div>
+    <div class="form-group mb-3">
+      <label class="form-label">{{ _("Country") }}</label>
+      <select class="form-control" id="country">
+        {% for c in countries %}
+        <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+      <small class="text-muted">{{ _("Chooses currency, timezone, and Masjid chart defaults.") }}</small>
+    </div>
+    <button class="btn btn-primary btn-block" id="btn-setup" type="button">
+      {{ _("Finish setup") }}
+    </button>
+    <p class="text-danger mt-3 d-none" id="err"></p>
+    <p class="text-success mt-3 d-none" id="ok"></p>
+  </div>
+</div>
+
+<script>
+frappe.ready(function () {
+  document.getElementById("btn-setup").addEventListener("click", function () {
+    const err = document.getElementById("err");
+    const ok = document.getElementById("ok");
+    err.classList.add("d-none");
+    ok.classList.add("d-none");
+    const jamath_name = document.getElementById("jamath_name").value.trim();
+    const country = document.getElementById("country").value;
+    if (!jamath_name) {
+      err.textContent = "Please enter your Jamath name.";
+      err.classList.remove("d-none");
+      return;
+    }
+    frappe.call({
+      method: "digital_jamath.onboarding.setup_jamath",
+      args: { jamath_name, country },
+      freeze: true,
+      freeze_message: __("Setting up your Jamath…"),
+      callback: function (r) {
+        if (r.message && r.message.success) {
+          ok.textContent = r.message.message || "Ready.";
+          ok.classList.remove("d-none");
+          setTimeout(function () { window.location.href = "/app"; }, 800);
+        }
+      },
+      error: function (r) {
+        err.textContent = (r.message && r.message.message) || "Setup failed.";
+        err.classList.remove("d-none");
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

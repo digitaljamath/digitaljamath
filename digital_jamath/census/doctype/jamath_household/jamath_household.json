@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "membership_id",
+  "company",
   "phone_number",
   "is_verified",
   "economic_status",
@@ -26,16 +27,22 @@
    "fieldname": "membership_id",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Membership ID (e.g. JM-001)",
-   "unique": 1
+   "label": "Membership ID (e.g. JM-001)"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Jamath (Company)",
+   "options": "Company"
   },
   {
    "fieldname": "phone_number",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Primary Contact Phone (for OTP Login)",
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   },
   {
    "default": "0",

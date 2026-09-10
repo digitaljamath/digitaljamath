@@ -1,0 +1,206 @@
+/* Digital Jamath — Desk + login white-label & brand theme
+ * Source: logo/BRAND_GUIDELINES.md
+ */
+
+:root {
+  --dj-ink: #071a14;
+  --dj-forest: #0b3d2e;
+  --dj-primary: #0f5132;
+  --dj-primary-hover: #0a3a25;
+  --dj-primary-container: #d1e7dd;
+  --dj-on-primary: #ffffff;
+  --dj-leaf: #146047;
+  --dj-leaf-bright: #3d8f55;
+  --dj-gold: #b8892f;
+  --dj-gold-soft: #e8d29a;
+  --dj-paper: #f7faf8;
+  --dj-mist: #d7e8df;
+  --dj-muted: #243d34;
+  --dj-outline: #c5d4cc;
+  --dj-error: #dc2626;
+
+  /* Frappe / Desk primary bridge */
+  --primary: var(--dj-primary);
+  --primary-color: var(--dj-primary);
+  --btn-primary: var(--dj-primary);
+  --btn-primary-hover: var(--dj-primary-hover);
+  --bg-color: #f8fafc;
+  --text-color: var(--dj-ink);
+  --text-muted: var(--dj-muted);
+}
+
+/* ----- Hide Frappe / ERPNext chrome ----- */
+.for-login .page-card-head .app-logo + span,
+.for-login .sign-up-message,
+.for-login .login-content .form-footer a[href*="frappe"],
+.for-login .login-content .form-footer a[href*="erpnext"],
+.for-login .page-card .sign-up-message,
+footer .powered-by,
+.web-footer .powered,
+.footer-powered,
+.footer-info .powered-by-frappe,
+a[href="https://frappeframework.com"],
+a[href="https://frappe.io"],
+a[href*="erpnext.com"],
+a[href*="frappeframework.com"] {
+  display: none !important;
+}
+
+.dropdown-help .documentation-links,
+.help-links a[href*="frappe"],
+.help-links a[href*="erpnext"] {
+  display: none !important;
+}
+
+.about-content .frappe-logo,
+.about-dialog .frappe-credit {
+  display: none !important;
+}
+
+.onboarding-popover,
+.onboarding-sidebar,
+[data-fieldname="onboarding"],
+.workspace-footer .onboarding,
+.for-onboarding,
+div[id^="onboarding-"] {
+  display: none !important;
+}
+
+/* ----- Primary actions (Desk) ----- */
+.btn-primary,
+.btn.btn-primary,
+button.btn-primary,
+.page-actions .btn-primary,
+.standard-actions .btn-primary,
+.modal-footer .btn-primary,
+.form-modal .btn-primary {
+  background-color: var(--dj-primary) !important;
+  border-color: var(--dj-primary) !important;
+  color: var(--dj-on-primary) !important;
+}
+
+.btn-primary:hover,
+.btn.btn-primary:hover,
+button.btn-primary:hover,
+.btn-primary:focus,
+.btn.btn-primary:focus {
+  background-color: var(--dj-primary-hover) !important;
+  border-color: var(--dj-primary-hover) !important;
+  color: var(--dj-on-primary) !important;
+}
+
+.btn-primary-light,
+.indicator-pill.green,
+.indicator.green {
+  background-color: var(--dj-primary-container) !important;
+  color: var(--dj-primary) !important;
+}
+
+/* Links & focus */
+a,
+.btn-link {
+  --text-color: var(--dj-primary);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-control:focus,
+.input-with-feedback:focus {
+  border-color: var(--dj-primary) !important;
+  box-shadow: 0 0 0 2px var(--dj-mist) !important;
+}
+
+/* Login card brand surface — high contrast, readable brand */
+.for-login,
+.login-content {
+  background:
+    radial-gradient(120% 80% at 50% -10%, #d1e7dd 0%, var(--dj-paper) 48%, #eef5f1 100%);
+  color: var(--dj-ink);
+  min-height: 100vh;
+}
+
+.for-login .page-card {
+  border-radius: 16px;
+  border: 1px solid var(--dj-outline);
+  box-shadow: 0 10px 25px -5px rgba(15, 81, 50, 0.08);
+  color: var(--dj-ink);
+}
+
+.for-login label,
+.for-login .page-card-head,
+.for-login h4,
+.for-login .form-control {
+  color: var(--dj-ink) !important;
+}
+
+.for-login .page-card-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.for-login .page-card-head .app-logo {
+  max-height: 56px !important;
+  width: auto !important;
+  max-width: min(280px, 80vw);
+  object-fit: contain;
+}
+
+.for-login .page-card-head h4 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: var(--dj-forest) !important;
+}
+
+/* Navbar logo sizing — Open-D mark */
+.navbar .app-logo,
+.navbar-brand img,
+header .navbar img.app-logo,
+.nav-item img.app-logo,
+a.navbar-brand img,
+a.navbar-home img {
+  max-height: 28px !important;
+  width: auto !important;
+  object-fit: contain;
+}
+
+/* Desk sidebar / active accents where Frappe uses --primary */
+.desk-sidebar .selected,
+.list-row-head,
+.workspace-sidebar .item.selected,
+.standard-sidebar .selected {
+  --sidebar-select-color: var(--dj-primary-container);
+}
+
+.list-row .list-row-checkbox:checked,
+input[type="checkbox"]:checked {
+  accent-color: var(--dj-primary);
+}
+
+/* Soft brand chips */
+.dj-chip,
+.indicator-pill.blue {
+  /* don't force all blues — fund General stays blue via DocType CSS if needed */
+}
+
+/* Splash / about */
+.splash img,
+.about-content img {
+  max-width: 220px;
+}
+
+/* Hub crumb — always visible escape hatch back to Digital Jamath */
+#navbar-breadcrumbs li[data-dj-hub] a,
+.navbar .breadcrumb li[data-dj-hub] a {
+  font-weight: 600;
+  color: var(--dj-primary) !important;
+}
+
+a.navbar-brand.navbar-home,
+a.navbar-home {
+  cursor: pointer;
+}
+

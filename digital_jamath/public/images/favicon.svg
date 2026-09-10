@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Digital Jamath">
+  <!-- Canonical Open-D — traced from approved brand lockup -->
+  <path
+    d="M9.8 8H29A24 24 0 0 1 29 56H9.8"
+    stroke="#0B3D2E"
+    stroke-width="13.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+  <circle cx="15" cy="24.5" r="5.6" fill="#328E3D"/>
+  <circle cx="15" cy="39" r="5.6" fill="#0D7645"/>
+  <circle cx="28.5" cy="39" r="5.6" fill="#B18830"/>
+</svg>

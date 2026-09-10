@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "digital_jamath"
 authors = [
-    { name = "Digital Jamath", email = "info@digitaljamath.com"}
+    { name = "Digital Jamath", email = "salam@digitaljamath.com"}
 ]
 description = "Community Trust & Baitul Maal Platform for Indian Masjids, Jamaths & NGOs"
 requires-python = ">=3.10"

@@ -45,12 +45,14 @@ def record_quick_entry(
     narration_prefix = f"Quick {voucher_type} - {fund_type}"
     full_narration = f"{narration_prefix}: {notes or party_name or 'Transaction'}"
 
-    # 3. Build Journal Entry
+    # Use Journal Entry (Bank Entry requires cheque_no/cheque_date on many sites)
     je = frappe.new_doc("Journal Entry")
     je.company = company
     je.posting_date = nowdate()
-    je.voucher_type = "Receipt Entry" if voucher_type == "Receipt" else "Payment Entry"
+    je.voucher_type = "Journal Entry"
     je.user_remark = full_narration
+    je.cheque_no = f"DJ-{fund_type[:3].upper()}-{frappe.generate_hash(length=6)}"
+    je.cheque_date = nowdate()
 
     if voucher_type == "Receipt":
         # DEBIT: Bank/Cash (Asset increases)
@@ -100,24 +102,35 @@ def record_quick_entry(
 
 def get_liquid_account(company, mode_of_payment):
     """Find default Cash or Bank account for company."""
+    prefer = {
+        "Cash": ["Jumaah Cash Box", "Petty Cash"],
+        "Bank": ["Bank Account (Primary)", "Bank Account"],
+        "UPI": ["UPI Online Collections", "Bank Account (Primary)"],
+    }.get(mode_of_payment, ["Bank Account (Primary)"])
+
+    for kw in prefer:
+        account = frappe.db.get_value(
+            "Account",
+            {"company": company, "is_group": 0, "account_name": ["like", f"%{kw}%"]},
+            "name",
+        )
+        if account:
+            return account
+
     acc_type = "Cash" if mode_of_payment == "Cash" else "Bank"
-    account = frappe.db.get_value("Account", {
-        "company": company,
-        "account_type": acc_type,
-        "is_group": 0
-    }, "name")
-
+    account = frappe.db.get_value(
+        "Account",
+        {"company": company, "account_type": acc_type, "is_group": 0},
+        "name",
+    )
     if not account:
-        # Fallback to any active cash/bank asset account
-        account = frappe.db.get_value("Account", {
-            "company": company,
-            "root_type": "Asset",
-            "is_group": 0
-        }, "name")
-
+        account = frappe.db.get_value(
+            "Account",
+            {"company": company, "root_type": "Asset", "is_group": 0},
+            "name",
+        )
     if not account:
         frappe.throw(_("No active Cash or Bank account found for company {0}.").format(company))
-
     return account
 
 
@@ -125,29 +138,40 @@ def get_nominal_account(company, voucher_type, fund_type):
     """Find appropriate Income or Expense account matching Fund Type."""
     root_type = "Income" if voucher_type == "Receipt" else "Expense"
 
-    # Match by fund keyword in account name
-    query = """
-        SELECT name FROM `tabAccount`
-        WHERE company = %s
-          AND root_type = %s
-          AND is_group = 0
-          AND (name LIKE %s OR account_name LIKE %s)
-        LIMIT 1
-    """
-    fund_pattern = f"%{fund_type}%"
-    match = frappe.db.sql(query, (company, root_type, fund_pattern, fund_pattern))
+    # Preferred keywords per fund (first match wins)
+    keyword_map = {
+        "Zakat": ["Zakat"] if voucher_type == "Receipt" else ["Zakat Direct", "Zakat"],
+        "Sadaqah": ["Sadaqah", "General Donations"] if voucher_type == "Receipt" else ["Sadaqah", "Ration", "Medical"],
+        "Lillah": ["Lillah", "Sadaqah", "General Donations"] if voucher_type == "Receipt" else ["Sadaqah", "Lillah", "Ration"],
+        "Chanda": ["Chanda", "Membership"] if voucher_type == "Receipt" else ["Office", "Electricity", "Imam"],
+        "Construction": ["Construction"] if voucher_type == "Receipt" else ["Construction & Renovation Expense", "Construction"],
+        "Waqf": ["Waqf"] if voucher_type == "Receipt" else ["Waqf Asset", "Waqf"],
+        "General": ["Service & Certificate", "Membership", "General Donations"] if voucher_type == "Receipt" else ["Electricity", "Office", "Imam"],
+    }
+    keywords = keyword_map.get(fund_type, [fund_type])
 
-    if match:
-        return match[0][0]
+    for kw in keywords:
+        match = frappe.db.sql(
+            """
+            SELECT name FROM `tabAccount`
+            WHERE company = %s
+              AND root_type = %s
+              AND is_group = 0
+              AND (name LIKE %s OR account_name LIKE %s)
+            ORDER BY account_number
+            LIMIT 1
+            """,
+            (company, root_type, f"%{kw}%", f"%{kw}%"),
+        )
+        if match:
+            return match[0][0]
 
-    # Fallback to general income or expense account
-    fallback = frappe.db.get_value("Account", {
-        "company": company,
-        "root_type": root_type,
-        "is_group": 0
-    }, "name")
-
+    # Fallback to any leaf of that root type
+    fallback = frappe.db.get_value(
+        "Account",
+        {"company": company, "root_type": root_type, "is_group": 0},
+        "name",
+    )
     if not fallback:
         frappe.throw(_("No suitable {0} account found for fund type {1}.").format(root_type, fund_type))
-
     return fallback

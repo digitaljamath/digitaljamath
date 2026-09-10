@@ -1,8 +1,34 @@
-from digital_jamath.compat import frappe, Document, flt
+from digital_jamath.compat import frappe, Document, flt, _
+
 
 class JamathHousehold(Document):
+    def validate(self):
+        self._normalize_phone()
+        self._ensure_unique_phone_per_jamath()
+
     def before_save(self):
         self.calculate_zakat_eligibility()
+
+    def _normalize_phone(self):
+        import re
+
+        digits = re.sub(r"\D", "", self.phone_number or "")
+        if len(digits) >= 10:
+            self.phone_number = digits[-10:]
+
+    def _ensure_unique_phone_per_jamath(self):
+        if not self.phone_number:
+            return
+        filters = {"phone_number": self.phone_number}
+        if self.company:
+            filters["company"] = self.company
+        else:
+            filters["company"] = ["in", ["", None]]
+        for name in frappe.get_all("Jamath Household", filters=filters, pluck="name"):
+            if name != self.name:
+                frappe.throw(
+                    _("Phone {0} is already registered for this jamath.").format(self.phone_number)
+                )
 
     def calculate_zakat_eligibility(self):
         """
@@ -12,7 +38,6 @@ class JamathHousehold(Document):
         score = 0
         income = flt(self.monthly_income)
 
-        # 1. Income bracket scoring
         if income > 0 and income < 5000:
             score += 50
         elif income >= 5000 and income < 10000:
@@ -20,7 +45,6 @@ class JamathHousehold(Document):
         elif income == 0:
             score += 60
 
-        # 2. Vulnerability multipliers
         if self.has_critical_illness:
             score += 30
         if self.is_widow_household:
@@ -30,7 +54,6 @@ class JamathHousehold(Document):
 
         self.zakat_score = min(score, 100)
 
-        # Threshold for Zakat Eligibility
         if self.zakat_score >= 80:
             self.economic_status = "Zakat Eligible"
         else:

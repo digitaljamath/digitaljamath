@@ -1,134 +1,117 @@
-# Deployment Guide (Production)
+# DigitalJamath Community Edition — Deployment
 
-This guide explains how to deploy **DigitalJamath** to a production server (like Linode, DigitalOcean, or AWS EC2) using Docker.
+Frappe Framework 15 + ERPNext 15 + custom app `digital_jamath`.
 
-## 1. Initial Server Setup
-*Assumes you have a fresh Ubuntu 22.04 LTS server.*
+> **Legacy Django deploy is retired.** Do not use `docker-compose.prod.yml` under `legacy_django/` or `./setup.sh` for new installs. Frozen snapshot: `legacy_django/`, tag `v2.1.0-django-legacy`.
 
-### Step 1: Install Essentials
-SSH into your server and install Git, Docker, and Docker Compose:
+## Domains
+
+| Host | Serves |
+|------|--------|
+| `digitaljamath.com` | Astro marketing site |
+| `app.digitaljamath.com` | Frappe / ERPNext Desk |
+| `portal.digitaljamath.com` or `/portal` | Next.js member portal |
+
+Cloudflare DNS → origin; SSL Full (strict) when origin certs exist.
+
+## Prerequisites
+
+- Docker + Docker Compose
+- 2+ GB RAM recommended
+- Open ports: `8000` (Frappe), optionally `80`/`443` via host nginx
+
+## 1. Configure
+
 ```bash
-ssh root@<your-server-ip>
-sudo apt update
-sudo apt install -y git docker.io docker-compose
-```
-
----
-
-## 2. Install Project
-Clone the repository and run the setup script:
-
-```bash
-# Clone
-git clone https://github.com/azzaxp/digitaljamath.git
+git clone https://github.com/digitaljamath/digitaljamath.git
 cd digitaljamath
-
-# Configure
+git checkout dev
 cp .env.example .env
-nano .env  # MUST set DOMAIN_NAME and DATABASE_PASSWORD
 ```
 
-### Option A: Standard Setup (Pre-built Images - Recommended)
-This is the fastest way to get core services running.
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
+Set at least:
 
-### Option B: Interactive Setup (Legacy)
-```bash
-./setup.sh
-```
-
----
-
-## 3. Configuration (Critical!)
-Edit the `.env` file to match your domain and security settings:
-
-```bash
-nano .env
-```
-
-Set these values:
 ```env
-# Security
-SECRET_KEY=change-this-to-something-secure
-DEBUG=False
-ALLOWED_HOSTS=.digitaljamath.com  # Start with dot for wildcard support
-
-# Domain
-DOMAIN_NAME=digitaljamath.com
-
-# Database (Strong Password)
-DATABASE_PASSWORD=YourStrongPasswordHere
-
-# Email (Brevo)
-BREVO_EMAIL_USER=your-email
-BREVO_SMTP_KEY=your-smtp-key
+SITE_NAME=app.digitaljamath.com
+MYSQL_ROOT_PASSWORD=...
+ADMIN_PASSWORD=...
 ```
 
-### Apply Changes
-If you edit `.env` after running setup, restart containers:
+## 2. Start stack
+
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker compose up -d
+bash scripts/frappe_bootstrap.sh
 ```
 
----
+Bootstrap will:
 
-## 4. DNS Configuration (Cloudflare)
-The platform runs on **two subdomains**:
+1. Wait for MariaDB
+2. `bench new-site` (if missing)
+3. Install `erpnext` + `digital_jamath`
+4. Seed Fund Types via `after_install`
 
-- `digitaljamath.com` (apex + `www`) — public marketing site
-- `app.digitaljamath.com` — unified SaaS entry point (admin login + member portal). Tenant context is resolved from the JWT, not from the subdomain.
+## 3. Masjid chart of accounts
 
-Add these records in Cloudflare DNS:
-
-| Type | Name | Content | Proxy |
-|------|------|---------|-------|
-| A | `@` | `<Your-Server-IP>` | **Proxied** (Orange Cloud) |
-| A | `www` | `<Your-Server-IP>` | **Proxied** (Orange Cloud) |
-| A | `app` | `<Your-Server-IP>` | **Proxied** (Orange Cloud) |
-
-> Per-jamath subdomains (`*.digitaljamath.com`) are no longer supported. Existing tenant subdomain bookmarks 301-redirect to `app.digitaljamath.com<path>`.
-
-### SSL/TLS Setting
-Run `certbot --nginx` on the origin for `app.digitaljamath.com`, `digitaljamath.com`, and `www.digitaljamath.com`, then set Cloudflare **SSL/TLS → Overview → Full (strict)**. Make sure the origin nginx server blocks listen on **both 80 and 443** without an HTTP→HTTPS redirect — otherwise Cloudflare in Flexible mode (port-80 fetch) will hit a redirect loop.
-
----
-
-## 5. Verification
-Wait 1-2 minutes for DNS to propagate.
-
-1. **Marketing**: Visit `https://digitaljamath.com` → Next.js landing.
-2. **App (admin login)**: Visit `https://app.digitaljamath.com` → React SPA.
-3. **Admin Panel**: Visit `https://app.digitaljamath.com/admin/`.
-4. **Old subdomain redirect**: Visit `https://anything.digitaljamath.com/foo` → 301 to `https://app.digitaljamath.com/foo`.
-
----
-
-## 6. Maintenance Commands
-
-### Create Superuser
 ```bash
-docker-compose exec web python manage.py createsuperuser
+docker compose exec backend bench --site "$SITE_NAME" \
+  execute digital_jamath.scripts.seed_coa.run
 ```
 
-### View Logs
+Or from host:
+
 ```bash
-# All logs
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f web
-docker-compose logs -f frontend
+bash scripts/seed_masjid_coa.sh
 ```
 
-### Safe Update (Recommended)
-This script will pull the latest code, rebuild containers, and run migrations **without** deleting your data.
+## 4. Nginx (host) sketch for `app.`
+
+```nginx
+server {
+  server_name app.digitaljamath.com;
+  location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+## 5. Member portal
+
+Point Next.js `NEXT_PUBLIC_FRAPPE_URL` at this site (see `digitaljamath-website`). Portal OTP methods:
+
+- `/api/method/digital_jamath.portal.auth.send_otp`
+- `/api/method/digital_jamath.portal.auth.verify_otp`
+
+## 6. Cloud (multi-tenant)
+
+One **Frappe site per jamath**. Provision helper:
+
 ```bash
-cd ~/workspace/digitaljamath
-./deploy.sh
+bash scripts/cloud/provision_site.sh jamath-slug admin@example.com
 ```
 
-### Automated Updates
-This project relies on GitHub Actions. Pushing to `main` will automatically deploy updates to the server safely.
+Billing hooks: `scripts/cloud/billing_stub.md`.
 
+## 7. Staging cutover from legacy Django (dj-server)
+
+1. `pg_dump` → `~/backups/django-legacy-YYYYMMDD/`
+2. Stop legacy web/frontend containers (keep Postgres volumes)
+3. Pull `dev`, `docker compose up -d`, run bootstrap
+4. Repoint `app.digitaljamath.com` upstream to `:8000`
+
+## Maintenance
+
+```bash
+docker compose logs -f backend
+docker compose exec backend bench --site "$SITE_NAME" migrate
+docker compose pull && docker compose up -d
+```
+
+## Security notes
+
+- Never commit real `.env` passwords
+- Rotate `ADMIN_PASSWORD` and MariaDB root after first login
+- Staging OTP SMS is stubbed; wire a provider before production Cloud

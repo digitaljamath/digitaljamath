@@ -5,10 +5,10 @@ with open("requirements.txt") as f:
 
 setup(
     name="digital_jamath",
-    version="3.0.0",
+    version="0.1.0",
     description="Community Trust & Baitul Maal Platform for Indian Masjids, Jamaths & NGOs",
     author="Digital Jamath",
-    author_email="info@digitaljamath.com",
+    author_email="salam@digitaljamath.com",
     packages=find_packages(),
     zip_safe=False,
     include_package_data=True,

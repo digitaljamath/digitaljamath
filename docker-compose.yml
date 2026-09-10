@@ -1,4 +1,4 @@
-name: digitaljamath
+name: digitaljamath-ce
 
 services:
   backend:
@@ -8,12 +8,17 @@ services:
         condition: on-failure
     volumes:
       - sites:/home/frappe/frappe-bench/sites
+      # Named volume so host nginx can serve /assets (image otherwise uses anonymous VOLUME)
+      - assets:/home/frappe/frappe-bench/sites/assets
       - ./digital_jamath:/home/frappe/frappe-bench/apps/digital_jamath
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
       - REDIS_CACHE=redis-cache:6379
       - REDIS_QUEUE=redis-queue:6379
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "8000:8000"
     depends_on:
@@ -27,21 +32,21 @@ services:
   mariadb:
     image: mariadb:11.4
     environment:
-      - MYSQL_ROOT_PASSWORD=digitaljamath_admin
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-digitaljamath_admin}
+      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-digitaljamath_admin}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-character-set-client-handshake
-      - --innodb-file-format=Barracuda
       - --innodb-file-per-table=1
-      - --innodb-large-prefix=1
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pdigitaljamath_admin"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
 
   redis-cache:
     image: redis:7-alpine
@@ -58,3 +63,4 @@ volumes:
   redis-cache-data:
   redis-queue-data:
   sites:
+  assets:
