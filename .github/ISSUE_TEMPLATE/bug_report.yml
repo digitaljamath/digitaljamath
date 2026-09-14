@@ -1,0 +1,58 @@
+name: Bug report
+description: Something is broken in Desk, committee console, portal APIs, or docs.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Demo Desk: `demo@digitaljamath.com` / `Experience@DJ1`.
+        Portal demo: phone `9876543210`, OTP `123456`.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Committee Desk (Frappe / ERPNext)
+        - Committee console (/jamath)
+        - Member portal / OTP APIs
+        - Docker / bootstrap / deploy
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Clear description of the bug.
+      placeholder: When I submit a Payment Entry with Fund Type Zakat...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See error ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / environment
+      description: Tag (e.g. v0.1.0), branch, self-host or Cloud demo.
+      placeholder: v0.1.0 · Docker · Chrome
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste bench errors or attach screenshots. Redact secrets.
