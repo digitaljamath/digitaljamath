@@ -2,6 +2,8 @@
 
 | Doc | Audience | What it covers |
 |-----|----------|----------------|
+| **[CONTRIBUTING.md](../CONTRIBUTING.md)** | Contributors | Setup, tracks, good first issues, PR rules |
+| **[CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)** | Everyone | Community standards |
 | **[FEATURES.md](FEATURES.md)** | Committees + contributors | Every product feature, surface, and DocType |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Engineers | Surfaces, tenancy, data flow |
 | **[OPS_APP_PLAN.md](OPS_APP_PLAN.md)** | Product | Committee console (Ops) vs Advanced Desk |

@@ -195,13 +195,15 @@ legacy_django/      # Frozen Django snapshot (tag v2.1.0-django-legacy)
 
 ## Contributing
 
-Want to help? Use GitHub:
+We want first-time and domain contributors. Start here:
 
-- [Contribute](https://github.com/digitaljamath/digitaljamath) (prefer PRs against `dev`)
-- [Raise an issue](https://github.com/digitaljamath/digitaljamath/issues/new) for features and bugs
-- Star the repo if it helps your jamath
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — setup, tracks, PR rules
+- **[Good first issues](https://github.com/digitaljamath/digitaljamath/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** — small, scoped tasks
+- **[Discussions](https://github.com/digitaljamath/digitaljamath/discussions)** — questions and ideas
+- Prefer PRs against **`dev`**
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
-Welcome: Frappe/Python, portal (Next.js), Astro content, Shariah review, and translations.
+Welcome: Frappe/Python, committee-ui (React), portal (Next.js), Astro content, Shariah review, and translations.
 
 `legacy_django/` is read-only.
 
