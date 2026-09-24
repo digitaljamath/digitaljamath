@@ -2,7 +2,7 @@
 
 Frappe Framework 15 + ERPNext 15 + custom app `digital_jamath`.
 
-> **Legacy Django deploy is retired.** Do not use `docker-compose.prod.yml` under `legacy_django/` or `./setup.sh` for new installs. Frozen snapshot: `legacy_django/`, tag `v2.1.0-django-legacy`.
+> **Legacy Django deploy is retired.** The old Django code lives only on the frozen [`legacy`](https://github.com/digitaljamath/digitaljamath/tree/legacy) branch (tag `v2.1.0-django-legacy`). Do not use its `docker-compose.prod.yml` or `./setup.sh` for new installs.
 
 ## Domains
 

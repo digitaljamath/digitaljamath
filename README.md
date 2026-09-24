@@ -183,7 +183,6 @@ committee-ui/       # Committee console SPA (builds into digital_jamath/public/c
 docker-compose.yml  # MariaDB + Redis + ERPNext + app
 scripts/            # Bootstrap, COA, cloud helpers
 docs/               # FEATURES, architecture, licensing, screenshots
-legacy_django/      # Frozen Django snapshot (tag v2.1.0-django-legacy)
 ```
 
 | Sibling | Role |
@@ -205,7 +204,7 @@ We want first-time and domain contributors. Start here:
 
 Welcome: Frappe/Python, committee-ui (React), portal (Next.js), Astro content, Shariah review, and translations.
 
-`legacy_django/` is read-only.
+The retired Django codebase is on the read-only [`legacy`](https://github.com/digitaljamath/digitaljamath/tree/legacy) branch.
 
 ---
 
