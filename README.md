@@ -114,7 +114,7 @@ Community Edition is the full product. Cloud pays for servers, backups, and onbo
 | **Committee Desk** | [app.digitaljamath.com/login](https://app.digitaljamath.com/login) → `demo@digitaljamath.com` / `Experience@DJ1` |
 | **Member portal** | [digitaljamath.com/portal/login](https://digitaljamath.com/portal/login) → phone `9876543210`, OTP `123456` |
 
-Demo data resets every night (IST). Ready for your jamath? [Start a free 3-month Cloud pilot](https://digitaljamath.com/cloud#signup-form) — no credit card.
+Demo data resets every night (IST). Ready for your jamath? [Start a free 3-month Cloud pilot](https://digitaljamath.com/cloud#signup-form). No credit card.
 
 ---
 
@@ -126,7 +126,7 @@ Demo data resets every night (IST). Ready for your jamath? [Start a free 3-month
 | Who runs it | You (Docker / your VPS) | We host and onboard |
 | Software | Full modules | Same app |
 | Data | Yours. Export anytime | Yours. Leave for CE whenever |
-| Billing unit | — | Household = primary + family |
+| Billing unit | None | Household = primary + family |
 
 After pilot: Small ₹999 (≤150 households) · Growth ₹1,999 · Community ₹3,499 · Ummah custom.
 
@@ -143,7 +143,7 @@ docker compose up -d
 bash scripts/frappe_bootstrap.sh
 ```
 
-Open Desk from `.env` (default port `8000`). Seed the masjid chart of accounts:
+Open Desk at http://localhost:8000 (port mapped in `docker-compose.yml`). Seed the masjid chart of accounts:
 
 ```bash
 bash scripts/seed_masjid_coa.sh
@@ -197,9 +197,9 @@ legacy_django/      # Frozen Django snapshot (tag v2.1.0-django-legacy)
 
 We want first-time and domain contributors. Start here:
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — setup, tracks, PR rules
-- **[Good first issues](https://github.com/digitaljamath/digitaljamath/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)** — small, scoped tasks
-- **[Discussions](https://github.com/digitaljamath/digitaljamath/discussions)** — questions and ideas
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: setup, tracks, PR rules
+- **[Good first issues](https://github.com/digitaljamath/digitaljamath/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)**: small, scoped tasks
+- **[Discussions](https://github.com/digitaljamath/digitaljamath/discussions)**: questions and ideas
 - Prefer PRs against **`dev`**
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 

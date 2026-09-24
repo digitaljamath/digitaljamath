@@ -35,7 +35,7 @@ bash scripts/frappe_bootstrap.sh
 bash scripts/seed_masjid_coa.sh
 ```
 
-Desk defaults to port `8000` (see `.env`). Full notes: [DEPLOYMENT.md](DEPLOYMENT.md).
+Desk runs at http://localhost:8000 (port mapped in `docker-compose.yml`). Full notes: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Committee console (`/jamath`)
 
