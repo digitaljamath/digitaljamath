@@ -36,4 +36,4 @@ Desk stays Advanced mode; do not rebuild GL in the SPA.
 
 ## Legacy
 
-Django + React SPA + `django-tenants` schemas are frozen under `legacy_django/` (tag `v2.1.0-django-legacy`).
+Django + React SPA + `django-tenants` schemas are frozen on the [`legacy`](https://github.com/digitaljamath/digitaljamath/tree/legacy) branch (tag `v2.1.0-django-legacy`). Data moves across with `scripts/migrate_django_to_frappe.py`.

@@ -15,7 +15,7 @@ We review pull requests on a best-effort basis, usually within a few days. Prefe
 | **Docs & i18n** | `docs/`, UI strings | Writing, Urdu / Malayalam / Arabic / Tamil |
 | **Domain review** | issues labeled `help wanted` | Shariah, 80G / Form 10BD, jamath ops |
 
-`legacy_django/` is a frozen snapshot. Do not send PRs against it.
+The retired Django codebase is on the frozen [`legacy`](https://github.com/digitaljamath/digitaljamath/tree/legacy) branch. Do not send PRs against it.
 
 ## Before you code
 
