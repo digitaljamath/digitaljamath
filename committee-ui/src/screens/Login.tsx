@@ -17,6 +17,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(120%_80%_at_50%_-10%,#d1e7dd_0%,#f7faf8_48%,#eef5f1_100%)] p-4">
       <form
         className="w-full max-w-sm space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+        aria-labelledby="login-heading"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -36,7 +37,7 @@ export default function Login() {
             alt="digitaljamath"
             className="mx-auto h-10 object-contain"
           />
-          <h1 className="mt-4 text-lg font-semibold text-brand-700">Committee sign in</h1>
+          <h1 id="login-heading" className="mt-4 text-lg font-semibold text-brand-700">Committee sign in</h1>
           <p className="mt-1 text-sm text-zinc-500">Same login as Desk</p>
         </div>
         <div>
@@ -51,6 +52,8 @@ export default function Login() {
             onChange={(e) => setUsr(e.target.value)}
             placeholder="trustee@masjid.org"
             required
+            aria-invalid={!!error}
+            aria-describedby={error ? "login-error" : undefined}
           />
         </div>
         <div>
@@ -64,9 +67,15 @@ export default function Login() {
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
             required
+            aria-invalid={!!error}
+            aria-describedby={error ? "login-error" : undefined}
           />
         </div>
-        {error ? <p className="text-xs text-red-600">{error}</p> : null}
+        {error ? (
+          <p id="login-error" role="alert" className="text-xs text-red-600">
+            {error}
+          </p>
+        ) : null}
         <Button type="submit" className="w-full" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </Button>
