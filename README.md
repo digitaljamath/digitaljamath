@@ -204,7 +204,7 @@ We want first-time and domain contributors. Start here:
 
 Welcome: Frappe/Python, committee-ui (React), portal (Next.js), Astro content, Shariah review, and translations.
 
-The retired Django codebase is on the read-only [`legacy`](https://github.com/digitaljamath/digitaljamath/tree/legacy) branch.
+The retired Django codebase is on the read-only [`legacy`](https://github.com/digitaljamath/digitaljamath/tree/legacy) branch. You do not need it; see [LEGACY.md](LEGACY.md).
 
 ---
 
