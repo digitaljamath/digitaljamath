@@ -1,3 +1,10 @@
+> [!WARNING]
+> **This is the frozen `legacy` branch: the retired Django + React (django-tenants) Digital Jamath.**
+> It is kept for reference and data migration only. It receives no fixes, and pull requests against it are closed.
+> Active development is the Frappe/ERPNext app on [`main`](https://github.com/digitaljamath/digitaljamath/tree/main) / [`dev`](https://github.com/digitaljamath/digitaljamath/tree/dev).
+> To move data from here to the new app, use `scripts/migrate_django_to_frappe.py` on `main`.
+> Final release tag: `v2.1.0-django-legacy`.
+
 <p align="center">
   <img src="frontend/public/logo.png" alt="DigitalJamath" width="180" />
 </p>
